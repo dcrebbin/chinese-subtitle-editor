@@ -30,6 +30,8 @@ type OverlayStore = {
     }) => void;
     file: File | null;
     setFile: (file: File | null) => void;
+    selectedTab: "editor" | "render";
+    setSelectedTab: (selectedTab: "editor" | "render") => void;
   };
 };
 
@@ -47,6 +49,7 @@ const overlayStore = create<OverlayStore>((set) => ({
     jsonData: {},
     videoDimensions: { width: 1920, height: 1080 },
     file: null,
+    selectedTab: "editor",
   } as OverlayStore["overlay"],
 }));
 

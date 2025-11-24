@@ -19,6 +19,7 @@ import {
 } from "../../utilities/rendering";
 import { useSessionStore } from "@/app/store/session.store";
 import { setOverlayState, useOverlayStore } from "@/app/store/overlay.store";
+import VideoTabs from "./video-tabs";
 
 export const defaultCellSize = 70;
 export const defaultEnglishFontSize = 24;
@@ -85,12 +86,6 @@ export default function OverlayPage() {
     const parsedSubtitles = parseSrt(session.srtContent);
     console.log("Starting conversion");
     setOverlayState({ isLoading: true });
-    const watermark = new Image();
-    watermark.src = "/watermark.png";
-    await new Promise((resolve) => {
-      watermark.onload = resolve;
-    });
-
     const blob = new Blob([overlay.file ?? ""], {
       type: overlay.file?.type ?? "",
     });
@@ -142,6 +137,7 @@ export default function OverlayPage() {
       videoRef.current.load(); // triggers metadata load
     }
     console.log("Output URL set");
+    setOverlayState({ selectedTab: "render" });
   }
 
   function handleDownload() {
@@ -311,8 +307,7 @@ export default function OverlayPage() {
                 caption,
                 currentX,
                 rowY,
-                rendererSizeMultiplier,
-                false
+                rendererSizeMultiplier
               );
               currentX += cellSize;
             }
@@ -363,13 +358,15 @@ export default function OverlayPage() {
     });
   }
 
-  return (
-    <div className="w-full h-[92vh] flex-col font-sans flex items-center text-white bg-red-500">
-      <h1>Overlay Test</h1>
-      <div className="flex gap-2 w-120 h-8 my-4">
+  const videoOverlayContent = (
+    <div
+      className="flex flex-col gap-4 w-full"
+      style={{ display: overlay.selectedTab === "editor" ? "flex" : "none" }}
+    >
+      <div className="flex gap-2 w-full h-8 my-4">
         <input
           type="text"
-          className="w-full rounded-2xl p-2 text-black"
+          className="w-full rounded-2xl p-2 text-black bg-white"
           value={overlay.loadedVideoId || ""}
           onChange={(e) => setOverlayState({ loadedVideoId: e.target.value })}
         />
@@ -381,8 +378,7 @@ export default function OverlayPage() {
           Load
         </button>
       </div>
-
-      <div className="flex gap-4 mb-4">
+      <div className="flex gap-4 w-full mb-4">
         <button
           className="bg-blue-600 cursor-pointer hover:bg-blue-700 rounded-2xl p-2 font-semibold"
           type="button"
@@ -403,8 +399,7 @@ export default function OverlayPage() {
           Draw Canvas (With Video)
         </button>
       </div>
-
-      <div className="flex flex-col gap-2 w-160">
+      <div className="flex flex-col w-full gap-2">
         <p className="text-sm">Size Multiplier: {overlay.sizeMultiplier}x</p>
         <input
           className="w-full"
@@ -419,61 +414,45 @@ export default function OverlayPage() {
             });
           }}
         />
-        <p className="text-sm">Lyric Offset: {overlay.lyricOffset}s </p>
-        <input
-          className="w-full"
-          type="range"
-          step={0.5}
-          min={-100}
-          max={100}
-          value={overlay.lyricOffset}
-          onChange={(e) => {
-            const newValue = Number.parseFloat(e.target.value);
-            setOverlayState({ lyricOffset: newValue });
-          }}
-        />
       </div>
-
-      <div className="flex gap-4 flex-row justify-center items-center relative">
-        <div className="flex flex-col gap-2 relative justify-center items-center w-200 h-120 rounded-2xl drop-shadow-md border-2 border-white">
-          <video
-            ref={previewVideoRef}
-            style={{
-              display: overlay.previewUrl ? "block" : "none",
+      <div className="flex flex-col gap-2 relative justify-center items-center w-full h-200 rounded-2xl drop-shadow-md border-2 border-white">
+        <video
+          ref={previewVideoRef}
+          style={{
+            display: overlay.previewUrl ? "block" : "none",
+          }}
+          className="absolute top-0 left-0 w-auto h-190 self-center justify-self-center rounded-t-2xl anchor-center"
+          src={overlay.previewUrl || undefined}
+          crossOrigin="anonymous"
+          controls
+        >
+          <track kind="captions" src={undefined} />
+        </video>
+        <canvas
+          className="absolute top-0 left-0 rounded-2xl w-full h-full self-center justify-self-center anchor-center"
+          ref={canvasRef}
+        />
+        <div className="flex flex-col gap-2 w-full absolute bottom-0 pt-20">
+          <p className="text-sm">Time Position: {overlay.currentTime}s </p>
+          <input
+            className="w-full"
+            type="range"
+            min={0}
+            max={174}
+            ref={currentTimeRef}
+            value={overlay.currentTime}
+            onChange={(e) => {
+              const newValue = Number.parseInt(e.target.value);
+              setOverlayState({ currentTime: newValue });
             }}
-            className="absolute top-0 left-0 w-auto h-120 self-center justify-self-center anchor-center"
-            src={overlay.previewUrl || undefined}
-            crossOrigin="anonymous"
-            controls
-          >
-            <track kind="captions" src={undefined} />
-          </video>
-          <canvas
-            className="absolute top-0 left-0 w-auto h-120 self-center justify-self-center anchor-center"
-            ref={canvasRef}
           />
-          <div className="flex flex-col gap-2 w-full absolute bottom-0">
-            <p className="text-sm">Time Position: {overlay.currentTime}s </p>
-            <input
-              className="w-full"
-              type="range"
-              min={0}
-              max={174}
-              ref={currentTimeRef}
-              value={overlay.currentTime}
-              onChange={(e) => {
-                const newValue = Number.parseInt(e.target.value);
-                setOverlayState({ currentTime: newValue });
-              }}
-            />
-          </div>
         </div>
-        <div className="flex flex-col gap-2 rotate-90 absolute right-[-35%] w-[60%]">
+        <div className="flex flex-col gap-2 rotate-90 absolute w-[55%] -right-[25%]">
           <p className="text-sm">
             Vertical Position (Y-Axis): {overlay.verticalPosition}px
           </p>
           <input
-            className="w-full"
+            className="w-full cursor-pointer"
             type="range"
             min={0}
             max={3000}
@@ -490,7 +469,7 @@ export default function OverlayPage() {
         <input
           type="file"
           accept="video/*"
-          className="text-white"
+          className="text-white cursor-pointer border-2 border-white rounded-2xl p-2"
           onChange={(e) => {
             console.log("File changed");
             const selectedFile = e.target.files?.[0];
@@ -562,13 +541,30 @@ export default function OverlayPage() {
           </button>
         </div>
       </div>
+    </div>
+  );
 
-      <div className="h-160 m-6 w-auto rounded-2xl drop-shadow-md">
+  return (
+    <div className="w-full h-[92vh] flex-col font-sans flex items-center text-white bg-red-500">
+      <VideoTabs />
+      {videoOverlayContent}
+      <div
+        className="h-340 m-6 w-full bg-black drop-shadow-md flex flex-col gap-2 items-center justify-start"
+        style={{ opacity: overlay.selectedTab === "render" ? 1 : 0 }}
+      >
         {overlay.outputUrl && (
-          <video className="w-full h-full rounded-2xl" ref={videoRef} controls>
+          <video className="rounded-2xl w-auto h-190" ref={videoRef} controls>
             <track kind="captions" src={undefined} />
           </video>
         )}
+        <button
+          type="button"
+          className="bg-purple-600 cursor-pointer hover:bg-purple-700 rounded-2xl p-2 font-semibold disabled:bg-gray-600 disabled:cursor-not-allowed"
+          onClick={handleDownload}
+          disabled={!overlay.outputUrl}
+        >
+          Download
+        </button>
       </div>
     </div>
   );

@@ -11,6 +11,10 @@ import { getOverlayState, setOverlayState } from "../store/overlay.store";
 import { getSessionState } from "../store/session.store";
 
 export function handleDrawCanvas(canvas: HTMLCanvasElement, time: number) {
+  if (!canvas) {
+    return;
+  }
+
   const overlay = getOverlayState().overlay;
   const session = getSessionState().session;
   const rendererSizeMultiplier = overlay.sizeMultiplier / 2;
@@ -19,6 +23,29 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, time: number) {
     parsedSubtitles,
     time + overlay.lyricOffset
   );
+
+  const targetWidth =
+    overlay.videoDimensions?.width || Math.floor(canvas.clientWidth) || 1920;
+  const targetHeight =
+    overlay.videoDimensions?.height || Math.floor(canvas.clientHeight) || 1080;
+
+  if (canvas.width !== targetWidth) {
+    canvas.width = targetWidth;
+  }
+  if (canvas.height !== targetHeight) {
+    canvas.height = targetHeight;
+  }
+
+  const ctx = canvas.getContext("2d") as
+    | CanvasRenderingContext2D
+    | OffscreenCanvasRenderingContext2D;
+
+  if (!ctx) {
+    return;
+  }
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
   if (subtitle) {
     const cantonese = subtitle.text.split("(yue)")[1].split("(en)")[0].trim();
     const transliteratedText = transliterateCaptions(cantonese, true, {});
@@ -37,11 +64,9 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, time: number) {
 
     const cellSize = (defaultCellSize * overlay.sizeMultiplier) / 2 - 5;
     let currentTopY = topMargin;
-    const ctx = canvas.getContext("2d") as
-      | CanvasRenderingContext2D
-      | OffscreenCanvasRenderingContext2D;
 
     if (english) {
+      ctx.save();
       ctx.fillStyle = "black";
       ctx.font = `${24 * rendererSizeMultiplier}px Arial`;
       ctx.textAlign = "center";
@@ -179,6 +204,7 @@ export const drawCharacterCell = (
   sizeMultiplier: number
 ) => {
   if (!ctx) return;
+  console.log(`drawing character cell ${caption.chinese}`);
   const extractedTone = caption.jyutping.match(/[1-9]/);
   const tone = extractedTone ? extractedTone[0] : "";
   const segment = toneToSegment(Number.parseInt(tone));
@@ -350,8 +376,7 @@ export async function convertCanvas(
                     caption,
                     currentX,
                     rowY,
-                    rendererSizeMultiplier,
-                    false
+                    rendererSizeMultiplier
                   );
                   currentX += cellSize;
                 }
