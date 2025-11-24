@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { SessionStore } from "./session.store";
 
 type OverlayStore = {
   overlay: {
@@ -24,14 +23,15 @@ type OverlayStore = {
     jsonData: Record<string, unknown>;
     setJsonData: (jsonData: Record<string, unknown>) => void;
     videoDimensions: { width: number; height: number };
-    setVideoDimensions: (videoDimensions: {
-      width: number;
-      height: number;
-    }) => void;
+    setVideoDimensions: (videoDimensions: { width: number; height: number }) => void;
     file: File | null;
+    videoLength: number;
+    setVideoLength: (videoLength: number) => void;
     setFile: (file: File | null) => void;
     selectedTab: "editor" | "render";
     setSelectedTab: (selectedTab: "editor" | "render") => void;
+    isLandscapeMode: boolean;
+    setIsLandscapeMode: (isLandscapeMode: boolean) => void;
   };
 };
 
@@ -49,7 +49,9 @@ const overlayStore = create<OverlayStore>((set) => ({
     jsonData: {},
     videoDimensions: { width: 1920, height: 1080 },
     file: null,
+    videoLength: 100,
     selectedTab: "editor",
+    isLandscapeMode: true,
   } as OverlayStore["overlay"],
 }));
 

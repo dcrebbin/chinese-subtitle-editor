@@ -1,16 +1,10 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+import { ALL_FORMATS, BlobSource, BufferTarget, Input, Mp4OutputFormat, Output } from "mediabunny";
+
 import { setOverlayState, useOverlayStore } from "@/app/store/overlay.store";
 import { useSessionStore } from "@/app/store/session.store";
-import {
-  ALL_FORMATS,
-  BlobSource,
-  BufferTarget,
-  Input,
-  Mp4OutputFormat,
-  Output,
-} from "mediabunny";
-import { useEffect, useRef } from "react";
 import { defaultCellSize } from "../../utilities/constants";
 import {
   convertCanvas,
@@ -57,17 +51,6 @@ export default function OverlayPage() {
     format: format,
   });
 
-  useEffect(() => {
-    if (previewVideoRef.current) {
-      previewVideoRef.current.addEventListener("play", () =>
-        setOverlayState({ isPlaying: true })
-      );
-      previewVideoRef.current.addEventListener("pause", () =>
-        setOverlayState({ isPlaying: false })
-      );
-    }
-  }, [previewVideoRef]);
-
   async function handleUpload() {
     if (!overlay.file) {
       alert("No file selected");
@@ -86,10 +69,7 @@ export default function OverlayPage() {
     const blobSource = new BlobSource(blob);
     const input = new Input({ source: blobSource, formats: ALL_FORMATS });
 
-    const ctx:
-      | CanvasRenderingContext2D
-      | OffscreenCanvasRenderingContext2D
-      | null = null;
+    const ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
     const conversion = await convertCanvas(
       overlay.verticalPosition,
       overlay.sizeMultiplier,
@@ -97,7 +77,7 @@ export default function OverlayPage() {
       output,
       parsedSubtitles,
       ctx,
-      overlay.lyricOffset
+      overlay.lyricOffset,
     );
 
     await conversion?.execute().catch((error) => {
@@ -145,25 +125,6 @@ export default function OverlayPage() {
     a.click();
   }
 
-  function handleQuickPreview() {
-    if (!overlay.file) {
-      alert("Please select a video file first");
-      return;
-    }
-
-    const url = URL.createObjectURL(overlay.file);
-    setOverlayState({ previewUrl: url });
-
-    setTimeout(() => {
-      if (previewVideoRef.current) {
-        previewVideoRef.current.currentTime = overlay.currentTime;
-        previewVideoRef.current.onloadeddata = () => {
-          drawVideoFrameWithOverlay();
-        };
-      }
-    }, 100);
-  }
-
   function drawVideoFrameWithOverlay() {
     if (!canvasRef.current || !previewVideoRef.current) return;
 
@@ -180,28 +141,22 @@ export default function OverlayPage() {
     const parsedSubtitles = parseSrt(session.srtContent);
     const validSubtitles = parsedSubtitles.filter(
       (sub): sub is typeof sub & { startTime: number; endTime: number } =>
-        sub.startTime !== null && sub.endTime !== null
+        sub.startTime !== null && sub.endTime !== null,
     );
 
     const subtitle = validSubtitles.find(
       (sub) =>
         overlay.currentTime + overlay.lyricOffset >= sub.startTime &&
-        overlay.currentTime + overlay.lyricOffset <= sub.endTime
+        overlay.currentTime + overlay.lyricOffset <= sub.endTime,
     );
 
     if (subtitle) {
-      const cantonese = subtitle.text
-        .split("(yue)")[1]
-        ?.split("(en)")[0]
-        ?.trim();
+      const cantonese = subtitle.text.split("(yue)")[1]?.split("(en)")[0]?.trim();
       const english = subtitle.text.split("(en)")[1]?.trim();
 
       if (cantonese) {
         const transliteratedText = transliterateCaptions(cantonese, true, {});
-        const transliterationMap = retrieveChineseRomanizationMap(
-          transliteratedText,
-          cantonese
-        );
+        const transliterationMap = retrieveChineseRomanizationMap(transliteratedText, cantonese);
         const rows = updateTransliterationRows(transliterationMap);
 
         const rendererSizeMultiplier = overlay.sizeMultiplier / 2;
@@ -231,8 +186,7 @@ export default function OverlayPage() {
           let currentLine = "";
 
           for (const word of words) {
-            const testLine =
-              currentLine.length === 0 ? word : `${currentLine} ${word}`;
+            const testLine = currentLine.length === 0 ? word : `${currentLine} ${word}`;
             const metrics = ctx.measureText(testLine);
 
             if (metrics.width > maxWidth && currentLine.length > 0) {
@@ -247,9 +201,7 @@ export default function OverlayPage() {
             lines.push(currentLine);
           }
 
-          const longestLineWidth = Math.max(
-            ...lines.map((line) => ctx.measureText(line).width)
-          );
+          const longestLineWidth = Math.max(...lines.map((line) => ctx.measureText(line).width));
           const totalTextHeight = lines.length * lineHeight;
 
           const bgWidth = longestLineWidth + paddingX * 2;
@@ -262,20 +214,12 @@ export default function OverlayPage() {
 
           ctx.fillStyle = "black";
           for (const [index, line] of lines.entries()) {
-            ctx.fillText(
-              line,
-              canvas.width / 2,
-              englishY + paddingY + index * lineHeight
-            );
+            ctx.fillText(line, canvas.width / 2, englishY + paddingY + index * lineHeight);
           }
 
           ctx.restore();
 
-          currentTopY =
-            englishY +
-            totalTextHeight +
-            paddingY * 2 +
-            spacingBetweenTextAndChars;
+          currentTopY = englishY + totalTextHeight + paddingY * 2 + spacingBetweenTextAndChars;
         }
 
         const chineseStartY = currentTopY;
@@ -296,13 +240,7 @@ export default function OverlayPage() {
             if (caption.chinese === " " || caption.chinese === "") {
               currentX += cellSize / 3;
             } else {
-              drawCharacterCell(
-                ctx,
-                caption,
-                currentX,
-                rowY,
-                rendererSizeMultiplier
-              );
+              drawCharacterCell(ctx, caption, currentX, rowY, rendererSizeMultiplier);
               currentX += cellSize;
             }
           }
@@ -314,7 +252,7 @@ export default function OverlayPage() {
   useEffect(() => {
     if (currentTimeRef.current && !overlay.isPlaying) {
       console.log(
-        `current time ${overlay.currentTime} | vertical position ${overlay.verticalPosition} | default cell size ${defaultCellSize} | size multiplier ${overlay.sizeMultiplier}`
+        `current time ${overlay.currentTime} | vertical position ${overlay.verticalPosition} | default cell size ${defaultCellSize} | size multiplier ${overlay.sizeMultiplier}`,
       );
       const time = Number.parseFloat(currentTimeRef.current.value);
       setOverlayState({ currentTime: time + overlay.lyricOffset });
@@ -334,13 +272,10 @@ export default function OverlayPage() {
       return;
     }
     const videoId = getVideoIdFromUrl(overlay.loadedVideoId);
-    const customSubtitlesResponse = await fetch(
-      `https://www.langpal.com.hk/api/subtitles`,
-      {
-        method: "POST",
-        body: JSON.stringify({ youtube_id: videoId, retrieve_backup: true }),
-      }
-    );
+    const customSubtitlesResponse = await fetch(`https://www.langpal.com.hk/api/subtitles`, {
+      method: "POST",
+      body: JSON.stringify({ youtube_id: videoId, retrieve_backup: true }),
+    });
     if (!customSubtitlesResponse.ok) {
       alert("Failed to load video subtitles");
       return;
@@ -352,48 +287,56 @@ export default function OverlayPage() {
     });
   }
 
+  var updatePreviewTimeout: NodeJS.Timeout | null = null;
+
+  function startUpdatePreview() {
+    if (!previewVideoRef.current) return;
+    previewVideoRef.current.play();
+    if (updatePreviewTimeout) {
+      clearTimeout(updatePreviewTimeout);
+    } else {
+      updatePreviewTimeout = setTimeout(() => {
+        drawVideoFrameWithOverlay();
+      }, 250);
+    }
+  }
+
+  function stopUpdatePreview() {
+    if (updatePreviewTimeout) {
+      clearTimeout(updatePreviewTimeout);
+    }
+  }
+
   const videoOverlayContent = (
     <div
-      className="flex flex-col gap-4 w-full"
+      className="flex w-full flex-col gap-4"
       style={{ display: overlay.selectedTab === "editor" ? "flex" : "none" }}
     >
-      <div className="flex gap-2 w-full h-8 my-4">
+      <div className="my-4 flex h-8 w-full gap-2">
         <input
           type="text"
-          className="w-full rounded-2xl p-2 text-black bg-white"
+          className="w-full rounded-2xl bg-white p-2 text-black"
           value={overlay.loadedVideoId || ""}
           onChange={(e) => setOverlayState({ loadedVideoId: e.target.value })}
         />
         <button
           type="button"
-          className="bg-blue-600 cursor-pointer w-auto hover:bg-blue-700 rounded-2xl p-2 font-semibold"
+          className="w-auto cursor-pointer rounded-2xl bg-blue-600 p-2 font-semibold hover:bg-blue-700"
           onClick={handleLoadVideo}
         >
           Load
         </button>
       </div>
-      <div className="flex gap-4 w-full mb-4">
+      <div className="mb-4 flex w-full gap-4">
         <button
-          className="bg-blue-600 cursor-pointer hover:bg-blue-700 rounded-2xl p-2 font-semibold"
+          className="cursor-pointer rounded-2xl bg-black p-2 hover:bg-gray-800"
           type="button"
-          onClick={handleQuickPreview}
+          onClick={() => setOverlayState({ isLandscapeMode: !overlay.isLandscapeMode })}
         >
-          Quick Preview
-        </button>
-        <button
-          className="bg-black cursor-pointer rounded-2xl p-2 hover:bg-gray-800"
-          type="button"
-          onClick={() =>
-            handleDrawCanvas(
-              canvasRef.current as HTMLCanvasElement,
-              overlay.currentTime
-            )
-          }
-        >
-          Draw Canvas (With Video)
+          {overlay.isLandscapeMode ? "Portrait Mode" : "Landscape Mode"}
         </button>
       </div>
-      <div className="flex flex-col w-full gap-2">
+      <div className="flex w-full flex-col gap-2">
         <p className="text-sm">Size Multiplier: {overlay.sizeMultiplier}x</p>
         <input
           className="w-full"
@@ -409,17 +352,23 @@ export default function OverlayPage() {
           }}
         />
       </div>
-      <div className="flex flex-col gap-2 relative justify-center items-center w-full h-200 rounded-2xl drop-shadow-md border-2 border-white">
+      <div className="relative flex h-200 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-white drop-shadow-md">
         <video
           ref={previewVideoRef}
           style={{
             display: overlay.previewUrl ? "block" : "none",
             placeSelf: "anchor-center",
           }}
-          className="absolute top-0 self-center left-0 w-auto h-190 justify-self-center rounded-t-2xl anchor-center"
+          className="anchor-center absolute top-0 left-0 h-190 w-auto self-center justify-self-center rounded-t-2xl"
           src={overlay.previewUrl || undefined}
           crossOrigin="anonymous"
           controls
+          onPause={stopUpdatePreview}
+          onPlay={startUpdatePreview}
+          onTimeUpdate={() => {
+            console.log("Video current time updated to", previewVideoRef.current?.currentTime);
+            setOverlayState({ currentTime: previewVideoRef.current?.currentTime ?? 0 });
+          }}
         >
           <track kind="captions" src={undefined} />
         </video>
@@ -427,28 +376,29 @@ export default function OverlayPage() {
           style={{
             placeSelf: "anchor-center",
           }}
-          className="absolute top-0 left-0 rounded-2xl w-auto h-190 self-center justify-self-center anchor-center"
+          className="anchor-center pointer-events-none absolute top-0 left-0 h-190 w-auto self-center justify-self-center rounded-2xl"
           ref={canvasRef}
         />
-        <div className="flex flex-col gap-2 w-full absolute bottom-0 pt-20">
+        <div className="pointer-events-none absolute bottom-0 flex w-full flex-col gap-2 pt-20">
           <p className="text-sm">Time Position: {overlay.currentTime}s </p>
           <input
-            className="w-full"
+            className="pointer-events-auto w-full cursor-pointer"
             type="range"
             min={0}
-            max={174}
+            max={overlay.videoLength}
             ref={currentTimeRef}
             value={overlay.currentTime}
             onChange={(e) => {
               const newValue = Number.parseInt(e.target.value);
               setOverlayState({ currentTime: newValue });
+              if (previewVideoRef.current) {
+                previewVideoRef.current.currentTime = newValue;
+              }
             }}
           />
         </div>
-        <div className="flex flex-col gap-2 rotate-90 absolute w-[55%] -right-[25%]">
-          <p className="text-sm">
-            Vertical Position (Y-Axis): {overlay.verticalPosition}px
-          </p>
+        <div className="absolute -right-[25%] flex w-[55%] rotate-90 flex-col gap-2">
+          <p className="text-sm">Vertical Position (Y-Axis): {overlay.verticalPosition}px</p>
           <input
             className="w-full cursor-pointer"
             type="range"
@@ -463,11 +413,11 @@ export default function OverlayPage() {
           />
         </div>
       </div>
-      <div className="flex flex-col gap-4 items-center mt-6">
+      <div className="mt-6 flex flex-col items-center gap-4">
         <input
           type="file"
           accept="video/*"
-          className="text-white cursor-pointer border-2 border-white rounded-2xl p-2"
+          className="cursor-pointer rounded-2xl border-2 border-white p-2 text-white"
           onChange={(e) => {
             console.log("File changed");
             const selectedFile = e.target.files?.[0];
@@ -477,10 +427,11 @@ export default function OverlayPage() {
             }
 
             if (!selectedFile) {
-              setOverlayState({ file: null });
-              setOverlayState({ previewUrl: null });
               setOverlayState({
                 videoDimensions: { width: 1920, height: 1080 },
+                file: null,
+                previewUrl: null,
+                videoLength: 100,
               });
               return;
             }
@@ -490,23 +441,24 @@ export default function OverlayPage() {
 
             const videoElement = document.createElement("video");
             videoElement.src = url;
+
             videoElement.onloadedmetadata = () => {
               setOverlayState({
+                videoLength: videoElement.duration,
                 videoDimensions: {
                   width: videoElement.videoWidth,
                   height: videoElement.videoHeight,
                 },
               });
-              URL.revokeObjectURL(videoElement.src);
               console.log("File set");
+              videoElement.remove();
             };
-            videoElement.load();
           }}
         />
         <div className="flex gap-4">
           <button
             disabled={!overlay.previewUrl}
-            className="bg-blue-600 cursor-pointer hover:bg-blue-700 rounded-2xl p-2 font-semibold disabled:bg-gray-600 disabled:cursor-not-allowed"
+            className="cursor-pointer rounded-2xl bg-blue-600 p-2 font-semibold hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-600"
             type="button"
             onClick={() => {
               if (previewVideoRef.current) {
@@ -521,7 +473,7 @@ export default function OverlayPage() {
             {overlay.isPlaying ? "Pause Preview" : "Play Preview"}
           </button>
           <button
-            className="bg-green-600 cursor-pointer hover:bg-green-700 rounded-2xl p-2 font-semibold disabled:bg-gray-600 disabled:cursor-not-allowed"
+            className="cursor-pointer rounded-2xl bg-green-600 p-2 font-semibold hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-600"
             type="button"
             onClick={handleUpload}
             disabled={overlay.isLoading || !overlay.file}
@@ -530,7 +482,7 @@ export default function OverlayPage() {
           </button>
           <button
             type="button"
-            className="bg-purple-600 cursor-pointer hover:bg-purple-700 rounded-2xl p-2 font-semibold disabled:bg-gray-600 disabled:cursor-not-allowed"
+            className="cursor-pointer rounded-2xl bg-purple-600 p-2 font-semibold hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-gray-600"
             onClick={handleDownload}
             disabled={!overlay.outputUrl}
           >
@@ -542,21 +494,21 @@ export default function OverlayPage() {
   );
 
   return (
-    <div className="w-full h-[92vh] flex-col font-sans flex items-center text-white bg-red-500">
+    <div className="flex h-[92vh] w-full flex-col items-center bg-red-500 font-sans text-white">
       <VideoTabs />
       {videoOverlayContent}
       <div
-        className="h-340 m-6 w-full bg-black drop-shadow-md flex flex-col gap-2 items-center justify-start"
+        className="m-6 flex h-340 w-full flex-col items-center justify-start gap-2 bg-black drop-shadow-md"
         style={{ opacity: overlay.selectedTab === "render" ? 1 : 0 }}
       >
         {overlay.outputUrl && (
-          <video className="rounded-2xl w-auto h-190" ref={videoRef} controls>
+          <video className="h-190 w-auto rounded-2xl" ref={videoRef} controls>
             <track kind="captions" src={undefined} />
           </video>
         )}
         <button
           type="button"
-          className="bg-purple-600 cursor-pointer hover:bg-purple-700 rounded-2xl p-2 font-semibold disabled:bg-gray-600 disabled:cursor-not-allowed"
+          className="cursor-pointer rounded-2xl bg-purple-600 p-2 font-semibold hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-gray-600"
           onClick={handleDownload}
           disabled={!overlay.outputUrl}
         >

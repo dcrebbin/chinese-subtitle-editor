@@ -1,12 +1,10 @@
 "use client";
+
 import { Conversion, type Input, type Output } from "mediabunny";
+
 import { getOverlayState, setOverlayState } from "../store/overlay.store";
 import { getSessionState } from "../store/session.store";
-import {
-  defaultCellSize,
-  defaultChineseFontSize,
-  jyutpingFontSize,
-} from "./constants";
+import { defaultCellSize, defaultChineseFontSize, jyutpingFontSize } from "./constants";
 import { getSubtitleAtTime, parseSrt, transliterateCaptions } from "./srt";
 import { retrieveChineseRomanizationMap } from "./transliteration/transliteration";
 
@@ -19,17 +17,10 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, time: number) {
   const session = getSessionState().session;
   const rendererSizeMultiplier = overlay.sizeMultiplier / 2;
   const parsedSubtitles = parseSrt(session.srtContent);
-  const subtitle = getSubtitleAtTime(
-    parsedSubtitles,
-    time + overlay.lyricOffset
-  );
+  const subtitle = getSubtitleAtTime(parsedSubtitles, time + overlay.lyricOffset);
 
-  const targetWidth =
-    overlay.videoDimensions?.width || Math.floor(canvas.clientWidth);
-  const targetHeight =
-    overlay.videoDimensions?.height || Math.floor(canvas.clientHeight);
-
-  console.log(`Target dimensions: ${targetWidth}x${targetHeight}`);
+  const targetWidth = overlay.videoDimensions?.width || Math.floor(canvas.clientWidth);
+  const targetHeight = overlay.videoDimensions?.height || Math.floor(canvas.clientHeight);
 
   if (canvas.width !== targetWidth) {
     canvas.width = targetWidth;
@@ -52,10 +43,7 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, time: number) {
     const cantonese = subtitle.text.split("(yue)")[1].split("(en)")[0].trim();
     const transliteratedText = transliterateCaptions(cantonese, true, {});
 
-    const transliterationMap = retrieveChineseRomanizationMap(
-      transliteratedText,
-      cantonese
-    );
+    const transliterationMap = retrieveChineseRomanizationMap(transliteratedText, cantonese);
     setOverlayState({ jsonData: { transliterationMap } });
     const english = subtitle.text.split("(en)")[1].trim();
     const rows = updateTransliterationRows(transliterationMap);
@@ -86,8 +74,7 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, time: number) {
       let currentLine = "";
 
       for (const word of words) {
-        const testLine =
-          currentLine.length === 0 ? word : `${currentLine} ${word}`;
+        const testLine = currentLine.length === 0 ? word : `${currentLine} ${word}`;
         const metrics = ctx.measureText(testLine);
 
         if (metrics.width > maxWidth && currentLine.length > 0) {
@@ -102,9 +89,7 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, time: number) {
         lines.push(currentLine);
       }
 
-      const longestLineWidth = Math.max(
-        ...lines.map((line) => ctx.measureText(line).width)
-      );
+      const longestLineWidth = Math.max(...lines.map((line) => ctx.measureText(line).width));
       const totalTextHeight = lines.length * lineHeight;
 
       const bgWidth = longestLineWidth + paddingX * 2;
@@ -117,17 +102,12 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, time: number) {
 
       ctx.fillStyle = "black";
       for (const [index, line] of lines.entries()) {
-        ctx.fillText(
-          line,
-          canvas.width / 2,
-          englishY + paddingY + index * lineHeight
-        );
+        ctx.fillText(line, canvas.width / 2, englishY + paddingY + index * lineHeight);
       }
 
       ctx.restore();
 
-      currentTopY =
-        englishY + totalTextHeight + paddingY * 2 + spacingBetweenTextAndChars;
+      currentTopY = englishY + totalTextHeight + paddingY * 2 + spacingBetweenTextAndChars;
     }
 
     const chineseStartY = currentTopY;
@@ -146,13 +126,7 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, time: number) {
         if (caption.chinese === " " || caption.chinese === "") {
           currentX += cellSize / 3;
         } else {
-          drawCharacterCell(
-            ctx,
-            caption,
-            currentX,
-            rowY,
-            rendererSizeMultiplier
-          );
+          drawCharacterCell(ctx, caption, currentX, rowY, rendererSizeMultiplier);
           currentX += cellSize;
         }
       }
@@ -161,7 +135,7 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, time: number) {
 }
 
 export const updateTransliterationRows = (
-  transliterationMap: { jyutping: string; chinese: string }[]
+  transliterationMap: { jyutping: string; chinese: string }[],
 ) => {
   const rows: { jyutping: string; chinese: string }[][] = [];
   for (let i = 0; i < Math.ceil(transliterationMap.length / 5); i++) {
@@ -203,10 +177,9 @@ export const drawCharacterCell = (
   caption: { jyutping: string; chinese: string },
   x: number,
   y: number,
-  sizeMultiplier: number
+  sizeMultiplier: number,
 ) => {
   if (!ctx) return;
-  console.log(`drawing character cell ${caption.chinese}`);
   const extractedTone = caption.jyutping.match(/[1-9]/);
   const tone = extractedTone ? extractedTone[0] : "";
   const segment = toneToSegment(Number.parseInt(tone));
@@ -221,8 +194,7 @@ export const drawCharacterCell = (
   ctx.textBaseline = "middle";
   const paddingY = 15 * sizeMultiplier;
 
-  const jyutpingText =
-    caption.jyutping === "EN" ? "" : caption.jyutping.replace(tone, segment);
+  const jyutpingText = caption.jyutping === "EN" ? "" : caption.jyutping.replace(tone, segment);
   if (jyutpingText) {
     ctx.fillText(jyutpingText, x + cellSize / 2, y + cellSize / 2 - paddingY);
   }
@@ -238,7 +210,7 @@ export async function convertCanvas(
   output: Output,
   parsedSubtitles: any[],
   ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
-  lyricsOffset: number = 0
+  lyricsOffset: number = 0,
 ) {
   return await Conversion.init({
     input,
@@ -246,10 +218,7 @@ export async function convertCanvas(
     video: {
       process: (sample) => {
         if (!ctx) {
-          const canvas = new OffscreenCanvas(
-            sample.displayWidth,
-            sample.displayHeight
-          );
+          const canvas = new OffscreenCanvas(sample.displayWidth, sample.displayHeight);
           ctx = canvas.getContext("2d") as
             | CanvasRenderingContext2D
             | OffscreenCanvasRenderingContext2D;
@@ -257,34 +226,24 @@ export async function convertCanvas(
 
         const rendererSizeMultiplier = sizeMultiplier / 2;
         const cellSize = (defaultCellSize * sizeMultiplier) / 2 - 5;
-        const subtitle = getSubtitleAtTime(
-          parsedSubtitles,
-          sample.timestamp + lyricsOffset
-        );
+        const subtitle = getSubtitleAtTime(parsedSubtitles, sample.timestamp + lyricsOffset);
 
         if (subtitle) {
           ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
           sample.draw(ctx, 0, 0);
 
-          const cantonese = subtitle.text
-            .split("(yue)")[1]
-            ?.split("(en)")[0]
-            ?.trim();
+          const cantonese = subtitle.text.split("(yue)")[1]?.split("(en)")[0]?.trim();
           const english = subtitle.text.split("(en)")[1]?.trim();
 
           const transliteratedText = transliterateCaptions(cantonese, true, {});
-          const transliterationMap = retrieveChineseRomanizationMap(
-            transliteratedText,
-            cantonese
-          );
+          const transliterationMap = retrieveChineseRomanizationMap(transliteratedText, cantonese);
           const rows = updateTransliterationRows(transliterationMap);
 
           const rowSpacing = 0;
           const topMargin = verticalPosition;
           const spacingBetweenTextAndChars = 20;
 
-          const totalRowsHeight =
-            rows.length * cellSize + (rows.length - 1) * rowSpacing;
+          const totalRowsHeight = rows.length * cellSize + (rows.length - 1) * rowSpacing;
 
           let currentTopY = topMargin;
 
@@ -307,8 +266,7 @@ export async function convertCanvas(
             let currentLine = "";
 
             for (const word of words) {
-              const testLine =
-                currentLine.length === 0 ? word : `${currentLine} ${word}`;
+              const testLine = currentLine.length === 0 ? word : `${currentLine} ${word}`;
               const metrics = ctx?.measureText(testLine) || { width: 0 };
 
               if (metrics.width > maxWidth && currentLine.length > 0) {
@@ -324,7 +282,7 @@ export async function convertCanvas(
             }
 
             const longestLineWidth = Math.max(
-              ...lines.map((line) => ctx?.measureText(line).width || 0)
+              ...lines.map((line) => ctx?.measureText(line).width || 0),
             );
             const totalTextHeight = lines.length * lineHeight;
 
@@ -341,17 +299,13 @@ export async function convertCanvas(
               ctx?.fillText(
                 line,
                 (ctx?.canvas?.width || 0) / 2,
-                englishY + paddingY + index * lineHeight
+                englishY + paddingY + index * lineHeight,
               );
             }
 
             ctx.restore();
 
-            currentTopY =
-              englishY +
-              totalTextHeight +
-              paddingY * 2 +
-              spacingBetweenTextAndChars;
+            currentTopY = englishY + totalTextHeight + paddingY * 2 + spacingBetweenTextAndChars;
           }
 
           const chineseStartY = currentTopY;
@@ -373,13 +327,7 @@ export async function convertCanvas(
                 if (caption.chinese === " " || caption.chinese === "") {
                   currentX += cellSize / 3;
                 } else {
-                  drawCharacterCell(
-                    ctx,
-                    caption,
-                    currentX,
-                    rowY,
-                    rendererSizeMultiplier
-                  );
+                  drawCharacterCell(ctx, caption, currentX, rowY, rendererSizeMultiplier);
                   currentX += cellSize;
                 }
               }

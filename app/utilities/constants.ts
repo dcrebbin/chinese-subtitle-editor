@@ -1,6 +1,10 @@
 export const defaultSrtExample = `1
-00:00:00,000 --> 00:00:30,000
-(yue)嗰個哥哥行銀行(en)That brother is walking to the bank`;
+00:00:00,000 --> 00:00:05,000
+(yue)嗰個哥哥行銀行(en)That brother is walking to the bank
+
+2
+00:00:05,000 --> 00:00:30,000
+(yue)嗰個哥(en)That brother`;
 
 export const defaultCellSize = 70;
 export const defaultEnglishFontSize = 24;
