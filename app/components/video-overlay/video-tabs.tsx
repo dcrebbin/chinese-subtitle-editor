@@ -1,5 +1,4 @@
 import { setOverlayState, useOverlayStore } from "@/app/store/overlay.store";
-import { setSessionState, useSessionStore } from "../../store/session.store";
 
 export default function VideoTabs() {
   const { overlay } = useOverlayStore();

@@ -1,17 +1,17 @@
 "use client";
-import { Conversion } from "mediabunny";
-import { getSubtitleAtTime, parseSrt, transliterateCaptions } from "./srt";
-import { retrieveChineseRomanizationMap } from "./transliteration/transliteration";
+import { Conversion, type Input, type Output } from "mediabunny";
+import { getOverlayState, setOverlayState } from "../store/overlay.store";
+import { getSessionState } from "../store/session.store";
 import {
   defaultCellSize,
   defaultChineseFontSize,
   jyutpingFontSize,
-} from "../components/video-overlay/page";
-import { getOverlayState, setOverlayState } from "../store/overlay.store";
-import { getSessionState } from "../store/session.store";
+} from "./constants";
+import { getSubtitleAtTime, parseSrt, transliterateCaptions } from "./srt";
+import { retrieveChineseRomanizationMap } from "./transliteration/transliteration";
 
 export function handleDrawCanvas(canvas: HTMLCanvasElement, time: number) {
-  if (!canvas) {
+  if (!canvas?.clientWidth || !canvas.clientHeight) {
     return;
   }
 
@@ -25,9 +25,11 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, time: number) {
   );
 
   const targetWidth =
-    overlay.videoDimensions?.width || Math.floor(canvas.clientWidth) || 1920;
+    overlay.videoDimensions?.width || Math.floor(canvas.clientWidth);
   const targetHeight =
-    overlay.videoDimensions?.height || Math.floor(canvas.clientHeight) || 1080;
+    overlay.videoDimensions?.height || Math.floor(canvas.clientHeight);
+
+  console.log(`Target dimensions: ${targetWidth}x${targetHeight}`);
 
   if (canvas.width !== targetWidth) {
     canvas.width = targetWidth;
@@ -232,8 +234,8 @@ export const drawCharacterCell = (
 export async function convertCanvas(
   verticalPosition: number,
   sizeMultiplier: number,
-  input: any,
-  output: any,
+  input: Input,
+  output: Output,
   parsedSubtitles: any[],
   ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
   lyricsOffset: number = 0

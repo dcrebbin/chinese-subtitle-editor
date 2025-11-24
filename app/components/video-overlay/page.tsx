@@ -1,5 +1,7 @@
 "use client";
 
+import { setOverlayState, useOverlayStore } from "@/app/store/overlay.store";
+import { useSessionStore } from "@/app/store/session.store";
 import {
   ALL_FORMATS,
   BlobSource,
@@ -9,23 +11,16 @@ import {
   Output,
 } from "mediabunny";
 import { useEffect, useRef } from "react";
-import { parseSrt, transliterateCaptions } from "../../utilities/srt";
-import { retrieveChineseRomanizationMap } from "../../utilities/transliteration/transliteration";
+import { defaultCellSize } from "../../utilities/constants";
 import {
   convertCanvas,
   drawCharacterCell,
   handleDrawCanvas,
   updateTransliterationRows,
 } from "../../utilities/rendering";
-import { useSessionStore } from "@/app/store/session.store";
-import { setOverlayState, useOverlayStore } from "@/app/store/overlay.store";
+import { parseSrt, transliterateCaptions } from "../../utilities/srt";
+import { retrieveChineseRomanizationMap } from "../../utilities/transliteration/transliteration";
 import VideoTabs from "./video-tabs";
-
-export const defaultCellSize = 70;
-export const defaultEnglishFontSize = 24;
-export const defaultChineseFontSize = 32;
-export const jyutpingFontSize = 16;
-export const defaultTextHeight = 28;
 
 function getVideoIdFromUrl(videoUrl: string) {
   let newVideoId = "";
@@ -53,7 +48,6 @@ export default function OverlayPage() {
   const target = new BufferTarget();
   const format = new Mp4OutputFormat();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const animationFrameRef = useRef<number | null>(null);
   const currentTimeRef = useRef<HTMLInputElement>(null);
 
   const { session, setSession } = useSessionStore();
@@ -420,8 +414,9 @@ export default function OverlayPage() {
           ref={previewVideoRef}
           style={{
             display: overlay.previewUrl ? "block" : "none",
+            placeSelf: "anchor-center",
           }}
-          className="absolute top-0 left-0 w-auto h-190 self-center justify-self-center rounded-t-2xl anchor-center"
+          className="absolute top-0 self-center left-0 w-auto h-190 justify-self-center rounded-t-2xl anchor-center"
           src={overlay.previewUrl || undefined}
           crossOrigin="anonymous"
           controls
@@ -429,7 +424,10 @@ export default function OverlayPage() {
           <track kind="captions" src={undefined} />
         </video>
         <canvas
-          className="absolute top-0 left-0 rounded-2xl w-full h-full self-center justify-self-center anchor-center"
+          style={{
+            placeSelf: "anchor-center",
+          }}
+          className="absolute top-0 left-0 rounded-2xl w-auto h-190 self-center justify-self-center anchor-center"
           ref={canvasRef}
         />
         <div className="flex flex-col gap-2 w-full absolute bottom-0 pt-20">
@@ -487,9 +485,8 @@ export default function OverlayPage() {
               return;
             }
 
-            setOverlayState({ file: selectedFile });
             const url = URL.createObjectURL(selectedFile);
-            setOverlayState({ previewUrl: url });
+            setOverlayState({ previewUrl: url, file: selectedFile });
 
             const videoElement = document.createElement("video");
             videoElement.src = url;
