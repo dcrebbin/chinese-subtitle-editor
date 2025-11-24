@@ -9,9 +9,13 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "mediabunny": "^1.25.1",
     "next": "16.0.3",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "swagger-jsdoc": "^6.2.8",
+    "to-jyutping": "^3.1.1",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
