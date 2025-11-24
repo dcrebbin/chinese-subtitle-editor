@@ -16,14 +16,14 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any, time:
   const overlay = getOverlayState().overlay;
   const rendererSizeMultiplier = overlay.sizeMultiplier / 2;
 
-  const targetWidth = overlay.videoDimensions?.width || Math.floor(canvas.clientWidth);
-  const targetHeight = overlay.videoDimensions?.height || Math.floor(canvas.clientHeight);
+  const targetWidth = overlay.isLandscapeMode ? 1920 : 1080;
+  const targetHeight = overlay.isLandscapeMode ? 1080 : 1920;
 
   if (canvas.width !== targetWidth) {
-    canvas.width = targetWidth;
+    canvas.width = overlay.isLandscapeMode ? Math.floor(canvas.clientWidth) : targetWidth;
   }
   if (canvas.height !== targetHeight) {
-    canvas.height = targetHeight;
+    canvas.height = overlay.isLandscapeMode ? Math.floor(canvas.clientHeight) : targetHeight;
   }
 
   const ctx = canvas.getContext("2d") as
@@ -214,8 +214,11 @@ export async function convertCanvas(
     output,
     video: {
       process: (sample) => {
+        const overlay = getOverlayState().overlay;
+        const width = overlay.isLandscapeMode ? 1920 : 1080;
+        const height = overlay.isLandscapeMode ? 1080 : 1920;
         if (!ctx) {
-          const canvas = new OffscreenCanvas(sample.displayWidth, sample.displayHeight);
+          const canvas = new OffscreenCanvas(width, height);
           ctx = canvas.getContext("2d") as
             | CanvasRenderingContext2D
             | OffscreenCanvasRenderingContext2D;
@@ -224,10 +227,11 @@ export async function convertCanvas(
         const rendererSizeMultiplier = sizeMultiplier / 2;
         const cellSize = (defaultCellSize * sizeMultiplier) / 2 - 5;
         const subtitle = getSubtitleAtTime(parsedSubtitles, sample.timestamp + lyricsOffset);
-
         if (subtitle) {
-          ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-          sample.draw(ctx, 0, 0);
+          ctx.clearRect(0, 0, width, height);
+          const centerY = sample.displayHeight - height;
+          const centerX = sample.displayWidth - width;
+          sample.draw(ctx, -(centerX / 2), -(centerY / 2));
 
           const cantonese = subtitle.text.split("(yue)")[1]?.split("(en)")[0]?.trim();
           const english = subtitle.text.split("(en)")[1]?.trim();
@@ -240,13 +244,11 @@ export async function convertCanvas(
           const topMargin = verticalPosition;
           const spacingBetweenTextAndChars = 20;
 
-          const totalRowsHeight = rows.length * cellSize + (rows.length - 1) * rowSpacing;
-
           let currentTopY = topMargin;
 
           if (english) {
             ctx.save();
-            ctx.fillStyle = "black";
+            ctx.fillStyle = "green";
             ctx.font = `${24 * rendererSizeMultiplier}px Arial`;
             ctx.textAlign = "center";
             ctx.textBaseline = "top";
@@ -255,7 +257,7 @@ export async function convertCanvas(
             const text = english;
             const paddingX = 0;
             const paddingY = 8;
-            const maxWidth = ctx.canvas.width * 0.8;
+            const maxWidth = width * 0.8;
             const lineHeight = 28 * rendererSizeMultiplier;
 
             const words = text.split(" ");
@@ -284,7 +286,7 @@ export async function convertCanvas(
             const totalTextHeight = lines.length * lineHeight;
 
             const bgWidth = longestLineWidth + paddingX * 2;
-            const bgX = ctx.canvas.width / 2 - bgWidth / 2;
+            const bgX = width / 2 - bgWidth / 2;
             const bgY = englishY;
             const bgHeight = totalTextHeight + paddingY * 2;
 
@@ -293,11 +295,7 @@ export async function convertCanvas(
 
             ctx.fillStyle = "black";
             for (const [index, line] of lines.entries()) {
-              ctx?.fillText(
-                line,
-                (ctx?.canvas?.width || 0) / 2,
-                englishY + paddingY + index * lineHeight,
-              );
+              ctx?.fillText(line, width / 2, englishY + paddingY + index * lineHeight);
             }
 
             ctx.restore();

@@ -354,7 +354,21 @@ export default function OverlayPage() {
         <button
           className="cursor-pointer rounded-2xl bg-black p-2 hover:bg-gray-800"
           type="button"
-          onClick={() => setOverlayState({ isLandscapeMode: !overlay.isLandscapeMode })}
+          onClick={() => {
+            setOverlayState({ isLandscapeMode: !overlay.isLandscapeMode });
+            if (canvasRef.current) {
+              if (overlay.isLandscapeMode) {
+                canvasRef.current.width = 1080;
+                canvasRef.current.height = 1920;
+              } else {
+                canvasRef.current.width = 1920;
+                canvasRef.current.height = 1080;
+                if (videoRef.current) {
+                  videoRef.current.width = 1080;
+                }
+              }
+            }
+          }}
         >
           {overlay.isLandscapeMode ? "Portrait Mode" : "Landscape Mode"}
         </button>
@@ -404,7 +418,7 @@ export default function OverlayPage() {
           style={{
             placeSelf: "anchor-center",
           }}
-          className="anchor-center pointer-events-none absolute top-0 left-0 h-190 w-auto self-center justify-self-center rounded-2xl"
+          className="anchor-center pointer-events-none absolute top-0 left-0 h-190 w-auto self-center justify-self-center rounded-2xl border-2 border-white"
           ref={canvasRef}
         />
         <div className="pointer-events-none absolute bottom-0 flex w-full flex-col gap-2 pt-20">
@@ -542,11 +556,11 @@ export default function OverlayPage() {
       <VideoTabs />
       {videoOverlayContent}
       <div
-        className="m-6 flex h-340 w-full flex-col items-center justify-start gap-2 bg-black drop-shadow-md"
+        className="m-6 flex h-340 w-full flex-col items-center justify-start gap-2 drop-shadow-md"
         style={{ opacity: overlay.selectedTab === "render" ? 1 : 0 }}
       >
         {overlay.outputUrl && (
-          <video className="h-190 w-auto rounded-2xl" ref={videoRef} controls>
+          <video className="h-190 w-auto rounded-2xl border-2 border-white" ref={videoRef} controls>
             <track kind="captions" src={undefined} />
           </video>
         )}

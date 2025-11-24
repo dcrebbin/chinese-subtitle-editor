@@ -63,17 +63,14 @@ export default function SubtitleEditor() {
     if (session.srtContent) {
       setSessionState({ ...session, isLoading: true });
       const captions = convertSrtToCaptions(session.srtContent);
-      setSessionState({
-        ...session,
-        localCaptions: captions,
-        localSrtContent: session.srtContent,
-      });
-      // Set original captions if they haven't been set yet
+      const parsedSubtitles = parseSrt(session.srtContent);
+
       if (!originalCaptionsInitialized.current) {
         setSessionState({
           ...session,
           localCaptions: captions,
-          originalCaptions: captions, // Store original captions for offset calculations
+          parsedSubtitles: parsedSubtitles as ParsedSubtitle[],
+          originalCaptions: captions,
           localSrtContent: convertCaptionsToSrt(captions),
           originalSrtContent: session.srtContent,
           isLoading: false,
@@ -286,18 +283,6 @@ export default function SubtitleEditor() {
       </div>
     );
   }
-
-  useEffect(() => {
-    if (session.srtContent) {
-      const parsedSubtitles = parseSrt(session.srtContent);
-      const captions = convertSrtToCaptions(session.localSrtContent);
-      setSessionState({
-        ...session,
-        parsedSubtitles: parsedSubtitles as ParsedSubtitle[],
-        localCaptions: captions,
-      });
-    }
-  }, []);
 
   const subtitleEditorHeaderControls = (
     <div className="relative top-0 grid w-full grid-cols-4 items-center justify-center gap-2.5 p-2.5 text-2xl">

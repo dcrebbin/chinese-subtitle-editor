@@ -34,7 +34,6 @@ export interface SessionStore {
     isInitialized: boolean;
     vpnWarning: boolean;
     parsedSubtitles: ParsedSubtitle[];
-    setParsedSubtitles: (parsedSubtitles: ParsedSubtitle[]) => void;
     video: HTMLVideoElement | null;
     localCaptions: CaptionSegment[];
     originalCaptions: CaptionSegment[];
@@ -82,9 +81,7 @@ const sessionStore = create<SessionStore>((set) => ({
     hasCustomCaptions: false,
     transliterationText: [],
     parsedSubtitles: [],
-    setParsedSubtitles: (parsedSubtitles: ParsedSubtitle[]) =>
-      set({ session: { ...get().session, parsedSubtitles } }),
-    isLoading: false,
+    isLoading: true,
     srtContent: defaultSrtExample,
     vpnWarning: false,
     platform: "",
