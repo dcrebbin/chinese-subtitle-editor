@@ -43,7 +43,6 @@ export default function OverlayPage() {
   const format = new Mp4OutputFormat();
   const videoRef = useRef<HTMLVideoElement>(null);
   const currentTimeRef = useRef<HTMLInputElement>(null);
-
   const { session, setSession } = useSessionStore();
   const { overlay } = useOverlayStore();
   const output = new Output({
@@ -251,9 +250,6 @@ export default function OverlayPage() {
 
   useEffect(() => {
     if (currentTimeRef.current && !overlay.isPlaying) {
-      console.log(
-        `current time ${overlay.currentTime} | vertical position ${overlay.verticalPosition} | default cell size ${defaultCellSize} | size multiplier ${overlay.sizeMultiplier}`,
-      );
       const time = Number.parseFloat(currentTimeRef.current.value);
       setOverlayState({ currentTime: time + overlay.lyricOffset });
       handleDrawCanvas(canvasRef.current as HTMLCanvasElement, time);
@@ -287,23 +283,24 @@ export default function OverlayPage() {
     });
   }
 
-  var updatePreviewTimeout: NodeJS.Timeout | null = null;
+  const updatePreviewTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   function startUpdatePreview() {
     if (!previewVideoRef.current) return;
-    previewVideoRef.current.play();
-    if (updatePreviewTimeout) {
-      clearTimeout(updatePreviewTimeout);
-    } else {
-      updatePreviewTimeout = setTimeout(() => {
-        drawVideoFrameWithOverlay();
-      }, 250);
-    }
+    updatePreviewTimeoutRef.current = setTimeout(() => {
+      console.log("Drawing video frame with overlay");
+      handleDrawCanvas(
+        canvasRef.current as HTMLCanvasElement,
+        previewVideoRef.current?.currentTime ?? 0,
+      );
+      startUpdatePreview();
+    }, 100);
   }
 
   function stopUpdatePreview() {
-    if (updatePreviewTimeout) {
-      clearTimeout(updatePreviewTimeout);
+    if (updatePreviewTimeoutRef.current) {
+      console.log("Clearing update preview timeout");
+      clearTimeout(updatePreviewTimeoutRef.current);
     }
   }
 
@@ -359,14 +356,19 @@ export default function OverlayPage() {
             display: overlay.previewUrl ? "block" : "none",
             placeSelf: "anchor-center",
           }}
+          preload="auto"
           className="anchor-center absolute top-0 left-0 h-190 w-auto self-center justify-self-center rounded-t-2xl"
           src={overlay.previewUrl || undefined}
           crossOrigin="anonymous"
-          controls
-          onPause={stopUpdatePreview}
-          onPlay={startUpdatePreview}
+          onPause={() => {
+            setOverlayState({ isPlaying: false });
+            stopUpdatePreview();
+          }}
+          onPlay={() => {
+            setOverlayState({ isPlaying: true });
+            startUpdatePreview();
+          }}
           onTimeUpdate={() => {
-            console.log("Video current time updated to", previewVideoRef.current?.currentTime);
             setOverlayState({ currentTime: previewVideoRef.current?.currentTime ?? 0 });
           }}
         >
@@ -385,11 +387,12 @@ export default function OverlayPage() {
             className="pointer-events-auto w-full cursor-pointer"
             type="range"
             min={0}
+            step={0.1}
             max={overlay.videoLength}
             ref={currentTimeRef}
             value={overlay.currentTime}
             onChange={(e) => {
-              const newValue = Number.parseInt(e.target.value);
+              const newValue = Number.parseFloat(e.target.value);
               setOverlayState({ currentTime: newValue });
               if (previewVideoRef.current) {
                 previewVideoRef.current.currentTime = newValue;
@@ -463,8 +466,10 @@ export default function OverlayPage() {
             onClick={() => {
               if (previewVideoRef.current) {
                 if (overlay.isPlaying) {
+                  setOverlayState({ isPlaying: false });
                   previewVideoRef.current.pause();
                 } else {
+                  setOverlayState({ isPlaying: true });
                   previewVideoRef.current.play();
                 }
               }
