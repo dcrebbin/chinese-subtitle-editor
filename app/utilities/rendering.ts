@@ -1,45 +1,24 @@
 "use client";
 import { Conversion } from "mediabunny";
-import {
-  getSubtitleAtTime,
-  parseSrt,
-  transliterateCaptions,
-} from "../utilities/srt";
-import { retrieveChineseRomanizationMap } from "../utilities/transliteration";
+import { getSubtitleAtTime, parseSrt, transliterateCaptions } from "./srt";
+import { retrieveChineseRomanizationMap } from "./transliteration/transliteration";
 import {
   defaultCellSize,
   defaultChineseFontSize,
   jyutpingFontSize,
-} from "./page";
+} from "../components/video-overlay/page";
+import { getOverlayState, setOverlayState } from "../store/overlay.store";
+import { getSessionState } from "../store/session.store";
 
-export function handleDrawCanvas(
-  canvasRef: React.RefObject<HTMLCanvasElement>,
-  time: number,
-  verticalPosition: number,
-  sizeMultiplier: number,
-  setJsonData: (data: any) => void,
-  videoDimensions: { width: number; height: number },
-  customSrt: string
-) {
-  if (!canvasRef.current) {
-    alert("No canvas found");
-    return;
-  }
-  const canvas = canvasRef.current;
-  const rendererSizeMultiplier = sizeMultiplier / 2;
-  const ctx = canvas.getContext("2d") as
-    | CanvasRenderingContext2D
-    | OffscreenCanvasRenderingContext2D;
-
-  const canvasWidth = videoDimensions.width;
-  const canvasHeight = videoDimensions.height;
-  canvas.width = canvasWidth;
-  canvas.height = canvasHeight;
-  ctx.fillStyle = "transparent";
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-
-  const parsedSubtitles = parseSrt(customSrt);
-  const subtitle = getSubtitleAtTime(parsedSubtitles, time);
+export function handleDrawCanvas(canvas: HTMLCanvasElement, time: number) {
+  const overlay = getOverlayState().overlay;
+  const session = getSessionState().session;
+  const rendererSizeMultiplier = overlay.sizeMultiplier / 2;
+  const parsedSubtitles = parseSrt(session.srtContent);
+  const subtitle = getSubtitleAtTime(
+    parsedSubtitles,
+    time + overlay.lyricOffset
+  );
   if (subtitle) {
     const cantonese = subtitle.text.split("(yue)")[1].split("(en)")[0].trim();
     const transliteratedText = transliterateCaptions(cantonese, true, {});
@@ -48,19 +27,21 @@ export function handleDrawCanvas(
       transliteratedText,
       cantonese
     );
-    setJsonData(transliterationMap);
+    setOverlayState({ jsonData: { transliterationMap } });
     const english = subtitle.text.split("(en)")[1].trim();
     const rows = updateTransliterationRows(transliterationMap);
 
     const rowSpacing = 0;
-    const topMargin = verticalPosition;
+    const topMargin = overlay.verticalPosition;
     const spacingBetweenTextAndChars = 20;
 
-    const cellSize = (defaultCellSize * sizeMultiplier) / 2 - 5;
+    const cellSize = (defaultCellSize * overlay.sizeMultiplier) / 2 - 5;
     let currentTopY = topMargin;
+    const ctx = canvas.getContext("2d") as
+      | CanvasRenderingContext2D
+      | OffscreenCanvasRenderingContext2D;
 
     if (english) {
-      ctx.save();
       ctx.fillStyle = "black";
       ctx.font = `${24 * rendererSizeMultiplier}px Arial`;
       ctx.textAlign = "center";
@@ -70,7 +51,7 @@ export function handleDrawCanvas(
       const text = english;
       const paddingX = 0;
       const paddingY = 8;
-      const maxWidth = canvasWidth * 0.8;
+      const maxWidth = canvas.width * 0.8;
       const lineHeight = 28 * rendererSizeMultiplier;
 
       const words = text.split(" ");
@@ -100,7 +81,7 @@ export function handleDrawCanvas(
       const totalTextHeight = lines.length * lineHeight;
 
       const bgWidth = longestLineWidth + paddingX * 2;
-      const bgX = canvasWidth / 2 - bgWidth / 2;
+      const bgX = canvas.width / 2 - bgWidth / 2;
       const bgY = englishY;
       const bgHeight = totalTextHeight + paddingY * 2;
 
@@ -111,7 +92,7 @@ export function handleDrawCanvas(
       for (const [index, line] of lines.entries()) {
         ctx.fillText(
           line,
-          canvasWidth / 2,
+          canvas.width / 2,
           englishY + paddingY + index * lineHeight
         );
       }
@@ -132,7 +113,7 @@ export function handleDrawCanvas(
         }
         return acc + cellSize;
       }, 0);
-      const startX = (canvasWidth - totalWidth) / 2;
+      const startX = (canvas.width - totalWidth) / 2;
       let currentX = startX;
       for (const caption of row) {
         if (caption.chinese === " " || caption.chinese === "") {
@@ -143,8 +124,7 @@ export function handleDrawCanvas(
             caption,
             currentX,
             rowY,
-            rendererSizeMultiplier,
-            false
+            rendererSizeMultiplier
           );
           currentX += cellSize;
         }
@@ -196,8 +176,7 @@ export const drawCharacterCell = (
   caption: { jyutping: string; chinese: string },
   x: number,
   y: number,
-  sizeMultiplier: number,
-  isLightsOut: boolean = false
+  sizeMultiplier: number
 ) => {
   if (!ctx) return;
   const extractedTone = caption.jyutping.match(/[1-9]/);
@@ -205,11 +184,9 @@ export const drawCharacterCell = (
   const segment = toneToSegment(Number.parseInt(tone));
   const cellSize = defaultCellSize * sizeMultiplier;
 
-  // Draw cell background (70px x 70px squares)
   ctx.fillStyle = "white";
   ctx.fillRect(x, y, cellSize, cellSize);
 
-  // Draw jyutping (smaller text at top)
   ctx.fillStyle = "black";
   ctx.font = `${jyutpingFontSize * sizeMultiplier}px Arial`;
   ctx.textAlign = "center";

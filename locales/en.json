@@ -1,0 +1,85 @@
+{
+  "AppBar": {
+    "chinese_name": "話朋",
+    "buttons": {
+      "login": "Login",
+      "profile": "Profile",
+      "the_app": "The App",
+      "subtitles": "Subtitles",
+      "hanzi_quest": "Hanzi Quest",
+      "canto_pal": "Cantopal",
+      "video_player": "Video Player",
+      "languages": "Languages",
+      "mandarin": "Mandarin",
+      "cantonese": "Cantonese",
+      "tw_hakka": "Taiwanese Hakka",
+      "teochew": "Teochew",
+      "shanghainese": "Shanghainese",
+      "taishanese": "Taishanese",
+      "suzhounese": "Suzhounese",
+      "sichuanese": "Sichuanese",
+      "hokkien": "Hokkien"
+    }
+  },
+  "WordLists": {
+    "word_lists": "Word Lists",
+    "mandarin_title": "Mandarin Characters",
+    "cantonese_title": "Cantonese Characters",
+    "character": "Characters",
+    "page": "Page",
+    "showing": "Showing",
+    "characters": "Characters"
+  },
+  "PromotionalModal": {
+    "title": "Langpal is a modern phrasebook!",
+    "supports": "Supports",
+    "mandarin": "Mandarin (普通话)",
+    "cantonese": "Cantonese (廣東話)",
+    "english": "English (Coming Soon) (英语)",
+    "features": "Features",
+    "phrase_lists": "Unlimited phrase lists",
+    "text_to_speech": "Realistic text to speech playback (premium)",
+    "pronunciation": "Character-by-character pronunciation analysis (premium)",
+    "sign_up": "Sign up to the mailing list!",
+    "thanks": "Thanks for subscribing!",
+    "premium_free": "(Premium is free during the beta test)",
+    "ios_testing": "iOS Beta testing now available below on TestFlight!"
+  },
+  "PromotionalPictures": {
+    "1": "Simple and easy phrasebook for on the go!",
+    "2": "Many Chinese languages and dialects supported!",
+    "3": "Create unlimited phraselists!",
+    "4": "Flashcards for learning HSK 1 - 6",
+    "5": "Custom quizzes to test your knowledge!",
+    "6": "Get AI feedback on your grammar"
+  },
+  "Subtitles": {
+    "subtitle": "Langpal Subtitles is a browser extension that adds Cantonese Jyutping or Mandarin Pinyin support to YouTube, Netflix, and more!",
+    "extension_promo": "Available for both Chrome and Firefox",
+    "extension_link": "https://chromewebstore.google.com/detail/jyutping-pinyin-subtitles/fekjlaahgikjmlecafjpkmkpafmaadnh"
+  },
+  "Footer": {
+    "privacy_policy": "Privacy",
+    "account_deletion": "Deletion",
+    "terms_and_conditions": "Terms",
+    "contact": "Contact",
+    "support": "Support"
+  },
+  "PrivacyPolicy": {
+    "title": "Privacy Policy",
+    "last_updated": "Last updated: 24/10/2024",
+    "body": "At Langpal, we respect and value your privacy. This Privacy Policy outlines our practices regarding the collection, use, and sharing of your personal information. By using our app, you consent to the policies and practices described in this Privacy Policy.\n\n1. Information We Collect When you use our products, we may collect the following information: - Audio Data: When you use certain features of our app, we record and collect audio data.\n\n2. How We Use Your Information Audio Data Processing: We use the recorded audio to provide functionalities within the app, improve user experience, and further the development of the app.\n\n3. Sharing Your Information with Microsoft: We share your audio data with Microsoft for the purpose of processing and improving their services. Microsoft does not use this data to identify individual users or for any purpose other than to provide and improve its services.\n\n4. Data Storage and Security We implement industry-standard security measures to ensure the safety and confidentiality of your data. However, no system can be completely secure, and we cannot guarantee that unauthorized access, hacking, data loss, or other breaches will never occur.\n\n5. Changes to this Privacy Policy We may occasionally update this Privacy Policy. If we make significant changes, we will notify you through the app or other appropriate means. Your continued use of langpal after such updates signifies your acceptance of the updated Privacy Policy.\n\n6. Contact us If you have questions or concerns about this Privacy Policy, please contact us at:"
+  },
+  "Misc": {
+    "email": "devon@langpal.com.hk",
+    "address": "21st Floor, CMA Building\n64 Connaught Road Central\nHong Kong"
+  },
+  "AccountDeletion": {
+    "title": "Account Deletion",
+    "body": "1) Sign in to your account in the langpal app\n2) Click on your profile picture in the top right corner, this will take you to the settings page\n3) Click on the \"Delete Account\" button\nnote: Doing so will delete all of your data from the langpal servers."
+  },
+  "TermsAndConditions": {
+    "title": "Terms and Conditions",
+    "body": "Welcome to langpal! These terms and conditions outline the rules and regulations for the use of Langpal's application, langpal.\n\nBy accessing this app, we assume you accept these terms and conditions. Do not continue to use langpal if you do not agree to all of the terms and conditions stated on this page.\n\n1. License\nUnless otherwise stated, Langpal and/or its licensors own the intellectual property rights for all material on langpal. All intellectual property rights are reserved. You may access this from langpal for your own personal use subjected to restrictions set in these terms and conditions.\n\nYou must not:\n\nRepublish material from langpal\nSell, rent or sub-license material from langpal\nReproduce, duplicate or copy material from langpal\nRedistribute content from langpal\n2. Hyperlinking to our Content\nThe following organizations may link to our App without prior written approval:\n\nGovernment agencies;\nSearch engines;\nNews organizations;\nOnline directory distributors may link to our App in the same manner as they hyperlink to the Websites of other listed businesses; and\nSystem wide Accredited Businesses except soliciting non-profit organizations, charity shopping malls, and charity fundraising groups which may not hyperlink to our Web site.\n3. Content Liability\nWe shall not be hold responsible for any content that appears on your App. You agree to protect and defend us against all claims that is rising on your App. No link(s) should appear on any App that may be interpreted as libelous, obscene or criminal, or which infringes, otherwise violates, or advocates the infringement or other violation of, any third party rights.\n\n4. Your Privacy\nPlease read our Privacy Policy.\n\n5. Reservation of Rights\nWe reserve the right to request that you remove all links or any particular link to our App. You approve to immediately remove all links to our App upon request. We also reserve the right to amen these terms and conditions and it’s linking policy at any time. By continuously linking to our App, you agree to be bound to and follow these linking terms and conditions.\n\n6. Removal of links from our website\nIf you find any link on our App that is offensive for any reason, you are free to contact and inform us any moment. We will consider requests to remove links but we are not obligated to or so or to respond to you directly.\n\nWe do not ensure that the information on this website is correct, we do not warrant its completeness or accuracy; nor do we promise to ensure that the website remains available or that the material on the website is kept up to date.\n\n7. Disclaimer\nTo the maximum extent permitted by applicable law, we exclude all representations, warranties and conditions relating to our app and the use of this app. Nothing in this disclaimer will:\n\nlimit or exclude our or your liability for death or personal injury;\nlimit or exclude our or your liability for fraud or fraudulent misrepresentation;\nlimit any of our or your liabilities in any way that is not permitted under applicable law; or\nexclude any of our or your liabilities that may not be excluded under applicable law.\nThe limitations and prohibitions of liability set in this Section and elsewhere in this disclaimer: (a) are subject to the preceding paragraph; and (b) govern all liabilities arising under the disclaimer, including liabilities arising in contract, in tort and for breach of statutory duty.\n\nAs long as the app and the information and services on the app are provided free of charge, we will not be liable for any loss or damage of any nature.\n\n8. Contact Us\nIf you have any questions about these Terms and Conditions, please contact us at: "
+  }
+}

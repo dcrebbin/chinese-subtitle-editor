@@ -8,16 +8,17 @@ import {
   Mp4OutputFormat,
   Output,
 } from "mediabunny";
-import { useEffect, useRef, useState } from "react";
-import { parseSrt, transliterateCaptions } from "../utilities/srt";
-import { retrieveChineseRomanizationMap } from "../utilities/transliteration";
+import { useEffect, useRef } from "react";
+import { parseSrt, transliterateCaptions } from "../../utilities/srt";
+import { retrieveChineseRomanizationMap } from "../../utilities/transliteration/transliteration";
 import {
   convertCanvas,
   drawCharacterCell,
   handleDrawCanvas,
   updateTransliterationRows,
-} from "./rendering";
-import { useOverlayStore } from "../store/overlay.store";
+} from "../../utilities/rendering";
+import { useSessionStore } from "@/app/store/session.store";
+import { setOverlayState, useOverlayStore } from "@/app/store/overlay.store";
 
 export const defaultCellSize = 70;
 export const defaultEnglishFontSize = 24;
@@ -54,35 +55,8 @@ export default function OverlayPage() {
   const animationFrameRef = useRef<number | null>(null);
   const currentTimeRef = useRef<HTMLInputElement>(null);
 
-  const {
-    verticalPosition,
-    setVerticalPosition,
-    sizeMultiplier,
-    setSizeMultiplier,
-    lyricOffset,
-    setLyricOffset,
-    currentTime,
-    setCurrentTime,
-    isPlaying,
-    setIsPlaying,
-    isLoading,
-    setIsLoading,
-    outputUrl,
-    setOutputUrl,
-    jsonData,
-    setJsonData,
-    videoDimensions,
-    setVideoDimensions,
-    previewUrl,
-    setPreviewUrl,
-    loadedVideoId,
-    setLoadedVideoId,
-    customSrt,
-    setCustomSrt,
-    file,
-    setFile,
-  } = useOverlayStore();
-
+  const { session, setSession } = useSessionStore();
+  const { overlay } = useOverlayStore();
   const output = new Output({
     target: target,
     format: format,
@@ -91,33 +65,35 @@ export default function OverlayPage() {
   useEffect(() => {
     if (previewVideoRef.current) {
       previewVideoRef.current.addEventListener("play", () =>
-        setIsPlaying(true)
+        setOverlayState({ isPlaying: true })
       );
       previewVideoRef.current.addEventListener("pause", () =>
-        setIsPlaying(false)
+        setOverlayState({ isPlaying: false })
       );
     }
   }, [previewVideoRef]);
 
   async function handleUpload() {
-    if (!file) {
+    if (!overlay.file) {
       alert("No file selected");
       return;
     }
-    if (isLoading) {
+    if (overlay.isLoading) {
       alert("Already loading");
       return;
     }
-    const parsedSubtitles = parseSrt(customSrt);
+    const parsedSubtitles = parseSrt(session.srtContent);
     console.log("Starting conversion");
-    setIsLoading(true);
+    setOverlayState({ isLoading: true });
     const watermark = new Image();
     watermark.src = "/watermark.png";
     await new Promise((resolve) => {
       watermark.onload = resolve;
     });
 
-    const blob = new Blob([file ?? ""], { type: file?.type ?? "" });
+    const blob = new Blob([overlay.file ?? ""], {
+      type: overlay.file?.type ?? "",
+    });
     const blobSource = new BlobSource(blob);
     const input = new Input({ source: blobSource, formats: ALL_FORMATS });
 
@@ -126,33 +102,33 @@ export default function OverlayPage() {
       | OffscreenCanvasRenderingContext2D
       | null = null;
     const conversion = await convertCanvas(
-      verticalPosition,
-      sizeMultiplier,
+      overlay.verticalPosition,
+      overlay.sizeMultiplier,
       input,
       output,
       parsedSubtitles,
       ctx,
-      lyricOffset
+      overlay.lyricOffset
     );
 
     await conversion?.execute().catch((error) => {
       alert("Error converting file");
       console.error(error);
-      setIsLoading(false);
+      setOverlayState({ isLoading: false });
     });
     console.log("Conversion complete");
 
     const buffer = target.buffer as ArrayBuffer;
-    const outputMimeType = file?.type?.startsWith("video/")
-      ? file.type
+    const outputMimeType = overlay.file?.type?.startsWith("video/")
+      ? overlay.file.type
       : "video/mp4";
     const outputBlob = new Blob([buffer], { type: outputMimeType });
     console.log("outputBlob", outputBlob);
     const url = URL.createObjectURL(outputBlob);
-    setIsLoading(false);
+    setOverlayState({ isLoading: false });
 
     // Save output url in state for react video element
-    setOutputUrl(url);
+    setOverlayState({ outputUrl: url });
 
     // Also, if ref available, force reload and play
     if (videoRef.current) {
@@ -169,28 +145,28 @@ export default function OverlayPage() {
   }
 
   function handleDownload() {
-    if (!outputUrl) {
+    if (!overlay.outputUrl) {
       alert("No output URL");
       return;
     }
     const a = document.createElement("a");
-    a.href = outputUrl;
+    a.href = overlay.outputUrl;
     a.download = "output.mp4";
     a.click();
   }
 
   function handleQuickPreview() {
-    if (!file) {
+    if (!overlay.file) {
       alert("Please select a video file first");
       return;
     }
 
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
+    const url = URL.createObjectURL(overlay.file);
+    setOverlayState({ previewUrl: url });
 
     setTimeout(() => {
       if (previewVideoRef.current) {
-        previewVideoRef.current.currentTime = currentTime;
+        previewVideoRef.current.currentTime = overlay.currentTime;
         previewVideoRef.current.onloadeddata = () => {
           drawVideoFrameWithOverlay();
         };
@@ -206,13 +182,12 @@ export default function OverlayPage() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const rect = canvas.getBoundingClientRect();
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const parsedSubtitles = parseSrt(customSrt);
+    const parsedSubtitles = parseSrt(session.srtContent);
     const validSubtitles = parsedSubtitles.filter(
       (sub): sub is typeof sub & { startTime: number; endTime: number } =>
         sub.startTime !== null && sub.endTime !== null
@@ -220,8 +195,8 @@ export default function OverlayPage() {
 
     const subtitle = validSubtitles.find(
       (sub) =>
-        currentTime + lyricOffset >= sub.startTime &&
-        currentTime + lyricOffset <= sub.endTime
+        overlay.currentTime + overlay.lyricOffset >= sub.startTime &&
+        overlay.currentTime + overlay.lyricOffset <= sub.endTime
     );
 
     if (subtitle) {
@@ -239,10 +214,10 @@ export default function OverlayPage() {
         );
         const rows = updateTransliterationRows(transliterationMap);
 
-        const rendererSizeMultiplier = sizeMultiplier / 2;
-        const cellSize = (defaultCellSize * sizeMultiplier) / 2 - 5;
+        const rendererSizeMultiplier = overlay.sizeMultiplier / 2;
+        const cellSize = (defaultCellSize * overlay.sizeMultiplier) / 2 - 5;
         const rowSpacing = 0;
-        const topMargin = verticalPosition;
+        const topMargin = overlay.verticalPosition;
         const spacingBetweenTextAndChars = 20;
 
         let currentTopY = topMargin;
@@ -348,37 +323,28 @@ export default function OverlayPage() {
   }
 
   useEffect(() => {
-    if (currentTimeRef.current && !isPlaying) {
+    if (currentTimeRef.current && !overlay.isPlaying) {
       console.log(
-        `current time ${currentTime} | vertical position ${verticalPosition} | default cell size ${defaultCellSize} | size multiplier ${sizeMultiplier}`
+        `current time ${overlay.currentTime} | vertical position ${overlay.verticalPosition} | default cell size ${defaultCellSize} | size multiplier ${overlay.sizeMultiplier}`
       );
       const time = Number.parseFloat(currentTimeRef.current.value);
-      handleDrawCanvas(
-        canvasRef as React.RefObject<HTMLCanvasElement>,
-        time + lyricOffset,
-        verticalPosition,
-        sizeMultiplier,
-        setJsonData,
-        videoDimensions,
-        customSrt
-      );
+      setOverlayState({ currentTime: time + overlay.lyricOffset });
+      handleDrawCanvas(canvasRef.current as HTMLCanvasElement, time);
     }
-  }, [currentTime, verticalPosition, sizeMultiplier, isPlaying, lyricOffset]);
-
-  useEffect(() => {
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, []);
+  }, [
+    overlay.currentTime,
+    overlay.verticalPosition,
+    overlay.sizeMultiplier,
+    overlay.isPlaying,
+    overlay.lyricOffset,
+  ]);
 
   async function handleLoadVideo() {
-    if (!loadedVideoId) {
+    if (!overlay.loadedVideoId) {
       alert("No video ID");
       return;
     }
-    const videoId = getVideoIdFromUrl(loadedVideoId);
+    const videoId = getVideoIdFromUrl(overlay.loadedVideoId);
     const customSubtitlesResponse = await fetch(
       `https://www.langpal.com.hk/api/subtitles`,
       {
@@ -391,23 +357,25 @@ export default function OverlayPage() {
       return;
     }
     const customSubtitles = await customSubtitlesResponse.text();
-    setCustomSrt(customSubtitles);
+    setSession({
+      ...session,
+      srtContent: customSubtitles,
+    });
   }
 
   return (
-    <div className="w-full h-fit min-h-screen z-100 flex-col font-sans mt-24 flex items-center text-white">
+    <div className="w-full h-[92vh] flex-col font-sans flex items-center text-white bg-red-500">
       <h1>Overlay Test</h1>
-
       <div className="flex gap-2 w-120 h-8 my-4">
         <input
           type="text"
           className="w-full rounded-2xl p-2 text-black"
-          value={loadedVideoId || ""}
-          onChange={(e) => setLoadedVideoId(e.target.value)}
+          value={overlay.loadedVideoId || ""}
+          onChange={(e) => setOverlayState({ loadedVideoId: e.target.value })}
         />
         <button
           type="button"
-          className="bg-blue-600 w-auto hover:bg-blue-700 rounded-2xl p-2 font-semibold"
+          className="bg-blue-600 cursor-pointer w-auto hover:bg-blue-700 rounded-2xl p-2 font-semibold"
           onClick={handleLoadVideo}
         >
           Load
@@ -416,24 +384,19 @@ export default function OverlayPage() {
 
       <div className="flex gap-4 mb-4">
         <button
-          className="bg-blue-600 hover:bg-blue-700 rounded-2xl p-2 font-semibold"
+          className="bg-blue-600 cursor-pointer hover:bg-blue-700 rounded-2xl p-2 font-semibold"
           type="button"
           onClick={handleQuickPreview}
         >
           Quick Preview
         </button>
         <button
-          className="bg-black rounded-2xl p-2"
+          className="bg-black cursor-pointer rounded-2xl p-2 hover:bg-gray-800"
           type="button"
           onClick={() =>
             handleDrawCanvas(
-              canvasRef as React.RefObject<HTMLCanvasElement>,
-              currentTime,
-              verticalPosition,
-              defaultCellSize,
-              setJsonData,
-              videoDimensions,
-              customSrt
+              canvasRef.current as HTMLCanvasElement,
+              overlay.currentTime
             )
           }
         >
@@ -441,77 +404,84 @@ export default function OverlayPage() {
         </button>
       </div>
 
-      <div className="flex flex-col gap-2 w-[40rem]">
-        <p className="text-sm">Size Multiplier: {sizeMultiplier}x</p>
+      <div className="flex flex-col gap-2 w-160">
+        <p className="text-sm">Size Multiplier: {overlay.sizeMultiplier}x</p>
         <input
           className="w-full"
           type="range"
           min={0.1}
           max={10}
           step={0.1}
-          value={sizeMultiplier}
+          value={overlay.sizeMultiplier}
           onChange={(e) => {
-            setSizeMultiplier(Number.parseFloat(e.target.value));
+            setOverlayState({
+              sizeMultiplier: Number.parseFloat(e.target.value),
+            });
           }}
         />
-        <p className="text-sm">Lyric Offset: {lyricOffset}s </p>
+        <p className="text-sm">Lyric Offset: {overlay.lyricOffset}s </p>
         <input
           className="w-full"
           type="range"
           step={0.5}
           min={-100}
           max={100}
-          value={lyricOffset}
+          value={overlay.lyricOffset}
           onChange={(e) => {
             const newValue = Number.parseFloat(e.target.value);
-            setLyricOffset(newValue);
+            setOverlayState({ lyricOffset: newValue });
           }}
         />
       </div>
 
       <div className="flex gap-4 flex-row justify-center items-center relative">
-        <div className="flex flex-col gap-2 relative justify-center items-center w-[50rem] h-[30rem] rounded-2xl drop-shadow-md border-2 border-white">
+        <div className="flex flex-col gap-2 relative justify-center items-center w-200 h-120 rounded-2xl drop-shadow-md border-2 border-white">
           <video
             ref={previewVideoRef}
-            className="absolute top-0 left-0 w-auto h-[30rem] self-center justify-self-center anchor-center"
-            src={previewUrl || undefined}
+            style={{
+              display: overlay.previewUrl ? "block" : "none",
+            }}
+            className="absolute top-0 left-0 w-auto h-120 self-center justify-self-center anchor-center"
+            src={overlay.previewUrl || undefined}
             crossOrigin="anonymous"
             controls
           >
             <track kind="captions" src={undefined} />
           </video>
           <canvas
-            className="absolute top-0 left-0 w-auto h-[30rem] self-center justify-self-center anchor-center"
+            className="absolute top-0 left-0 w-auto h-120 self-center justify-self-center anchor-center"
             ref={canvasRef}
           />
           <div className="flex flex-col gap-2 w-full absolute bottom-0">
-            <p className="text-sm">Time Position: {currentTime}s </p>
+            <p className="text-sm">Time Position: {overlay.currentTime}s </p>
             <input
               className="w-full"
               type="range"
               min={0}
               max={174}
               ref={currentTimeRef}
-              value={currentTime}
+              value={overlay.currentTime}
               onChange={(e) => {
                 const newValue = Number.parseInt(e.target.value);
-                setCurrentTime(newValue);
+                setOverlayState({ currentTime: newValue });
               }}
             />
           </div>
         </div>
         <div className="flex flex-col gap-2 rotate-90 absolute right-[-35%] w-[60%]">
           <p className="text-sm">
-            Vertical Position (Y-Axis): {verticalPosition}px
+            Vertical Position (Y-Axis): {overlay.verticalPosition}px
           </p>
           <input
             className="w-full"
             type="range"
             min={0}
             max={3000}
-            value={verticalPosition}
+            value={overlay.verticalPosition}
             onChange={(e) => {
-              setVerticalPosition(Number.parseInt(e.target.value));
+              setOverlayState({
+                verticalPosition: Number.parseInt(e.target.value),
+              });
             }}
           />
         </div>
@@ -525,43 +495,46 @@ export default function OverlayPage() {
             console.log("File changed");
             const selectedFile = e.target.files?.[0];
 
-            if (previewUrl) {
-              URL.revokeObjectURL(previewUrl);
+            if (overlay.previewUrl) {
+              URL.revokeObjectURL(overlay.previewUrl);
             }
 
             if (!selectedFile) {
-              setFile(null);
-              setPreviewUrl(null);
-              setVideoDimensions({ width: 1920, height: 1080 });
+              setOverlayState({ file: null });
+              setOverlayState({ previewUrl: null });
+              setOverlayState({
+                videoDimensions: { width: 1920, height: 1080 },
+              });
               return;
             }
 
-            setFile(selectedFile);
+            setOverlayState({ file: selectedFile });
             const url = URL.createObjectURL(selectedFile);
-            setPreviewUrl(url);
+            setOverlayState({ previewUrl: url });
 
             const videoElement = document.createElement("video");
             videoElement.src = url;
             videoElement.onloadedmetadata = () => {
-              setVideoDimensions({
-                width: videoElement.videoWidth,
-                height: videoElement.videoHeight,
+              setOverlayState({
+                videoDimensions: {
+                  width: videoElement.videoWidth,
+                  height: videoElement.videoHeight,
+                },
               });
               URL.revokeObjectURL(videoElement.src);
               console.log("File set");
-              alert(videoDimensions.width + " " + videoDimensions.height);
             };
             videoElement.load();
           }}
         />
         <div className="flex gap-4">
           <button
-            disabled={!previewUrl}
-            className="bg-blue-600 hover:bg-blue-700 rounded-2xl p-2 font-semibold disabled:bg-gray-600 disabled:cursor-not-allowed"
+            disabled={!overlay.previewUrl}
+            className="bg-blue-600 cursor-pointer hover:bg-blue-700 rounded-2xl p-2 font-semibold disabled:bg-gray-600 disabled:cursor-not-allowed"
             type="button"
             onClick={() => {
               if (previewVideoRef.current) {
-                if (isPlaying) {
+                if (overlay.isPlaying) {
                   previewVideoRef.current.pause();
                 } else {
                   previewVideoRef.current.play();
@@ -569,29 +542,29 @@ export default function OverlayPage() {
               }
             }}
           >
-            {isPlaying ? "Pause Preview" : "Play Preview"}
+            {overlay.isPlaying ? "Pause Preview" : "Play Preview"}
           </button>
           <button
-            className="bg-green-600 hover:bg-green-700 rounded-2xl p-2 font-semibold disabled:bg-gray-600 disabled:cursor-not-allowed"
+            className="bg-green-600 cursor-pointer hover:bg-green-700 rounded-2xl p-2 font-semibold disabled:bg-gray-600 disabled:cursor-not-allowed"
             type="button"
             onClick={handleUpload}
-            disabled={isLoading || !file}
+            disabled={overlay.isLoading || !overlay.file}
           >
-            {isLoading ? "Processing..." : "Process Full Video"}
+            {overlay.isLoading ? "Processing..." : "Process Full Video"}
           </button>
           <button
             type="button"
-            className="bg-purple-600 hover:bg-purple-700 rounded-2xl p-2 font-semibold disabled:bg-gray-600 disabled:cursor-not-allowed"
+            className="bg-purple-600 cursor-pointer hover:bg-purple-700 rounded-2xl p-2 font-semibold disabled:bg-gray-600 disabled:cursor-not-allowed"
             onClick={handleDownload}
-            disabled={!outputUrl}
+            disabled={!overlay.outputUrl}
           >
             Download
           </button>
         </div>
       </div>
 
-      <div className="h-[40rem] m-6 w-auto rounded-2xl drop-shadow-md">
-        {outputUrl && (
+      <div className="h-160 m-6 w-auto rounded-2xl drop-shadow-md">
+        {overlay.outputUrl && (
           <video className="w-full h-full rounded-2xl" ref={videoRef} controls>
             <track kind="captions" src={undefined} />
           </video>
