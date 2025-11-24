@@ -8,16 +8,13 @@ import { defaultCellSize, defaultChineseFontSize, jyutpingFontSize } from "./con
 import { getSubtitleAtTime, parseSrt, transliterateCaptions } from "./srt";
 import { retrieveChineseRomanizationMap } from "./transliteration/transliteration";
 
-export function handleDrawCanvas(canvas: HTMLCanvasElement, time: number) {
+export function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any, time: number) {
   if (!canvas?.clientWidth || !canvas.clientHeight) {
     return;
   }
 
   const overlay = getOverlayState().overlay;
-  const session = getSessionState().session;
   const rendererSizeMultiplier = overlay.sizeMultiplier / 2;
-  const parsedSubtitles = parseSrt(session.srtContent);
-  const subtitle = getSubtitleAtTime(parsedSubtitles, time + overlay.lyricOffset);
 
   const targetWidth = overlay.videoDimensions?.width || Math.floor(canvas.clientWidth);
   const targetHeight = overlay.videoDimensions?.height || Math.floor(canvas.clientHeight);

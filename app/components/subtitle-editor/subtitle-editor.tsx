@@ -1,18 +1,24 @@
 "use client";
+
+import { useEffect, useRef, useState } from "react";
+import { PlusIcon, TrashIcon } from "@heroicons/react/24/solid";
+
 import {
+  ParsedSubtitle,
+  setSessionState,
+  useSessionStore,
   type CaptionLanguage,
   type CaptionSegment,
 } from "../../store/session.store";
-import { setSessionState, useSessionStore } from "../../store/session.store";
+import { parseSrt } from "../../utilities/srt";
 import {
   CaptionLanguages,
   convertCaptionsToSrt,
   convertSrtToCaptions,
 } from "../../utilities/transliteration/transliteration";
-import { PlusIcon, TrashIcon } from "@heroicons/react/24/solid";
-import { useEffect, useRef, useState } from "react";
 import Loading from "../common/loading";
 import SubtitleEditorBottomControls from "./subtitle-editor-bottom-controls";
+
 export interface Subtitle {
   title: string;
   artist: string;
@@ -38,12 +44,7 @@ function formatTime(time: number) {
 export const timeStringToSeconds = (timeString: string): number => {
   const [time, milliseconds] = timeString.split(",");
   const [hours, minutes, seconds] = time?.split(":").map(Number) || [];
-  return (
-    (hours || 0) * 3600 +
-    (minutes || 0) * 60 +
-    (seconds || 0) +
-    Number(milliseconds) / 1000
-  );
+  return (hours || 0) * 3600 + (minutes || 0) * 60 + (seconds || 0) + Number(milliseconds) / 1000;
 };
 
 export default function SubtitleEditor() {
@@ -141,19 +142,11 @@ export default function SubtitleEditor() {
 
     // Use originalCaptions if available, otherwise use current localCaptions as base
     const baseCaptions =
-      session.originalCaptions.length > 0
-        ? session.originalCaptions
-        : session.localCaptions;
+      session.originalCaptions.length > 0 ? session.originalCaptions : session.localCaptions;
 
     const updatedCaptions = baseCaptions.map((caption: CaptionSegment) => {
-      const newStart = Math.max(
-        0,
-        timeStringToSeconds(caption.startTime) + offsetSeconds
-      );
-      const newEnd = Math.max(
-        0,
-        timeStringToSeconds(caption.endTime) + offsetSeconds
-      );
+      const newStart = Math.max(0, timeStringToSeconds(caption.startTime) + offsetSeconds);
+      const newEnd = Math.max(0, timeStringToSeconds(caption.endTime) + offsetSeconds);
       return {
         ...caption,
         startTime: formatTime(newStart),
@@ -169,22 +162,15 @@ export default function SubtitleEditor() {
     });
   }
 
-  const languageContent = (
-    language: CaptionLanguage,
-    caption: CaptionSegment,
-    index: number
-  ) => (
+  const languageContent = (language: CaptionLanguage, caption: CaptionSegment, index: number) => (
     <>
       {caption.text[language.code] !== null && (
         <div
           key={`${index}-${language.code}-caption-edit`}
-          className="flex flex-row gap-1.5 w-full border-b border-white/20 pb-1.5"
+          className="flex w-full flex-row gap-1.5 border-b border-white/20 pb-1.5"
         >
-          <div className="flex flex-col gap-1.5 w-full">
-            <label
-              htmlFor={`${index}-${language.code}`}
-              className="text-2xl font-bold text-left"
-            >
+          <div className="flex w-full flex-col gap-1.5">
+            <label htmlFor={`${index}-${language.code}`} className="text-left text-2xl font-bold">
               {language.name}
             </label>
             <textarea
@@ -210,7 +196,7 @@ export default function SubtitleEditor() {
               onKeyUp={(e) => {
                 e.stopPropagation();
               }}
-              className="h-16 rounded-md m-0 p-2 border text-black border-white/20 text-3xl text-left w-full"
+              className="m-0 h-16 w-full rounded-md border border-white/20 p-2 text-left text-3xl text-black"
             />
           </div>
           <button
@@ -218,9 +204,9 @@ export default function SubtitleEditor() {
             data-tooltip-id="global-tooltip"
             data-tooltip-content="Delete Language Section"
             onClick={() => handleDeleteLanguage(index, language.code)}
-            className="border-none flex p-3 bg-black/30 items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer"
+            className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 hover:bg-white/20"
           >
-            <TrashIcon className="w-10 h-10" />
+            <TrashIcon className="h-10 w-10" />
           </button>
         </div>
       )}
@@ -252,11 +238,11 @@ export default function SubtitleEditor() {
     }
     if (isStartTime) {
       updatedCaptions[index].startTime = formatTime(
-        timeStringToSeconds(updatedCaptions[index].startTime) - amount
+        timeStringToSeconds(updatedCaptions[index].startTime) - amount,
       );
     } else {
       updatedCaptions[index].endTime = formatTime(
-        timeStringToSeconds(updatedCaptions[index].endTime) - amount
+        timeStringToSeconds(updatedCaptions[index].endTime) - amount,
       );
     }
     setSessionState({
@@ -273,11 +259,11 @@ export default function SubtitleEditor() {
     }
     if (isStartTime) {
       updatedCaptions[index].startTime = formatTime(
-        timeStringToSeconds(updatedCaptions[index].startTime) + amount
+        timeStringToSeconds(updatedCaptions[index].startTime) + amount,
       );
     } else {
       updatedCaptions[index].endTime = formatTime(
-        timeStringToSeconds(updatedCaptions[index].endTime) + amount
+        timeStringToSeconds(updatedCaptions[index].endTime) + amount,
       );
     }
     setSessionState({
@@ -289,11 +275,11 @@ export default function SubtitleEditor() {
 
   function createSubtitlesSection() {
     return (
-      <div className="flex my-2 items-center relative justify-center h-[100vh] flex-col gap-2.5">
+      <div className="relative my-2 flex h-[100vh] flex-col items-center justify-center gap-2.5">
         <button
           type="button"
           onClick={() => handleAdd(0, "00:00:00,000", "yue")}
-          className="border-none flex items-center justify-center bg-black/30 rounded-3xl hover:bg-white/20  cursor-pointer p-1.5"
+          className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-1.5 hover:bg-white/20"
         >
           Create Subtitles
         </button>
@@ -301,8 +287,20 @@ export default function SubtitleEditor() {
     );
   }
 
+  useEffect(() => {
+    if (session.srtContent) {
+      const parsedSubtitles = parseSrt(session.srtContent);
+      const captions = convertSrtToCaptions(session.localSrtContent);
+      setSessionState({
+        ...session,
+        parsedSubtitles: parsedSubtitles as ParsedSubtitle[],
+        localCaptions: captions,
+      });
+    }
+  }, []);
+
   const subtitleEditorHeaderControls = (
-    <div className="grid text-2xl grid-cols-4 relative top-0 gap-2.5 p-2.5 justify-center items-center w-full">
+    <div className="relative top-0 grid w-full grid-cols-4 items-center justify-center gap-2.5 p-2.5 text-2xl">
       <input
         type="number"
         placeholder="Offset"
@@ -321,22 +319,22 @@ export default function SubtitleEditor() {
             handleOffsetChange(offsetValue);
           }
         }}
-        className="w-42 p-1.5 text-white border-solid bg-transparent rounded-3xl border-white/20 border-[1px]"
+        className="w-42 rounded-3xl border border-solid border-white/20 bg-transparent p-1.5 text-white"
       />
       <button
         type="button"
         onClick={() => setAutoScroll(!autoScroll)}
-        className="cursor-pointer bg-black/30 hover:bg-white/20  p-1.5 rounded-2xl border-none"
+        className="cursor-pointer rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20"
       >
         {autoScroll ? "Disable Auto Scroll" : "Enable Auto Scroll"}
       </button>
       <button
         type="button"
         onClick={() => handleDeleteAllCaptions()}
-        className="cursor-pointer  rounded-3xl bg-black/30 hover:bg-white/20  flex flex-row items-center justify-center p-1.5 border-none"
+        className="flex cursor-pointer flex-row items-center justify-center rounded-3xl border-none bg-black/30 p-1.5 hover:bg-white/20"
       >
         Delete All
-        <TrashIcon className="w-8 h-8" />
+        <TrashIcon className="h-8 w-8" />
       </button>
     </div>
   );
@@ -345,75 +343,67 @@ export default function SubtitleEditor() {
     <div
       id="langpal-subtitle-editor-content"
       ref={contentRef}
-      className="pt-4 border-none relative w-full overflow-y-scroll px-8 pb-24 scrollbar-thin outline-none bg-transparent flex flex-col gap-2.5"
+      className="scrollbar-thin relative flex w-full flex-col gap-2.5 overflow-y-scroll border-none bg-transparent px-8 pt-4 pb-24 outline-none"
     >
       {session.localCaptions.length === 0 && createSubtitlesSection()}
       {session.localCaptions.map((caption: CaptionSegment, index: number) => (
         <div
           key={`caption-editor-${index}-${caption.startTime}-${caption.endTime}`}
-          className="flex flex-col mt-14 gap-1.5 justify-center items-center w-full h-full"
+          className="mt-14 flex h-full w-full flex-col items-center justify-center gap-1.5"
         >
           <button
             type="button"
             data-tooltip-id="global-tooltip"
             data-tooltip-content="Add New Caption Above"
-            onClick={() =>
-              handleAdd(
-                index,
-                caption.startTime,
-                selectedLanguage[index] || "yue"
-              )
-            }
-            className="border-none flex p-3 bg-black/30 items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer"
+            onClick={() => handleAdd(index, caption.startTime, selectedLanguage[index] || "yue")}
+            className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 hover:bg-white/20"
           >
-            <PlusIcon className="w-10 h-10" />
+            <PlusIcon className="h-10 w-10" />
           </button>
-          <div className="border border-white/20 text-2xl m-1.5 p-1.5 rounded-lg w-full h-full flex flex-col gap-1.5">
+          <div className="m-1.5 flex h-full w-full flex-col gap-1.5 rounded-lg border border-white/20 p-1.5 text-2xl">
             <div className="flex items-center justify-between gap-4">
-              <p className="m-0 p-0 text-2xl font-bold text-left">
-                {index + 1}
-              </p>
-              <div className="flex items-center justify-center gap-1.5 bg-black/30 p-1.5 rounded-3xl">
+              <p className="m-0 p-0 text-left text-2xl font-bold">{index + 1}</p>
+              <div className="flex items-center justify-center gap-1.5 rounded-3xl bg-black/30 p-1.5">
                 <button
                   type="button"
-                  className="border-none flex items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer p-1.5"
+                  className="flex cursor-pointer items-center justify-center rounded-3xl border-none p-1.5 hover:bg-white/20"
                   onClick={() => decrementTime(index, 1, true)}
                 >
                   {"-1"}
                 </button>
                 <button
                   type="button"
-                  className="border-none flex items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer p-1.5"
+                  className="flex cursor-pointer items-center justify-center rounded-3xl border-none p-1.5 hover:bg-white/20"
                   onClick={() => decrementTime(index, 0.5, true)}
                 >
                   {"-0.5"}
                 </button>
                 <button
                   type="button"
-                  className="border-none flex items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer p-1.5"
+                  className="flex cursor-pointer items-center justify-center rounded-3xl border-none p-1.5 hover:bg-white/20"
                   onClick={() => incrementTime(index, 0.5, true)}
                 >
                   {"+0.5"}
                 </button>
                 <button
                   type="button"
-                  className="border-none flex items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer p-1.5"
+                  className="flex cursor-pointer items-center justify-center rounded-3xl border-none p-1.5 hover:bg-white/20"
                   onClick={() => incrementTime(index, 1, true)}
                 >
                   {"+1"}
                 </button>
               </div>
-              <div className="flex text-xl items-center justify-center gap-1.5 bg-black/30 p-1.5 rounded-3xl">
+              <div className="flex items-center justify-center gap-1.5 rounded-3xl bg-black/30 p-1.5 text-xl">
                 <button
                   type="button"
-                  className="border-none flex items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer p-1.5"
+                  className="flex cursor-pointer items-center justify-center rounded-3xl border-none p-1.5 hover:bg-white/20"
                   onClick={() => decrementTime(index, 0.5, false)}
                 >
                   {"-1"}
                 </button>
                 <button
                   type="button"
-                  className="border-none flex items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer p-1.5"
+                  className="flex cursor-pointer items-center justify-center rounded-3xl border-none p-1.5 hover:bg-white/20"
                   onClick={() => decrementTime(index, 0.5, false)}
                 >
                   {"-0.5"}
@@ -421,14 +411,14 @@ export default function SubtitleEditor() {
 
                 <button
                   type="button"
-                  className="border-none flex items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer p-1.5"
+                  className="flex cursor-pointer items-center justify-center rounded-3xl border-none p-1.5 hover:bg-white/20"
                   onClick={() => incrementTime(index, 0.5, false)}
                 >
                   {"+0.5"}
                 </button>
                 <button
                   type="button"
-                  className="border-none flex items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer p-1.5"
+                  className="flex cursor-pointer items-center justify-center rounded-3xl border-none p-1.5 hover:bg-white/20"
                   onClick={() => incrementTime(index, 1, false)}
                 >
                   {"+1"}
@@ -437,22 +427,20 @@ export default function SubtitleEditor() {
               <button
                 type="button"
                 onClick={() => handleDelete(index)}
-                className="border-none flex p-3 bg-black/30 items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer"
+                className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 hover:bg-white/20"
               >
-                <TrashIcon className="w-10 h-10" />
+                <TrashIcon className="h-10 w-10" />
               </button>
             </div>
 
-            <div className="flex items-center text-2xl justify-center gap-4">
-              <p className="m-0 p-0 text-3xl font-bold text-left">
-                {caption.startTime}
-              </p>
+            <div className="flex items-center justify-center gap-4 text-2xl">
+              <p className="m-0 p-0 text-left text-3xl font-bold">{caption.startTime}</p>
               <button
                 type="button"
                 data-tooltip-id="global-tooltip"
                 data-tooltip-content="Set Start Time"
                 onClick={() => {
-                  const video = document.querySelector("video");
+                  const video = session.video;
                   if (video) {
                     const time = video.currentTime;
                     const formattedTime = formatTime(time);
@@ -468,20 +456,18 @@ export default function SubtitleEditor() {
                     });
                   }
                 }}
-                className="border-none text-2xl flex p-3 bg-black/30 items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer"
+                className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 text-2xl hover:bg-white/20"
               >
                 Set
               </button>
 
-              <p className="m-0 p-0 text-3xl font-bold text-left">
-                {caption.endTime}
-              </p>
+              <p className="m-0 p-0 text-left text-3xl font-bold">{caption.endTime}</p>
               <button
                 type="button"
                 data-tooltip-id="global-tooltip"
                 data-tooltip-content="Set End Time"
                 onClick={() => {
-                  const video = document.querySelector("video");
+                  const video = session.video;
                   if (video) {
                     const time = video.currentTime;
                     const formattedTime = formatTime(time);
@@ -497,18 +483,15 @@ export default function SubtitleEditor() {
                     });
                   }
                 }}
-                className="border-none text-2xl p-3 flex bg-black/30 items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer"
+                className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 text-2xl hover:bg-white/20"
               >
                 Set
               </button>
             </div>
 
-            <div className="flex flex-col items-start justify-center gap-1.5 w-full">
+            <div className="flex w-full flex-col items-start justify-center gap-1.5">
               {CaptionLanguages.map((language: CaptionLanguage) => (
-                <div
-                  key={`${index}-${language.code}-language-content`}
-                  className="w-full"
-                >
+                <div key={`${index}-${language.code}-language-content`} className="w-full">
                   {languageContent(language, caption, index)}
                 </div>
               ))}
@@ -523,13 +506,10 @@ export default function SubtitleEditor() {
                   updatedSelectedLanguage[index] = e.target.value;
                   setSelectedLanguage(updatedSelectedLanguage);
                 }}
-                className="border-none bg-white text-black  text-center rounded flex p-1.5 cursor-pointer w-full"
+                className="flex w-full cursor-pointer rounded border-none bg-white p-1.5 text-center text-black"
               >
                 {CaptionLanguages.map((language: CaptionLanguage) => (
-                  <option
-                    key={`${index}-${language.code}-caption-select`}
-                    value={language.code}
-                  >
+                  <option key={`${index}-${language.code}-caption-select`} value={language.code}>
                     {language.name}
                   </option>
                 ))}
@@ -539,15 +519,12 @@ export default function SubtitleEditor() {
                 data-tooltip-id="global-tooltip"
                 data-tooltip-content="Add New Language Section"
                 disabled={caption?.text[selectedLanguage[index] || ""] !== null}
-                className="border-none flex p-3 bg-black/30 items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer"
+                className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 hover:bg-white/20"
                 onClick={() => {
-                  handleNewCaptionLanguage(
-                    index,
-                    selectedLanguage[index] || "yue"
-                  );
+                  handleNewCaptionLanguage(index, selectedLanguage[index] || "yue");
                 }}
               >
-                <PlusIcon className="w-10 h-10" />
+                <PlusIcon className="h-10 w-10" />
               </button>
             </div>
           </div>
@@ -555,16 +532,10 @@ export default function SubtitleEditor() {
             type="button"
             data-tooltip-id="global-tooltip"
             data-tooltip-content="Add New Caption Below"
-            onClick={() =>
-              handleAdd(
-                index + 1,
-                caption.endTime,
-                selectedLanguage[index] || "yue"
-              )
-            }
-            className="border-none flex p-3 bg-black/30 items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer"
+            onClick={() => handleAdd(index + 1, caption.endTime, selectedLanguage[index] || "yue")}
+            className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 hover:bg-white/20"
           >
-            <PlusIcon className="w-10 h-10" />
+            <PlusIcon className="h-10 w-10" />
           </button>
         </div>
       ))}
@@ -575,11 +546,11 @@ export default function SubtitleEditor() {
     <div
       ref={editorRef}
       id="langpal-subtitle-editor"
-      className="flex w-full h-[92vh] flex-col bg-green-500"
+      className="relative flex h-[92vh] w-full flex-col bg-green-500"
     >
       <Loading />
       {session.selectedTab === "captions" ? (
-        <div className="flex relative flex-col h-full w-full overflow-auto">
+        <div className="relative flex h-full w-full flex-col overflow-auto">
           {subtitleEditorHeaderControls}
           {subtitleEditorContent}
           <SubtitleEditorBottomControls />

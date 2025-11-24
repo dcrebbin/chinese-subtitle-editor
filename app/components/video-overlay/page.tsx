@@ -12,9 +12,22 @@ import {
   handleDrawCanvas,
   updateTransliterationRows,
 } from "../../utilities/rendering";
-import { parseSrt, transliterateCaptions } from "../../utilities/srt";
+import { getSubtitleAtTime, parseSrt, transliterateCaptions } from "../../utilities/srt";
 import { retrieveChineseRomanizationMap } from "../../utilities/transliteration/transliteration";
 import VideoTabs from "./video-tabs";
+
+function formatTime(time: number) {
+  const minutes = Math.floor((time % 3600) / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = Math.floor(time % 60)
+    .toString()
+    .padStart(2, "0");
+  const milliseconds = Math.floor((time % 1) * 100)
+    .toString()
+    .padStart(2, "0");
+  return `${minutes}:${seconds}.${milliseconds}`;
+}
 
 function getVideoIdFromUrl(videoUrl: string) {
   let newVideoId = "";
@@ -252,7 +265,15 @@ export default function OverlayPage() {
     if (currentTimeRef.current && !overlay.isPlaying) {
       const time = Number.parseFloat(currentTimeRef.current.value);
       setOverlayState({ currentTime: time + overlay.lyricOffset });
-      handleDrawCanvas(canvasRef.current as HTMLCanvasElement, time);
+      const currentSubtitle = getSubtitleAtTime(
+        session.parsedSubtitles,
+        time + overlay.lyricOffset,
+      );
+      handleDrawCanvas(
+        canvasRef.current as HTMLCanvasElement,
+        currentSubtitle ?? null,
+        time + overlay.lyricOffset,
+      );
     }
   }, [
     overlay.currentTime,
@@ -260,6 +281,7 @@ export default function OverlayPage() {
     overlay.sizeMultiplier,
     overlay.isPlaying,
     overlay.lyricOffset,
+    session.parsedSubtitles,
   ]);
 
   async function handleLoadVideo() {
@@ -288,9 +310,13 @@ export default function OverlayPage() {
   function startUpdatePreview() {
     if (!previewVideoRef.current) return;
     updatePreviewTimeoutRef.current = setTimeout(() => {
-      console.log("Drawing video frame with overlay");
+      const currentSubtitle = getSubtitleAtTime(
+        session.parsedSubtitles,
+        previewVideoRef.current?.currentTime ?? 0,
+      );
       handleDrawCanvas(
         canvasRef.current as HTMLCanvasElement,
+        currentSubtitle,
         previewVideoRef.current?.currentTime ?? 0,
       );
       startUpdatePreview();
@@ -382,7 +408,9 @@ export default function OverlayPage() {
           ref={canvasRef}
         />
         <div className="pointer-events-none absolute bottom-0 flex w-full flex-col gap-2 pt-20">
-          <p className="text-sm">Time Position: {overlay.currentTime}s </p>
+          <p className="w-fit rounded-2xl bg-black/80 p-4 text-xl font-bold">
+            Time: {formatTime(overlay.currentTime)}s{" "}
+          </p>
           <input
             className="pointer-events-auto w-full cursor-pointer"
             type="range"
@@ -453,6 +481,10 @@ export default function OverlayPage() {
                   height: videoElement.videoHeight,
                 },
               });
+              setSession({
+                ...session,
+                video: previewVideoRef.current,
+              });
               console.log("File set");
               videoElement.remove();
             };
@@ -492,6 +524,13 @@ export default function OverlayPage() {
             disabled={!overlay.outputUrl}
           >
             Download
+          </button>
+          <button
+            type="button"
+            className="cursor-pointer rounded-2xl bg-red-600 p-2 font-semibold hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-600"
+            onClick={() => setOverlayState({ previewUrl: null, file: null, videoLength: 100 })}
+          >
+            Clear
           </button>
         </div>
       </div>

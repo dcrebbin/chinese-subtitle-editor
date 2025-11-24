@@ -1,5 +1,7 @@
 import { create } from "zustand";
+
 import { defaultSrtExample } from "../utilities/constants";
+
 export interface CaptionSegment {
   startTime: string;
   endTime: string;
@@ -11,6 +13,12 @@ export interface CaptionSegment {
 export interface CaptionLanguage {
   name: string;
   code: string;
+}
+
+export interface ParsedSubtitle {
+  startTime: number;
+  endTime: number;
+  text: string;
 }
 
 export interface SessionStore {
@@ -25,6 +33,8 @@ export interface SessionStore {
     platform: string;
     isInitialized: boolean;
     vpnWarning: boolean;
+    parsedSubtitles: ParsedSubtitle[];
+    setParsedSubtitles: (parsedSubtitles: ParsedSubtitle[]) => void;
     video: HTMLVideoElement | null;
     localCaptions: CaptionSegment[];
     originalCaptions: CaptionSegment[];
@@ -71,6 +81,9 @@ const sessionStore = create<SessionStore>((set) => ({
     selectedTab: "captions",
     hasCustomCaptions: false,
     transliterationText: [],
+    parsedSubtitles: [],
+    setParsedSubtitles: (parsedSubtitles: ParsedSubtitle[]) =>
+      set({ session: { ...get().session, parsedSubtitles } }),
     isLoading: false,
     srtContent: defaultSrtExample,
     vpnWarning: false,

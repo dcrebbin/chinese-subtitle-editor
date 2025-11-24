@@ -1,12 +1,14 @@
 "use client";
 
+import { useEffect } from "react";
+import { ArrowDownOnSquareIcon } from "@heroicons/react/24/solid";
+
+import { useSessionStore, type ParsedSubtitle } from "../../store/session.store";
+import { parseSrt } from "../../utilities/srt";
 import {
   convertCaptionsToSrt,
   convertSrtToCaptions,
 } from "../../utilities/transliteration/transliteration";
-import { useSessionStore } from "../../store/session.store";
-import { ArrowDownOnSquareIcon } from "@heroicons/react/24/solid";
-import { useEffect } from "react";
 
 export default function SubtitleEditorBottomControls() {
   const { session, setSession } = useSessionStore();
@@ -15,24 +17,22 @@ export default function SubtitleEditorBottomControls() {
     try {
       const localCaptions = session.localCaptions;
       const convertedSrt = convertCaptionsToSrt(localCaptions);
-      setSession({ ...session, localSrtContent: convertedSrt });
+      const parsedSubtitles = parseSrt(convertedSrt);
+      setSession({
+        ...session,
+        localSrtContent: convertedSrt,
+        srtContent: convertedSrt,
+        parsedSubtitles: parsedSubtitles as ParsedSubtitle[],
+      });
       console.log(session.videoId);
       if (session.videoId) {
         try {
-          localStorage.setItem(
-            `langpal-srt-content-${session.videoId}`,
-            convertedSrt
-          );
-          console.log(
-            `Saved subtitles to localStorage for video: ${session.videoId}`
-          );
+          localStorage.setItem(`langpal-srt-content-${session.videoId}`, convertedSrt);
+          console.log(`Saved subtitles to localStorage for video: ${session.videoId}`);
         } catch (error) {
           console.error(`Failed to save to localStorage: ${error}`);
-          // Don't throw here, just log the error
         }
       }
-
-      alert("Subtitles saved");
     } catch (error) {
       console.error("Error saving subtitles:", error);
       alert("Error saving subtitles. Please try again.");
@@ -49,21 +49,14 @@ export default function SubtitleEditorBottomControls() {
     URL.revokeObjectURL(url);
   };
 
-  useEffect(() => {
-    if (session.srtContent && session.srtContent !== "") {
-      const captions = convertSrtToCaptions(session.localSrtContent);
-      setSession({ ...session, localCaptions: captions });
-    }
-  }, [session.srtContent]);
-
   return (
-    <div className="bg-black/60 backdrop-blur-md rounded-3xl left-0 grid grid-cols-3 fixed bottom-0 gap-2.5 p-2.5 justify-center items-center w-fit m-2.5">
+    <div className="fixed bottom-0 left-0 m-2.5 grid w-fit grid-cols-2 items-center justify-center gap-2.5 rounded-3xl bg-black/60 p-2.5 backdrop-blur-md">
       <button
         data-tooltip-id="global-tooltip"
         data-tooltip-content="Save Subtitles to Local Storage"
         type="button"
         onClick={handleSave}
-        className="cursor-pointer rounded-3xl hover:bg-white/20  flex flex-row items-center justify-center  bg-transparent p-1.5 border-none"
+        className="flex cursor-pointer flex-row items-center justify-center rounded-3xl border-none bg-transparent p-1.5 hover:bg-white/20"
       >
         Save
       </button>
@@ -72,9 +65,9 @@ export default function SubtitleEditorBottomControls() {
         onClick={handleDownload}
         data-tooltip-id="global-tooltip"
         data-tooltip-content="Download Subtitles"
-        className="cursor-pointer rounded-3xl hover:bg-white/20 flex flex-row items-center justify-center  bg-transparent  text-white p-1.5 border-none"
+        className="flex cursor-pointer flex-row items-center justify-center rounded-3xl border-none bg-transparent p-1.5 text-white hover:bg-white/20"
       >
-        <ArrowDownOnSquareIcon className="w-10 h-10" />
+        <ArrowDownOnSquareIcon className="h-10 w-10" />
       </button>
     </div>
   );

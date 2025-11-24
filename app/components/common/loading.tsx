@@ -1,13 +1,16 @@
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
+
 import { getSessionState } from "../../store/session.store";
 
 export default function Loading() {
   const session = getSessionState().session;
+
+  if (!session.isLoading) {
+    return null;
+  }
   return (
-    session.isLoading && (
-      <div className="flex flex-col items-center justify-center gap-2.5 z-10 absolute w-full h-full bg-black bg-opacity-50">
-        <ArrowPathIcon className="w-10 h-10 animate-spin" />
-      </div>
-    )
+    <div className="bg-opacity-50 absolute z-10 flex h-full w-full flex-col items-center justify-center gap-2.5 bg-black/30">
+      <ArrowPathIcon className="h-10 w-10 animate-spin" />
+    </div>
   );
 }
