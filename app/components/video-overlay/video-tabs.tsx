@@ -3,7 +3,7 @@ import { setOverlayState, useOverlayStore } from "@/app/store/overlay.store";
 export default function VideoTabs() {
   const { overlay } = useOverlayStore();
   return (
-    <div className="flex text-xl flex-row gap-1.5 items-center w-full">
+    <div className="flex w-full flex-row items-center justify-center gap-1.5 text-xl">
       <button
         type="button"
         onClick={() => setOverlayState({ ...overlay, selectedTab: "editor" })}

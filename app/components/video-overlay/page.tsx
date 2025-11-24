@@ -331,10 +331,7 @@ export default function OverlayPage() {
   }
 
   const videoOverlayContent = (
-    <div
-      className="flex w-full flex-col gap-4"
-      style={{ display: overlay.selectedTab === "editor" ? "flex" : "none" }}
-    >
+    <div className="flex w-full flex-col gap-4">
       <div className="my-4 flex h-8 w-full gap-2">
         <input
           type="text"
@@ -356,16 +353,15 @@ export default function OverlayPage() {
           type="button"
           onClick={() => {
             setOverlayState({ isLandscapeMode: !overlay.isLandscapeMode });
-            if (canvasRef.current) {
+            if (canvasRef.current && videoRef.current) {
               if (overlay.isLandscapeMode) {
                 canvasRef.current.width = 1080;
                 canvasRef.current.height = 1920;
+                videoRef.current.style.width = "auto";
               } else {
                 canvasRef.current.width = 1920;
                 canvasRef.current.height = 1080;
-                if (videoRef.current) {
-                  videoRef.current.width = 1080;
-                }
+                videoRef.current.style.width = "450px";
               }
             }
           }}
@@ -389,15 +385,19 @@ export default function OverlayPage() {
           }}
         />
       </div>
-      <div className="relative flex h-200 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-white drop-shadow-md">
+      <div
+        className="relative flex h-200 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-white drop-shadow-md"
+        style={{ display: overlay.selectedTab === "editor" ? "flex" : "none" }}
+      >
         <video
           ref={previewVideoRef}
           style={{
             display: overlay.previewUrl ? "block" : "none",
             placeSelf: "anchor-center",
+            width: overlay.isLandscapeMode ? "auto" : "450px",
           }}
           preload="auto"
-          className="anchor-center absolute top-0 left-0 h-190 w-auto self-center justify-self-center rounded-t-2xl"
+          className="anchor-center absolute top-0 left-0 h-190 self-center justify-self-center rounded-t-2xl"
           src={overlay.previewUrl || undefined}
           crossOrigin="anonymous"
           onPause={() => {
@@ -414,6 +414,7 @@ export default function OverlayPage() {
         >
           <track kind="captions" src={undefined} />
         </video>
+
         <canvas
           style={{
             placeSelf: "anchor-center",
@@ -458,6 +459,18 @@ export default function OverlayPage() {
           />
         </div>
       </div>
+      <div
+        className="m-6 flex h-190 w-full flex-col items-center justify-start gap-2 rounded-2xl border-2 border-white drop-shadow-md"
+        style={{ display: overlay.selectedTab === "render" ? "flex" : "none" }}
+      >
+        {overlay.outputUrl && (
+          <video className="h-190 w-auto rounded-2xl border-2 border-white" ref={videoRef} controls>
+            <track kind="captions" src={undefined} />
+          </video>
+        )}
+      </div>
+
+      <VideoTabs />
       <div className="mt-6 flex flex-col items-center gap-4">
         <input
           type="file"
@@ -553,26 +566,7 @@ export default function OverlayPage() {
 
   return (
     <div className="flex h-[92vh] w-full flex-col items-center bg-red-500 font-sans text-white">
-      <VideoTabs />
       {videoOverlayContent}
-      <div
-        className="m-6 flex h-340 w-full flex-col items-center justify-start gap-2 drop-shadow-md"
-        style={{ opacity: overlay.selectedTab === "render" ? 1 : 0 }}
-      >
-        {overlay.outputUrl && (
-          <video className="h-190 w-auto rounded-2xl border-2 border-white" ref={videoRef} controls>
-            <track kind="captions" src={undefined} />
-          </video>
-        )}
-        <button
-          type="button"
-          className="cursor-pointer rounded-2xl bg-purple-600 p-2 font-semibold hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-gray-600"
-          onClick={handleDownload}
-          disabled={!overlay.outputUrl}
-        >
-          Download
-        </button>
-      </div>
     </div>
   );
 }
