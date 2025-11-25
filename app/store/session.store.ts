@@ -81,7 +81,7 @@ const sessionStore = create<SessionStore>((set) => ({
     hasCustomCaptions: false,
     transliterationText: [],
     parsedSubtitles: [],
-    isLoading: true,
+    isLoading: false,
     srtContent: defaultSrtExample,
     vpnWarning: false,
     platform: "",

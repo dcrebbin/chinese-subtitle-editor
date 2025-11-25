@@ -5,7 +5,7 @@ import OverlayPage from "./components/video-overlay/page";
 
 export default function Home() {
   return (
-    <div className="flex h-[92vh] items-start justify-start overflow-hidden bg-zinc-50 font-sans dark:bg-black">
+    <div className="grid h-auto grid-cols-1 items-start justify-start overflow-hidden bg-zinc-50 font-sans 2xl:grid-cols-2 dark:bg-black">
       <SubtitleEditor />
       <OverlayPage />
     </div>

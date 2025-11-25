@@ -200,6 +200,75 @@ export const drawCharacterCell = (
   ctx.fillText(caption.chinese, x + cellSize / 2, y + cellSize / 2 + paddingY);
 };
 
+function addBackground(
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
+  width: number,
+  height: number,
+  colour: string,
+) {
+  if (!ctx) return;
+  const overlay = getOverlayState().overlay;
+  if (overlay.backgroundMode === "colour") {
+    ctx.fillStyle = colour;
+    ctx.fillRect(0, 0, width, height);
+  }
+  if (overlay.backgroundMode === "full-image") {
+    if (overlay.backgroundImage) {
+      const image = new Image();
+      image.src = overlay.backgroundImage;
+      image.onload = () => {
+        // Calculate aspect ratios
+        const canvasAspect = width / height;
+        const imageAspect = image.width / image.height;
+
+        let drawWidth: number, drawHeight: number, offsetX: number, offsetY: number;
+
+        // Cover the canvas while maintaining aspect ratio
+        if (imageAspect > canvasAspect) {
+          // Image is wider than canvas
+          drawHeight = height;
+          drawWidth = height * imageAspect;
+          offsetX = (width - drawWidth) / 2;
+          offsetY = 0;
+        } else {
+          // Image is taller than canvas
+          drawWidth = width;
+          drawHeight = width / imageAspect;
+          offsetX = 0;
+          offsetY = (height - drawHeight) / 2;
+        }
+
+        ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+      };
+      image.onerror = () => {
+        console.error("Error loading background image");
+      };
+    }
+  }
+  if (overlay.backgroundMode === "double-image") {
+    if (overlay.doubleBackgroundImage.image1) {
+      const image = new Image();
+      image.src = overlay.doubleBackgroundImage.image1;
+      image.onload = () => {
+        ctx.drawImage(image, 0, 0, width, height);
+      };
+      image.onerror = () => {
+        console.error("Error loading background image");
+      };
+    }
+    if (overlay.doubleBackgroundImage.image2) {
+      const image = new Image();
+      image.src = overlay.doubleBackgroundImage.image2;
+      image.onload = () => {
+        ctx.drawImage(image, 0, 0, width, height);
+      };
+      image.onerror = () => {
+        console.error("Error loading background image");
+      };
+    }
+  }
+}
+
 export async function convertCanvas(
   verticalPosition: number,
   sizeMultiplier: number,
@@ -224,11 +293,12 @@ export async function convertCanvas(
             | OffscreenCanvasRenderingContext2D;
         }
 
+        addBackground(ctx, width, height, overlay.colour as string);
+
         const rendererSizeMultiplier = sizeMultiplier / 2;
         const cellSize = (defaultCellSize * sizeMultiplier) / 2 - 5;
         const subtitle = getSubtitleAtTime(parsedSubtitles, sample.timestamp + lyricsOffset);
         if (subtitle) {
-          ctx.clearRect(0, 0, width, height);
           const centerY = sample.displayHeight - height;
           const centerX = sample.displayWidth - width;
           sample.draw(ctx, -(centerX / 2), -(centerY / 2));
@@ -248,7 +318,6 @@ export async function convertCanvas(
 
           if (english) {
             ctx.save();
-            ctx.fillStyle = "green";
             ctx.font = `${24 * rendererSizeMultiplier}px Arial`;
             ctx.textAlign = "center";
             ctx.textBaseline = "top";
@@ -329,8 +398,10 @@ export async function convertCanvas(
             }
           }
         } else {
-          ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-          sample.draw(ctx, 0, 0);
+          addBackground(ctx, width, height, overlay.colour as string);
+          const centerY = sample.displayHeight - height;
+          const centerX = sample.displayWidth - width;
+          sample.draw(ctx, -(centerX / 2), -(centerY / 2));
         }
         return ctx.canvas;
       },

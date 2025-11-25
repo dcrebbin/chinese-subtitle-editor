@@ -32,6 +32,17 @@ type OverlayStore = {
     setSelectedTab: (selectedTab: "editor" | "render") => void;
     isLandscapeMode: boolean;
     setIsLandscapeMode: (isLandscapeMode: boolean) => void;
+    backgroundMode: "colour" | "full-image" | "double-image";
+    setBackgroundMode: (backgroundMode: "colour" | "full-image" | "double-image") => void;
+    backgroundImage: string | null;
+    setBackgroundImage: (backgroundImage: string | null) => void;
+    doubleBackgroundImage: { image1: string | null; image2: string | null };
+    setDoubleBackgroundImage: (doubleBackgroundImage: {
+      image1: string | null;
+      image2: string | null;
+    }) => void;
+    colour: string | null;
+    setColour: (colour: string | null) => void;
   };
 };
 
@@ -52,6 +63,10 @@ const overlayStore = create<OverlayStore>((set) => ({
     videoLength: 100,
     selectedTab: "editor",
     isLandscapeMode: true,
+    backgroundMode: "colour",
+    backgroundImage: null,
+    doubleBackgroundImage: { image1: null, image2: null },
+    colour: null,
   } as OverlayStore["overlay"],
 }));
 

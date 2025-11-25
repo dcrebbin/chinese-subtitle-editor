@@ -61,7 +61,6 @@ export default function SubtitleEditor() {
 
   useEffect(() => {
     if (session.srtContent) {
-      setSessionState({ ...session, isLoading: true });
       const captions = convertSrtToCaptions(session.srtContent);
       const parsedSubtitles = parseSrt(session.srtContent);
 
@@ -73,12 +72,18 @@ export default function SubtitleEditor() {
           originalCaptions: captions,
           localSrtContent: convertCaptionsToSrt(captions),
           originalSrtContent: session.srtContent,
-          isLoading: false,
         });
         originalCaptionsInitialized.current = true;
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (session.srtContent) {
+      const captions = convertSrtToCaptions(session.srtContent);
+      setSessionState({ ...session, localCaptions: captions });
+    }
+  }, [session.srtContent]);
 
   function handleAdd(index: number, endTime: string, newLanguage: string) {
     const newCaption: CaptionSegment = {
