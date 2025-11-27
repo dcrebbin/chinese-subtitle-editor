@@ -37,12 +37,12 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any, time:
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (subtitle) {
-    const cantonese = subtitle.text.split("(yue)")[1].split("(en)")[0].trim();
+    const cantonese = subtitle.text.split("(yue)")[1]?.split("(en)")[0]?.trim() || "";
     const transliteratedText = transliterateCaptions(cantonese, true, {});
 
     const transliterationMap = retrieveChineseRomanizationMap(transliteratedText, cantonese);
     setOverlayState({ jsonData: { transliterationMap } });
-    const english = subtitle.text.split("(en)")[1].trim();
+    const english = subtitle.text.split("(en)")[1]?.trim() || "";
     const rows = updateTransliterationRows(transliterationMap);
 
     const rowSpacing = 0;
@@ -298,13 +298,25 @@ export async function convertCanvas(
         const rendererSizeMultiplier = sizeMultiplier / 2;
         const cellSize = (defaultCellSize * sizeMultiplier) / 2 - 5;
         const subtitle = getSubtitleAtTime(parsedSubtitles, sample.timestamp + lyricsOffset);
-        if (subtitle) {
-          const centerY = sample.displayHeight - height;
-          const centerX = sample.displayWidth - width;
-          sample.draw(ctx, -(centerX / 2), -(centerY / 2));
 
-          const cantonese = subtitle.text.split("(yue)")[1]?.split("(en)")[0]?.trim();
-          const english = subtitle.text.split("(en)")[1]?.trim();
+        let drawX = -(sample.displayWidth - width) / 2;
+        let drawY = -(sample.displayHeight - height) / 2;
+        let drawWidth = sample.displayWidth;
+        let drawHeight = sample.displayHeight;
+
+        if (!overlay.isLandscapeMode && sample.displayWidth > width) {
+          const scale = width / sample.displayWidth;
+          drawWidth = width;
+          drawHeight = sample.displayHeight * scale;
+          drawX = 0;
+          drawY = (height - drawHeight) / 2;
+        }
+
+        sample.draw(ctx, drawX, drawY, drawWidth, drawHeight);
+
+        if (subtitle) {
+          const cantonese = subtitle.text.split("(yue)")[1]?.split("(en)")[0]?.trim() || "";
+          const english = subtitle.text.split("(en)")[1]?.trim() || "";
 
           const transliteratedText = transliterateCaptions(cantonese, true, {});
           const transliterationMap = retrieveChineseRomanizationMap(transliteratedText, cantonese);
@@ -397,11 +409,6 @@ export async function convertCanvas(
               }
             }
           }
-        } else {
-          addBackground(ctx, width, height, overlay.colour as string);
-          const centerY = sample.displayHeight - height;
-          const centerX = sample.displayWidth - width;
-          sample.draw(ctx, -(centerX / 2), -(centerY / 2));
         }
         return ctx.canvas;
       },

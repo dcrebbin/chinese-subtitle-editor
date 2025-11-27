@@ -244,7 +244,7 @@ export default function OverlayPage() {
               if (overlay.isLandscapeMode) {
                 canvasRef.current.width = 1080;
                 canvasRef.current.height = 1920;
-                videoRef.current.style.width = "auto";
+                videoRef.current.style.width = "100%";
               } else {
                 canvasRef.current.width = 1920;
                 canvasRef.current.height = 1080;
@@ -312,14 +312,14 @@ export default function OverlayPage() {
         />
       </div>
       <div
-        className="relative flex h-200 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-white drop-shadow-md"
+        className="relative flex h-200 w-[full] flex-col items-center justify-center gap-2 rounded-2xl border-2 border-white drop-shadow-md"
         style={{
           display: overlay.selectedTab === "editor" ? "flex" : "none",
         }}
       >
         <div
           className="relative h-full overflow-hidden rounded-2xl border-2 border-white"
-          style={{ width: overlay.isLandscapeMode ? "auto" : "500px" }}
+          style={{ width: overlay.isLandscapeMode ? "auto" : "450px" }}
         >
           <div
             className="absolute h-full w-full"
@@ -343,7 +343,7 @@ export default function OverlayPage() {
                 width: overlay.isLandscapeMode ? "auto" : "500px",
               }}
               preload="auto"
-              className="anchor-center absolute top-0 left-0 h-190 self-center justify-self-center rounded-t-2xl"
+              className="anchor-center absolute top-0 left-0 h-full w-auto self-center justify-self-center"
               src={overlay.previewUrl || undefined}
               crossOrigin="anonymous"
               onPause={() => {
@@ -365,7 +365,7 @@ export default function OverlayPage() {
             style={{
               placeSelf: "anchor-center",
             }}
-            className="anchor-center pointer-events-none absolute top-0 left-0 h-190 w-auto self-center justify-self-center"
+            className="anchor-center pointer-events-none absolute top-0 left-0 h-190 w-[100h] self-center justify-self-center"
             ref={canvasRef}
           />
         </div>

@@ -1,11 +1,13 @@
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
 
+import { getOverlayState } from "../../store/overlay.store";
 import { getSessionState } from "../../store/session.store";
 
 export default function Loading() {
   const session = getSessionState().session;
+  const overlay = getOverlayState().overlay;
 
-  if (!session.isLoading) {
+  if (!session.isLoading && !overlay.isLoading) {
     return null;
   }
   return (
