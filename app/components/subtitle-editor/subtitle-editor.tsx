@@ -71,19 +71,13 @@ export default function SubtitleEditor() {
           parsedSubtitles: parsedSubtitles as ParsedSubtitle[],
           originalCaptions: captions,
           localSrtContent: convertCaptionsToSrt(captions),
+          srtContent: session.srtContent,
           originalSrtContent: session.srtContent,
         });
         originalCaptionsInitialized.current = true;
       }
     }
   }, []);
-
-  useEffect(() => {
-    if (session.srtContent) {
-      const captions = convertSrtToCaptions(session.srtContent);
-      setSessionState({ ...session, localCaptions: captions });
-    }
-  }, [session.srtContent]);
 
   function handleAdd(index: number, endTime: string, newLanguage: string) {
     const newCaption: CaptionSegment = {
@@ -540,7 +534,7 @@ export default function SubtitleEditor() {
     >
       <Loading />
       {session.selectedTab === "captions" ? (
-        <div className="relative flex h-full w-full flex-col overflow-auto">
+        <div className="relative mb-4 flex h-full w-full flex-col overflow-auto">
           {subtitleEditorHeaderControls}
           {subtitleEditorContent}
           <SubtitleEditorBottomControls />

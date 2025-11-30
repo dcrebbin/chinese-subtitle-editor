@@ -294,6 +294,19 @@ export default function OverlayPage() {
             }}
           />
         )}
+        {!overlay.isLandscapeMode && (
+          <select
+            className="w-fit rounded-2xl bg-white p-2 text-black"
+            value={overlay.videoPosition || "center"}
+            onChange={(e) => {
+              setOverlayState({ videoPosition: e.target.value as "top" | "center" | "bottom" });
+            }}
+          >
+            <option value="top">Top</option>
+            <option value="center">Center</option>
+            <option value="bottom">Bottom</option>
+          </select>
+        )}
       </div>
       <div className="flex w-full flex-col gap-2">
         <p className="text-sm">Size Multiplier: {overlay.sizeMultiplier}x</p>
@@ -312,14 +325,14 @@ export default function OverlayPage() {
         />
       </div>
       <div
-        className="relative flex h-200 w-[full] flex-col items-center justify-center gap-2 rounded-2xl border-2 border-white drop-shadow-md"
+        className="relative mx-4 flex h-200 w-[full] flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-white drop-shadow-md"
         style={{
           display: overlay.selectedTab === "editor" ? "flex" : "none",
         }}
       >
         <div
           className="relative h-full overflow-hidden rounded-2xl border-2 border-white"
-          style={{ width: overlay.isLandscapeMode ? "auto" : "450px" }}
+          style={{ width: overlay.isLandscapeMode ? "100vw" : "450px" }}
         >
           <div
             className="absolute h-full w-full"
@@ -425,15 +438,6 @@ export default function OverlayPage() {
             <p className="text-sm">Upload Video</p>
             <ArrowUpCircleIcon className="h-6 w-6" />
           </button>
-          <button
-            type="button"
-            className="m-2 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white p-2 text-white"
-            onClick={handleDownload}
-            disabled={!overlay.outputUrl}
-          >
-            <p className="text-sm">Download Video</p>
-            <ArrowDownCircleIcon className="h-6 w-6" />
-          </button>
         </div>
         <div className="absolute -right-[25%] flex w-[55%] rotate-90 flex-col gap-2">
           <p className="text-sm">Vertical Position (Y-Axis): {overlay.verticalPosition}px</p>
@@ -452,9 +456,20 @@ export default function OverlayPage() {
         </div>
       </div>
       <div
-        className="m-6 flex h-190 w-auto flex-col items-center justify-start gap-2 rounded-2xl border-2 border-white drop-shadow-md"
+        className="flex h-190 w-auto flex-col items-center justify-start gap-2 rounded-2xl border-2 border-white drop-shadow-md"
         style={{ display: overlay.selectedTab === "render" ? "flex" : "none" }}
       >
+        <div className="absolute top-0 left-0 flex justify-start gap-2">
+          <button
+            type="button"
+            className="m-2 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white p-2 text-white"
+            onClick={handleDownload}
+            disabled={!overlay.outputUrl}
+          >
+            <p className="text-sm">Download Video</p>
+            <ArrowDownCircleIcon className="h-6 w-6" />
+          </button>
+        </div>
         {overlay.outputUrl && (
           <video className="h-190 w-auto rounded-2xl border-2 border-white" ref={videoRef} controls>
             <track kind="captions" src={undefined} />

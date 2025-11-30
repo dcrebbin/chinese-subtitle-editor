@@ -43,6 +43,8 @@ type OverlayStore = {
     }) => void;
     colour: string | null;
     setColour: (colour: string | null) => void;
+    videoPosition: "top" | "center" | "bottom";
+    setVideoPosition: (videoPosition: "top" | "center" | "bottom") => void;
   };
 };
 
@@ -67,6 +69,7 @@ const overlayStore = create<OverlayStore>((set) => ({
     backgroundImage: null,
     doubleBackgroundImage: { image1: null, image2: null },
     colour: null,
+    videoPosition: "center",
   } as OverlayStore["overlay"],
 }));
 
