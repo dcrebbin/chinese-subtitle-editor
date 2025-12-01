@@ -5,6 +5,7 @@ import {
   ArrowDownCircleIcon,
   ArrowUpCircleIcon,
   PauseCircleIcon,
+  PencilIcon,
   PlayIcon,
 } from "@heroicons/react/24/solid";
 import { ALL_FORMATS, BlobSource, BufferTarget, Input, Mp4OutputFormat, Output } from "mediabunny";
@@ -266,7 +267,6 @@ export default function OverlayPage() {
         >
           <option value="colour">Colour</option>
           <option value="full-image">Full Image</option>
-          <option value="double-image">Double Image</option>
         </select>
         {overlay.backgroundMode === "full-image" && (
           <div className="flex flex-col gap-2">
@@ -304,7 +304,6 @@ export default function OverlayPage() {
           >
             <option value="top">Top</option>
             <option value="center">Center</option>
-            <option value="bottom">Bottom</option>
           </select>
         )}
       </div>
@@ -337,7 +336,7 @@ export default function OverlayPage() {
           <div
             className="absolute h-full w-full"
             style={{
-              backgroundSize: overlay.isLandscapeMode ? "cover" : "contain",
+              backgroundSize: "cover",
               backgroundPosition: overlay.isLandscapeMode ? "center" : "top",
               backgroundRepeat: "no-repeat",
               backgroundImage:
@@ -352,11 +351,11 @@ export default function OverlayPage() {
               ref={previewVideoRef}
               style={{
                 display: overlay.previewUrl ? "block" : "none",
-                placeSelf: "anchor-center",
+                placeSelf: overlay.videoPosition == "center" ? "anchor-center" : "auto",
                 width: overlay.isLandscapeMode ? "auto" : "500px",
               }}
               preload="auto"
-              className="anchor-center absolute top-0 left-0 h-full w-auto self-center justify-self-center"
+              className="absolute top-0 left-0 h-auto w-auto self-center justify-self-center"
               src={overlay.previewUrl || undefined}
               crossOrigin="anonymous"
               onPause={() => {
@@ -429,14 +428,27 @@ export default function OverlayPage() {
             />
           </div>
         </div>
-        <div className="absolute top-0 left-0 flex justify-start gap-2">
+        <div className="absolute top-0 left-0 flex justify-start">
           <button
             type="button"
-            className="m-2 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white p-2 text-white"
+            className="m-2 flex w-40 cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white p-2 text-white"
             onClick={() => inputFileRef.current?.click()}
           >
             <p className="text-sm">Upload Video</p>
             <ArrowUpCircleIcon className="h-6 w-6" />
+          </button>
+          <button
+            type="button"
+            className="m-2 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white p-2 text-white"
+            onClick={() => {
+              setOverlayState({
+                selectedTab: overlay.selectedTab === "editor" ? "render" : "editor",
+              });
+            }}
+            disabled={!overlay.outputUrl}
+          >
+            <p className="text-sm">Render</p>
+            <PlayIcon className="h-6 w-6" />
           </button>
         </div>
         <div className="absolute -right-[25%] flex w-[55%] rotate-90 flex-col gap-2">
@@ -456,28 +468,39 @@ export default function OverlayPage() {
         </div>
       </div>
       <div
-        className="flex h-190 w-auto flex-col items-center justify-start gap-2 rounded-2xl border-2 border-white drop-shadow-md"
+        className="mx-4 flex h-200 w-auto flex-col items-center justify-start gap-2 rounded-2xl border-2 border-white drop-shadow-md"
         style={{ display: overlay.selectedTab === "render" ? "flex" : "none" }}
       >
-        <div className="absolute top-0 left-0 flex justify-start gap-2">
+        <div className="absolute top-0 left-0 flex justify-start">
           <button
             type="button"
-            className="m-2 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white p-2 text-white"
+            className="m-2 flex w-40 cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white p-2 text-white"
             onClick={handleDownload}
             disabled={!overlay.outputUrl}
           >
             <p className="text-sm">Download Video</p>
             <ArrowDownCircleIcon className="h-6 w-6" />
           </button>
+          <button
+            type="button"
+            className="m-2 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white p-2 text-white"
+            onClick={() => {
+              setOverlayState({
+                selectedTab: overlay.selectedTab === "editor" ? "render" : "editor",
+              });
+            }}
+            disabled={!overlay.outputUrl}
+          >
+            <p className="text-sm">Editor</p>
+            <PencilIcon className="h-6 w-6" />{" "}
+          </button>
         </div>
         {overlay.outputUrl && (
-          <video className="h-190 w-auto rounded-2xl border-2 border-white" ref={videoRef} controls>
+          <video className="h-200 w-auto rounded-2xl border-2 border-white" ref={videoRef} controls>
             <track kind="captions" src={undefined} />
           </video>
         )}
       </div>
-
-      <VideoTabs />
       <div className="mt-6 flex flex-col items-center gap-4">
         <input
           ref={inputFileRef}
