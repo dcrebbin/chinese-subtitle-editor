@@ -9,6 +9,7 @@ import {
   convertCaptionsToSrt,
   convertSrtToCaptions,
 } from "../../utilities/transliteration/transliteration";
+import SaveIcon from "../common/icons/save";
 
 export default function SubtitleEditorBottomControls() {
   const { session, setSession } = useSessionStore();
@@ -58,7 +59,7 @@ export default function SubtitleEditorBottomControls() {
         onClick={handleSave}
         className="flex cursor-pointer flex-row items-center justify-center rounded-3xl border-none bg-transparent p-1.5 hover:bg-white/20"
       >
-        Save
+        <SaveIcon />
       </button>
       <button
         type="button"

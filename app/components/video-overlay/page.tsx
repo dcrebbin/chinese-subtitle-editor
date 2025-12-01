@@ -445,7 +445,6 @@ export default function OverlayPage() {
                 selectedTab: overlay.selectedTab === "editor" ? "render" : "editor",
               });
             }}
-            disabled={!overlay.outputUrl}
           >
             <p className="text-sm">Render</p>
             <PlayIcon className="h-6 w-6" />
@@ -471,12 +470,11 @@ export default function OverlayPage() {
         className="mx-4 flex h-200 w-auto flex-col items-center justify-start gap-2 rounded-2xl border-2 border-white drop-shadow-md"
         style={{ display: overlay.selectedTab === "render" ? "flex" : "none" }}
       >
-        <div className="absolute top-0 left-0 flex justify-start">
+        <div className="absolute top-0 left-0 z-[999] flex justify-start">
           <button
             type="button"
             className="m-2 flex w-40 cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white p-2 text-white"
             onClick={handleDownload}
-            disabled={!overlay.outputUrl}
           >
             <p className="text-sm">Download Video</p>
             <ArrowDownCircleIcon className="h-6 w-6" />
@@ -489,7 +487,6 @@ export default function OverlayPage() {
                 selectedTab: overlay.selectedTab === "editor" ? "render" : "editor",
               });
             }}
-            disabled={!overlay.outputUrl}
           >
             <p className="text-sm">Editor</p>
             <PencilIcon className="h-6 w-6" />{" "}
@@ -570,7 +567,7 @@ export default function OverlayPage() {
   );
 
   return (
-    <div className="flex h-[92vh] w-full flex-col items-center bg-red-500 font-sans text-white">
+    <div className="z-20 flex h-[92vh] w-full flex-col items-center rounded-3xl border-2 border-white/50 bg-black/50 p-2 font-sans text-white backdrop-blur-xs">
       {videoOverlayContent}
     </div>
   );

@@ -192,7 +192,7 @@ export default function SubtitleEditor() {
               onKeyUp={(e) => {
                 e.stopPropagation();
               }}
-              className="m-0 h-16 w-full rounded-md border border-white/20 p-2 text-left text-3xl text-black"
+              className="m-0 h-16 w-full rounded-md border border-white/20 bg-white p-2 text-left text-3xl text-black"
             />
           </div>
           <button
@@ -530,11 +530,11 @@ export default function SubtitleEditor() {
     <div
       ref={editorRef}
       id="langpal-subtitle-editor"
-      className="relative flex h-[92vh] w-full flex-col bg-green-500"
+      className="relative flex h-[92vh] w-full flex-col rounded-3xl border-2 border-white/50 bg-black/50 backdrop-blur-xs"
     >
       <Loading />
       {session.selectedTab === "captions" ? (
-        <div className="relative mb-4 flex h-full w-full flex-col overflow-auto">
+        <div className="relative flex h-full w-full flex-col overflow-auto">
           {subtitleEditorHeaderControls}
           {subtitleEditorContent}
           <SubtitleEditorBottomControls />
