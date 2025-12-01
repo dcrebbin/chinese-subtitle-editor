@@ -59,25 +59,28 @@ export default function SubtitleEditor() {
 
   const [selectedLanguage, setSelectedLanguage] = useState<string[]>([]);
 
-  useEffect(() => {
+  function loadCaptions() {
     if (session.srtContent) {
       const captions = convertSrtToCaptions(session.srtContent);
       const parsedSubtitles = parseSrt(session.srtContent);
 
-      if (!originalCaptionsInitialized.current) {
-        setSessionState({
-          ...session,
-          localCaptions: captions,
-          parsedSubtitles: parsedSubtitles as ParsedSubtitle[],
-          originalCaptions: captions,
-          localSrtContent: convertCaptionsToSrt(captions),
-          srtContent: session.srtContent,
-          originalSrtContent: session.srtContent,
-        });
-        originalCaptionsInitialized.current = true;
-      }
+      setSessionState({
+        ...session,
+        localCaptions: captions,
+        isLoading: false,
+        parsedSubtitles: parsedSubtitles as ParsedSubtitle[],
+        originalCaptions: captions,
+        localSrtContent: convertCaptionsToSrt(captions),
+        srtContent: session.srtContent,
+        originalSrtContent: session.srtContent,
+      });
+      originalCaptionsInitialized.current = true;
     }
-  }, []);
+  }
+
+  useEffect(() => {
+    loadCaptions();
+  }, [session.srtContent]);
 
   function handleAdd(index: number, endTime: string, newLanguage: string) {
     const newCaption: CaptionSegment = {

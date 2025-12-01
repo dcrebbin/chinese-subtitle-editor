@@ -11,7 +11,7 @@ import {
 import { ALL_FORMATS, BlobSource, BufferTarget, Input, Mp4OutputFormat, Output } from "mediabunny";
 
 import { setOverlayState, useOverlayStore } from "@/app/store/overlay.store";
-import { useSessionStore } from "@/app/store/session.store";
+import { setSessionState, useSessionStore } from "@/app/store/session.store";
 import { defaultCellSize } from "../../utilities/constants";
 import {
   convertCanvas,
@@ -173,6 +173,10 @@ export default function OverlayPage() {
       alert("No video ID");
       return;
     }
+    setSessionState({
+      ...session,
+      isLoading: true,
+    });
     const videoId = getVideoIdFromUrl(overlay.loadedVideoId);
     const customSubtitlesResponse = await fetch(`https://www.langpal.com.hk/api/subtitles`, {
       method: "POST",
@@ -223,7 +227,6 @@ export default function OverlayPage() {
           value={overlay.loadedVideoId || ""}
           onChange={(e) => {
             setOverlayState({ loadedVideoId: e.target.value });
-            alert(e.target.value);
           }}
         />
         <button
