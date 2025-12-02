@@ -1,19 +1,19 @@
 "use client";
+
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "@supabase/auth-helpers-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+
 import type { ApiUser } from "../../interfaces/User";
 import { useSessionStore } from "../../store/session.store";
 import { useUiStore } from "../../store/ui.store";
 import MenuIcon from "./icons/menu";
 import UserIcon from "./icons/user";
 
-export default function AppBar({
-  hostLocale,
-}: Readonly<{ hostLocale: string }>) {
+export default function AppBar({ hostLocale }: Readonly<{ hostLocale: string }>) {
   const t = useTranslations("AppBar");
   const session = useSession();
 
@@ -48,21 +48,15 @@ export default function AppBar({
 
   return (
     <div
-      className={`h-[8vh] w-full bg-blue-500 flex flex-row p-4 px-2 items-center justify-between lg:pt-4 transition-all duration-300`}
+      className={`titlebar-drag flex h-[8vh] w-full flex-row items-center justify-between bg-blue-500 p-4 px-2 transition-all duration-300 lg:pt-4`}
     >
-      <Link href="/" className="mt-4">
-        <h1 className="flex-col text-white font-sans drop-shadow-md flex items-center">
-          <span className="font-sans w-full text-center text-2xl">
-            Chinese Subtitle Editor
-          </span>
-          <p className="text-white text-sm">by Langpal話朋</p>
+      <Link href="/" className="titlebar-no-drag mt-4">
+        <h1 className="flex flex-col items-center font-sans text-white drop-shadow-md">
+          <span className="w-full text-center font-sans text-2xl">Chinese Subtitle Editor</span>
+          <p className="text-sm text-white">by Langpal話朋</p>
         </h1>
       </Link>
-      <AppbarNavigation
-        userMetadata={userMetadata}
-        t={t}
-        hostLocale={hostLocale}
-      />
+      <AppbarNavigation userMetadata={userMetadata} t={t} hostLocale={hostLocale} />
     </div>
   );
 }
@@ -82,15 +76,13 @@ function AppbarNavigation({
   const userIconMemoized = useMemo(() => <UserIcon />, []);
 
   return (
-    <div className="justify-between flex-row gap-10 text-xl lg:text-2xl lg:gap-0 lg:ml-0 xl:ml-4 ml-0 items-center text-white hidden lg:flex text-center">
+    <div className="ml-0 hidden flex-row items-center justify-between gap-10 text-center text-xl text-white lg:ml-0 lg:flex lg:gap-0 lg:text-2xl xl:ml-4">
       {userMetadata ? (
-        <div className="flex flex-row items-center gap-4 w-fit justify-end lg:px-6">
-          <p className="text-white text-2xl">
-            Hey {userMetadata?.name.split(" ")[0]}
-          </p>
+        <div className="flex w-fit flex-row items-center justify-end gap-4 lg:px-6">
+          <p className="text-2xl text-white">Hey {userMetadata?.name.split(" ")[0]}</p>
           <button
             type="button"
-            className="text-white text-2xl flex items-center justify-center"
+            className="titlebar-no-drag flex items-center justify-center text-2xl text-white"
             onClick={() => {
               setProfileOpen(true);
             }}
@@ -101,7 +93,7 @@ function AppbarNavigation({
       ) : (
         <button
           type="button"
-          className="text-white text-2xl lg:text-3xl mx-6 w-[10rem] flex flex-row items-center gap-2"
+          className="titlebar-no-drag mx-6 flex w-[10rem] flex-row items-center gap-2 text-2xl text-white lg:text-3xl"
           onClick={() => {
             setLoginOpen(true);
           }}

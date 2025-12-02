@@ -49,13 +49,16 @@
     "typescript": "^5"
   },
   "build": {
-    "appId": "com.langpal.cantosubtitles",
+    "appId": "cn.langpal.cantosubtitles",
     "files": [
       "main/**/*",
       "out/**/*",
       "public/icon.png",
       "package.json"
     ],
+    "name": "Chinese Subtitle Editor",
+    "productName": "Chinese Subtitle Editor",
+    "version": "0.1.0",
     "directories": {
       "output": "dist"
     },

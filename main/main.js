@@ -16,6 +16,11 @@ async function createWindow() {
   mainWindow = new BrowserWindow({
     width,
     height,
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      color: "#3b82f6",
+      symbolColor: "#ffffff",
+    },
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -27,6 +32,16 @@ async function createWindow() {
   if (process.platform === "darwin") {
     app.dock.setIcon(nativeImage.createFromPath(iconPath));
   }
+
+  app.setAboutPanelOptions({
+    applicationName: "Chinese Subtitle Editor",
+    applicationVersion: "0.1.0",
+    version: "Build 0.1.0", // Optional: Build number
+    credits: "Created by Langpal話朋",
+    copyright: "Copyright © 2025 Langpal話朋",
+    website: "https://langpal.com.hk",
+    iconPath: iconPath,
+  });
 
   const url = isDev
     ? "http://localhost:8000/"
