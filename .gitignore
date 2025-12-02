@@ -10,6 +10,9 @@
 !.yarn/releases
 !.yarn/versions
 
+# electron
+/dist
+/release
 # testing
 /coverage
 

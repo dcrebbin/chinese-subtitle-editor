@@ -2,13 +2,17 @@
   "name": "canto-subtitles-maker",
   "version": "0.1.0",
   "private": true,
+  "main": "main/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "prepare": "node node_modules/electron/install.js",
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "electron:dev": "electron .",
+    "electron:build": "next build && electron-builder"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -16,6 +20,7 @@
     "@supabase/auth-helpers-react": "^0.5.0",
     "@tanstack/react-query": "^5.90.10",
     "@types/swagger-jsdoc": "^6.0.4",
+    "electron-next": "^3.1.5",
     "mediabunny": "^1.25.1",
     "next": "16.0.3",
     "next-intl": "^4.5.5",
@@ -28,17 +33,33 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@ianvs/prettier-plugin-sort-imports": "^4.7.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "electron": "^34.2.0",
+    "electron-builder": "^25.1.8",
     "eslint": "^9",
     "eslint-config-next": "16.0.3",
     "eslint-config-prettier": "^10.1.8",
-    "@ianvs/prettier-plugin-sort-imports": "^4.7.0",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.7.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "build": {
+    "appId": "com.langpal.cantosubtitles",
+    "files": [
+      "main/**/*",
+      "out/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "category": "public.app-category.education"
+    }
   }
 }

@@ -327,7 +327,7 @@ export default function OverlayPage() {
         />
       </div>
       <div
-        className="relative mx-4 flex h-200 w-[full] flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-white drop-shadow-md"
+        className="relative mx-4 flex h-[40rem] w-[full] flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-white drop-shadow-md"
         style={{
           display: overlay.selectedTab === "editor" ? "flex" : "none",
         }}
@@ -354,7 +354,7 @@ export default function OverlayPage() {
               ref={previewVideoRef}
               style={{
                 display: overlay.previewUrl ? "block" : "none",
-                placeSelf: overlay.videoPosition == "center" ? "anchor-center" : "auto",
+                placeSelf: overlay.videoPosition === "center" ? "anchor-center" : "auto",
                 width: overlay.isLandscapeMode ? "auto" : "500px",
               }}
               preload="auto"
@@ -470,7 +470,7 @@ export default function OverlayPage() {
         </div>
       </div>
       <div
-        className="mx-4 flex h-200 w-auto flex-col items-center justify-start gap-2 rounded-2xl border-2 border-white drop-shadow-md"
+        className="mx-4 flex h-[40rem] w-auto flex-col items-center justify-start gap-2 rounded-2xl border-2 border-white drop-shadow-md"
         style={{ display: overlay.selectedTab === "render" ? "flex" : "none" }}
       >
         <div className="absolute top-0 left-0 z-[999] flex justify-start">
@@ -496,7 +496,11 @@ export default function OverlayPage() {
           </button>
         </div>
         {overlay.outputUrl && (
-          <video className="h-200 w-auto rounded-2xl border-2 border-white" ref={videoRef} controls>
+          <video
+            className="h-[40rem] w-auto rounded-2xl border-2 border-white"
+            ref={videoRef}
+            controls
+          >
             <track kind="captions" src={undefined} />
           </video>
         )}
@@ -570,7 +574,7 @@ export default function OverlayPage() {
   );
 
   return (
-    <div className="z-20 flex h-[92vh] w-full flex-col items-center rounded-3xl border-2 border-white/50 bg-black/50 p-2 font-sans text-white backdrop-blur-xs">
+    <div className="z-20 flex h-[90vh] w-full flex-col items-center rounded-3xl border-2 border-white/50 bg-black/50 p-2 font-sans text-white backdrop-blur-xs">
       {videoOverlayContent}
     </div>
   );
