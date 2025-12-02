@@ -1,6 +1,6 @@
-const { app, BrowserWindow } = require("electron");
-const path = require("path");
-const prepareNext = require("electron-next");
+import path from "path";
+import { app, BrowserWindow, nativeImage, screen } from "electron";
+import prepareNext from "electron-next";
 
 const isDev = !app.isPackaged;
 
@@ -9,15 +9,24 @@ let mainWindow;
 async function createWindow() {
   await prepareNext("./");
 
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+
+  const iconPath = path.join(path.dirname(new URL(import.meta.url).pathname), "../public/icon.png");
+
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width,
+    height,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, "preload.js"),
+      preload: path.join(path.dirname(new URL(import.meta.url).pathname), "preload.js"),
     },
+    icon: iconPath,
   });
+
+  if (process.platform === "darwin") {
+    app.dock.setIcon(nativeImage.createFromPath(iconPath));
+  }
 
   const url = isDev
     ? "http://localhost:8000/"

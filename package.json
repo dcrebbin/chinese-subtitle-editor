@@ -53,13 +53,15 @@
     "files": [
       "main/**/*",
       "out/**/*",
+      "public/icon.png",
       "package.json"
     ],
     "directories": {
       "output": "dist"
     },
     "mac": {
-      "category": "public.app-category.education"
+      "category": "public.app-category.education",
+      "icon": "public/icon.png"
     }
   }
 }
