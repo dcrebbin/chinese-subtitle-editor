@@ -48,9 +48,9 @@ export async function POST(request: Request) {
       return new Response(JSON.stringify({ error: "No video ID provided" }), { status: 400 });
     }
     const outputPath = await downloadVideo(videoId);
-
-    return new Response(JSON.stringify({ outputPath: outputPath }), {
-      headers: { "Content-Type": "application/json" },
+    const blob = new Blob([readFileSync(outputPath)], { type: "video/mp4" });
+    return new Response(blob, {
+      headers: { "Content-Type": "video/mp4" },
     });
   } catch (error) {
     console.error(`Failed to download video: ${error}`);

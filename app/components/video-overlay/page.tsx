@@ -154,6 +154,26 @@ export default function OverlayPage() {
       alert("Failed to download video");
       return;
     }
+    try {
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setOverlayState({
+        previewUrl: url,
+        file: new File([blob], "downloaded.mp4", { type: "video/mp4" }),
+      });
+
+      if (previewVideoRef.current) {
+        previewVideoRef.current.src = url;
+        // Wait until metadata is loaded, then play to fix potential load timing issues
+        previewVideoRef.current.onloadedmetadata = () => {
+          previewVideoRef.current?.play();
+        };
+        previewVideoRef.current.load();
+      }
+    } catch (error) {
+      console.error("Error processing downloaded video:", error);
+      alert("An error occurred while processing the downloaded video.");
+    }
   }
 
   function handleDownload() {
@@ -199,11 +219,14 @@ export default function OverlayPage() {
       ...session,
       isLoading: true,
     });
-    const videoId = getVideoIdFromUrl(overlay.loadedVideoId);
+    const videoId = overlay.loadedVideoId.includes("https://www.youtube.com/watch?v=")
+      ? getVideoIdFromUrl(overlay.loadedVideoId)
+      : overlay.loadedVideoId;
     const customSubtitlesResponse = await fetch(`https://www.langpal.com.hk/api/subtitles`, {
       method: "POST",
       body: JSON.stringify({ youtube_id: videoId, retrieve_backup: true }),
     });
+    setSessionState({ isLoading: false });
     if (!customSubtitlesResponse.ok) {
       alert("Failed to load video subtitles");
       return;
