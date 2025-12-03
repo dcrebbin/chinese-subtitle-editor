@@ -64,6 +64,8 @@ export default function OverlayPage() {
   const format = new Mp4OutputFormat();
   const videoRef = useRef<HTMLVideoElement>(null);
   const currentTimeRef = useRef<HTMLInputElement>(null);
+  const startTimeRef = useRef<HTMLInputElement>(null);
+  const endTimeRef = useRef<HTMLInputElement>(null);
   const { session, setSession } = useSessionStore();
   const inputFileRef = useRef<HTMLInputElement>(null);
   const { overlay } = useOverlayStore();
@@ -162,6 +164,11 @@ export default function OverlayPage() {
         // Wait until metadata is loaded, then play to fix potential load timing issues
         previewVideoRef.current.onloadedmetadata = () => {
           previewVideoRef.current?.play();
+          setOverlayState({
+            videoLength: previewVideoRef.current?.duration || 0,
+            startTime: 0,
+            endTime: previewVideoRef.current?.duration || 0,
+          });
         };
         previewVideoRef.current.load();
       }
@@ -606,6 +613,8 @@ export default function OverlayPage() {
             videoElement.onloadedmetadata = () => {
               setOverlayState({
                 videoLength: videoElement.duration,
+                startTime: 0,
+                endTime: videoElement.duration,
                 videoDimensions: {
                   width: videoElement.videoWidth,
                   height: videoElement.videoHeight,
@@ -620,6 +629,32 @@ export default function OverlayPage() {
             };
           }}
         />
+        <div className="flex w-full flex-row items-center justify-center gap-2 px-6">
+          <div className="flex flex-row items-center justify-center gap-2">
+            <p className="text-sm font-bold">{formatTime(overlay.startTime)}s</p>
+            <button
+              type="button"
+              className="cursor-pointer rounded-2xl bg-blue-600 p-2 font-semibold hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-600"
+              onClick={() => {
+                setOverlayState({ startTime: overlay.currentTime });
+              }}
+            >
+              <p className="text-sm font-bold">Set</p>
+            </button>
+          </div>
+          <div className="flex flex-row items-center justify-center gap-2">
+            <p className="text-sm font-bold">{formatTime(overlay.endTime)}s</p>
+            <button
+              type="button"
+              className="cursor-pointer rounded-2xl bg-blue-600 p-2 font-semibold hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-600"
+              onClick={() => {
+                setOverlayState({ endTime: overlay.currentTime });
+              }}
+            >
+              <p className="text-sm font-bold">Set</p>
+            </button>
+          </div>
+        </div>
         <div className="flex gap-4">
           <button
             className="cursor-pointer rounded-2xl bg-green-600 p-2 font-semibold hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-600"

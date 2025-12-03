@@ -12,6 +12,10 @@ type OverlayStore = {
     setSizeMultiplier: (sizeMultiplier: number) => void;
     lyricOffset: number;
     setLyricOffset: (lyricOffset: number) => void;
+    startTime: number;
+    setStartTime: (startTime: number) => void;
+    endTime: number;
+    setEndTime: (endTime: number) => void;
     currentTime: number;
     setCurrentTime: (currentTime: number) => void;
     isPlaying: boolean;
@@ -60,6 +64,8 @@ const overlayStore = create<OverlayStore>((set) => ({
     videoIsDownloading: false,
     sizeMultiplier: 1,
     lyricOffset: 0,
+    startTime: 0,
+    endTime: 0,
     currentTime: 0,
     isPlaying: false,
     isLoading: false,

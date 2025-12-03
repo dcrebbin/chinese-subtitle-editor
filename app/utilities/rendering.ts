@@ -278,12 +278,17 @@ export async function convertCanvas(
   ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
   lyricsOffset: number = 0,
 ) {
+  const overlay = getOverlayState().overlay;
+
   return await Conversion.init({
     input,
     output,
+    trim: {
+      start: overlay.startTime,
+      end: overlay.endTime,
+    },
     video: {
       process: (sample) => {
-        const overlay = getOverlayState().overlay;
         const width = overlay.isLandscapeMode ? 1920 : 1080;
         const height = overlay.isLandscapeMode ? 1080 : 1920;
         if (!ctx) {
@@ -297,7 +302,8 @@ export async function convertCanvas(
 
         const rendererSizeMultiplier = sizeMultiplier / 2;
         const cellSize = (defaultCellSize * sizeMultiplier) / 2 - 5;
-        const subtitle = getSubtitleAtTime(parsedSubtitles, sample.timestamp + lyricsOffset);
+        const adjustedTimestamp = sample.timestamp + overlay.startTime;
+        const subtitle = getSubtitleAtTime(parsedSubtitles, adjustedTimestamp + lyricsOffset);
 
         let drawX = -(sample.displayWidth - width) / 2;
 
