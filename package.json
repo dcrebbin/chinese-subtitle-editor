@@ -1,5 +1,6 @@
 {
   "name": "canto-subtitles-maker",
+  "productName": "Chinese Subtitle Editor",
   "version": "0.1.0",
   "private": true,
   "main": "main/main.js",

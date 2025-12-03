@@ -301,7 +301,7 @@ export async function convertCanvas(
 
         let drawX = -(sample.displayWidth - width) / 2;
 
-        let drawY = overlay.videoPosition == "center" ? -(sample.displayHeight - height) / 2 : 0;
+        let drawY = overlay.videoPosition === "center" ? -(sample.displayHeight - height) / 2 : 0;
         let drawWidth = sample.displayWidth;
         let drawHeight = sample.displayHeight;
 
@@ -310,7 +310,7 @@ export async function convertCanvas(
           drawWidth = width;
           drawHeight = sample.displayHeight * scale;
           drawX = 0;
-          drawY = overlay.videoPosition == "center" ? (height - drawHeight) / 2 : 0;
+          drawY = overlay.videoPosition === "center" ? (height - drawHeight) / 2 : 0;
         }
 
         sample.draw(ctx, drawX, drawY, drawWidth, drawHeight);

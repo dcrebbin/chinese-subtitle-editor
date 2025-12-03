@@ -535,7 +535,7 @@ export default function SubtitleEditor() {
       id="langpal-subtitle-editor"
       className="relative flex h-[90vh] w-full flex-col rounded-3xl border-2 border-white/50 bg-black/50 backdrop-blur-xs"
     >
-      <Loading />
+      {session.isLoading && <Loading />}
       {session.selectedTab === "captions" ? (
         <div className="relative flex h-full w-full flex-col overflow-auto">
           {subtitleEditorHeaderControls}

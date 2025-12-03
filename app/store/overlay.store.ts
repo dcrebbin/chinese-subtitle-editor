@@ -45,6 +45,10 @@ type OverlayStore = {
     setColour: (colour: string | null) => void;
     videoPosition: "top" | "center" | "bottom";
     setVideoPosition: (videoPosition: "top" | "center" | "bottom") => void;
+    downloadVideoId: string | null;
+    setDownloadVideoId: (downloadVideoId: string | null) => void;
+    videoIsDownloading: boolean;
+    setVideoIsDownloading: (videoIsDownloading: boolean) => void;
   };
 };
 
@@ -53,6 +57,7 @@ const overlayStore = create<OverlayStore>((set) => ({
     previewUrl: null,
     loadedVideoId: null,
     verticalPosition: 200,
+    videoIsDownloading: false,
     sizeMultiplier: 1,
     lyricOffset: 0,
     currentTime: 0,
@@ -70,6 +75,7 @@ const overlayStore = create<OverlayStore>((set) => ({
     doubleBackgroundImage: { image1: null, image2: null },
     colour: null,
     videoPosition: "center",
+    downloadVideoId: null,
   } as OverlayStore["overlay"],
 }));
 

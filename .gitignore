@@ -10,6 +10,11 @@
 !.yarn/releases
 !.yarn/versions
 
+# misc
+/youtube/
+/downloads/
+cookies.txt
+
 # electron
 /dist
 /release

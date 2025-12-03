@@ -43,6 +43,8 @@ async function createWindow() {
     iconPath: iconPath,
   });
 
+  app.setName("Chinese Subtitle Editor");
+
   const url = isDev
     ? "http://localhost:8000/"
     : `file://${path.join(__dirname, "../out/index.html")}`;

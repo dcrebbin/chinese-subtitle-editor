@@ -21,6 +21,7 @@ import {
 } from "../../utilities/rendering";
 import { getSubtitleAtTime, parseSrt, transliterateCaptions } from "../../utilities/srt";
 import { retrieveChineseRomanizationMap } from "../../utilities/transliteration/transliteration";
+import Loading from "../common/loading";
 import VideoTabs from "./video-tabs";
 
 function formatTime(time: number) {
@@ -36,7 +37,7 @@ function formatTime(time: number) {
   return `${minutes}:${seconds}.${milliseconds}`;
 }
 
-function getVideoIdFromUrl(videoUrl: string) {
+export function getVideoIdFromUrl(videoUrl: string) {
   let newVideoId = "";
   if (videoUrl?.includes("watch")) {
     newVideoId = videoUrl.split("watch?v=")[1] || "";
@@ -134,6 +135,27 @@ export default function OverlayPage() {
     setOverlayState({ selectedTab: "render" });
   }
 
+  async function handleDownloadVideo() {
+    if (!overlay.downloadVideoId) {
+      alert("No video ID");
+      return;
+    }
+    setOverlayState({ videoIsDownloading: true });
+    const videoId = overlay.downloadVideoId.includes("https://www.youtube.com/watch?v=")
+      ? getVideoIdFromUrl(overlay.downloadVideoId)
+      : overlay.downloadVideoId;
+    const response = await fetch("/api/download", {
+      method: "POST",
+      body: JSON.stringify({ videoId: videoId }),
+    });
+    setOverlayState({ videoIsDownloading: false });
+
+    if (!response.ok) {
+      alert("Failed to download video");
+      return;
+    }
+  }
+
   function handleDownload() {
     if (!overlay.outputUrl) {
       alert("No output URL");
@@ -221,6 +243,22 @@ export default function OverlayPage() {
   const videoOverlayContent = (
     <div className="flex w-full flex-col gap-4">
       <div className="my-4 flex h-8 w-full gap-2">
+        <input
+          type="text"
+          className="w-full rounded-2xl bg-white p-2 text-black"
+          value={overlay.downloadVideoId || ""}
+          onChange={(e) => {
+            setOverlayState({ downloadVideoId: e.target.value });
+          }}
+        />
+        <button
+          type="button"
+          className="w-auto cursor-pointer rounded-2xl bg-blue-600 p-2 font-semibold hover:bg-blue-700"
+          onClick={handleDownloadVideo}
+          disabled={overlay.downloadVideoId === ""}
+        >
+          Download
+        </button>
         <input
           type="text"
           className="w-full rounded-2xl bg-white p-2 text-black"
@@ -334,7 +372,7 @@ export default function OverlayPage() {
       >
         <div
           className="relative h-full overflow-hidden rounded-2xl border-2 border-white"
-          style={{ width: overlay.isLandscapeMode ? "100vw" : "450px" }}
+          style={{ width: overlay.isLandscapeMode ? "56rem" : "22rem" }}
         >
           <div
             className="absolute h-full w-full"
@@ -355,7 +393,7 @@ export default function OverlayPage() {
               style={{
                 display: overlay.previewUrl ? "block" : "none",
                 placeSelf: overlay.videoPosition === "center" ? "anchor-center" : "auto",
-                width: overlay.isLandscapeMode ? "auto" : "500px",
+                width: overlay.isLandscapeMode ? "100%" : "500px",
               }}
               preload="auto"
               className="absolute top-0 left-0 h-auto w-auto self-center justify-self-center"
@@ -380,7 +418,7 @@ export default function OverlayPage() {
             style={{
               placeSelf: "anchor-center",
             }}
-            className="anchor-center pointer-events-none absolute top-0 left-0 h-190 w-[100h] self-center justify-self-center"
+            className="anchor-center pointer-events-none absolute top-0 left-0 h-full w-full self-center justify-self-center"
             ref={canvasRef}
           />
         </div>
@@ -470,10 +508,10 @@ export default function OverlayPage() {
         </div>
       </div>
       <div
-        className="mx-4 flex h-[40rem] w-auto flex-col items-center justify-start gap-2 rounded-2xl border-2 border-white drop-shadow-md"
+        className="mx-4 flex h-160 w-auto flex-col items-center justify-start gap-2 rounded-2xl border-2 border-white drop-shadow-md"
         style={{ display: overlay.selectedTab === "render" ? "flex" : "none" }}
       >
-        <div className="absolute top-0 left-0 z-[999] flex justify-start">
+        <div className="absolute top-0 left-0 z-999 flex justify-start">
           <button
             type="button"
             className="m-2 flex w-40 cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white p-2 text-white"
@@ -497,7 +535,7 @@ export default function OverlayPage() {
         </div>
         {overlay.outputUrl && (
           <video
-            className="h-[40rem] w-auto rounded-2xl border-2 border-white"
+            className="h-full w-auto rounded-2xl border-2 border-white"
             ref={videoRef}
             controls
           >
@@ -575,6 +613,7 @@ export default function OverlayPage() {
 
   return (
     <div className="z-20 flex h-[90vh] w-full flex-col items-center rounded-3xl border-2 border-white/50 bg-black/50 p-2 font-sans text-white backdrop-blur-xs">
+      {overlay.isLoading || (overlay.videoIsDownloading && <Loading />)}
       {videoOverlayContent}
     </div>
   );
