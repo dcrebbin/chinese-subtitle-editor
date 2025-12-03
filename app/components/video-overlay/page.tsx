@@ -115,25 +115,20 @@ export default function OverlayPage() {
     const outputBlob = new Blob([buffer], { type: outputMimeType });
     console.log("outputBlob", outputBlob);
     const url = URL.createObjectURL(outputBlob);
-    setOverlayState({ isLoading: false });
+    setOverlayState({ selectedTab: "render", outputUrl: url, isLoading: false });
+  }
 
-    // Save output url in state for react video element
-    setOverlayState({ outputUrl: url });
-
-    // Also, if ref available, force reload and play
+  useEffect(() => {
     if (videoRef.current) {
       console.log("Setting video source");
-      videoRef.current.src = url;
-      // Wait until metadata is loaded, then play to fix load timing issues
+      videoRef.current.src = overlay.outputUrl || "";
       videoRef.current.onloadedmetadata = () => {
         console.log("Metadata loaded");
         videoRef.current?.play();
       };
-      videoRef.current.load(); // triggers metadata load
+      videoRef.current.load();
     }
-    console.log("Output URL set");
-    setOverlayState({ selectedTab: "render" });
-  }
+  }, [overlay.outputUrl]);
 
   async function handleDownloadVideo() {
     if (!overlay.downloadVideoId) {
@@ -264,7 +259,7 @@ export default function OverlayPage() {
   }
 
   const videoOverlayContent = (
-    <div className="flex w-full flex-col gap-4">
+    <div className="flex h-full w-full flex-col gap-4">
       <div className="my-4 flex h-8 w-full gap-2">
         <input
           type="text"
@@ -388,7 +383,7 @@ export default function OverlayPage() {
         />
       </div>
       <div
-        className="relative mx-4 flex h-[40rem] w-[full] flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-white drop-shadow-md"
+        className="relative mx-4 flex h-160 w-[full] flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-white drop-shadow-md"
         style={{
           display: overlay.selectedTab === "editor" ? "flex" : "none",
         }}
@@ -495,32 +490,44 @@ export default function OverlayPage() {
         <div className="absolute top-0 left-0 flex justify-start">
           <button
             type="button"
-            className="m-2 flex w-40 cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white p-2 text-white"
+            className="m-2 flex w-42 cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white bg-black/50 p-2 text-white backdrop-blur-md"
             onClick={() => inputFileRef.current?.click()}
           >
-            <p className="text-sm">Upload Video</p>
+            <p className="text-sm font-bold">Upload Video</p>
             <ArrowUpCircleIcon className="h-6 w-6" />
           </button>
           <button
             type="button"
-            className="m-2 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white p-2 text-white"
+            className="m-2 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white bg-black/50 p-2 text-white backdrop-blur-md"
             onClick={() => {
               setOverlayState({
                 selectedTab: overlay.selectedTab === "editor" ? "render" : "editor",
               });
             }}
           >
-            <p className="text-sm">Render</p>
+            <p className="text-sm font-bold">Render</p>
             <PlayIcon className="h-6 w-6" />
           </button>
         </div>
-        <div className="absolute -right-[25%] flex w-[55%] rotate-90 flex-col gap-2">
-          <p className="text-sm">Vertical Position (Y-Axis): {overlay.verticalPosition}px</p>
+        <p
+          className="absolute top-1/3 right-0 text-xs whitespace-nowrap"
+          style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
+        >
+          Vertical Position (Y): {overlay.verticalPosition}px
+        </p>
+        <div className="absolute top-1/2 right-4 flex h-[50%] w-6 -translate-y-1/2 flex-col items-center justify-center gap-2">
           <input
-            className="w-full cursor-pointer"
+            className="vertical-slider h-6 w-156 cursor-pointer"
+            style={{
+              transform: "rotate(90deg)",
+              accentColor: "#3182ce",
+              marginTop: "100px",
+              marginBottom: "100px",
+            }}
             type="range"
             min={0}
             max={3000}
+            step={1}
             value={overlay.verticalPosition}
             onChange={(e) => {
               setOverlayState({
@@ -537,22 +544,22 @@ export default function OverlayPage() {
         <div className="absolute top-0 left-0 z-999 flex justify-start">
           <button
             type="button"
-            className="m-2 flex w-40 cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white p-2 text-white"
+            className="m-2 flex w-42 cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white bg-black/50 p-2 text-white backdrop-blur-md"
             onClick={handleDownload}
           >
-            <p className="text-sm">Download Video</p>
+            <p className="text-sm font-bold">Download Video</p>
             <ArrowDownCircleIcon className="h-6 w-6" />
           </button>
           <button
             type="button"
-            className="m-2 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white p-2 text-white"
+            className="m-2 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white bg-black/50 p-2 text-white backdrop-blur-md"
             onClick={() => {
               setOverlayState({
                 selectedTab: overlay.selectedTab === "editor" ? "render" : "editor",
               });
             }}
           >
-            <p className="text-sm">Editor</p>
+            <p className="text-sm font-bold">Editor</p>
             <PencilIcon className="h-6 w-6" />{" "}
           </button>
         </div>

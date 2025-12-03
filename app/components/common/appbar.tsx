@@ -48,7 +48,7 @@ export default function AppBar({ hostLocale }: Readonly<{ hostLocale: string }>)
 
   return (
     <div
-      className={`titlebar-drag flex h-[8vh] w-full flex-row items-center justify-between bg-blue-500 p-4 px-2 transition-all duration-300 lg:pt-4`}
+      className={`titlebar-drag fixed top-0 left-0 z-50 flex h-[8vh] w-full flex-row items-center justify-between rounded-b-2xl bg-black/50 p-4 px-2 backdrop-blur-sm transition-all duration-300 lg:pt-4`}
     >
       <Link href="/" className="titlebar-no-drag mt-4">
         <h1 className="flex flex-col items-center font-sans text-white drop-shadow-md">
@@ -56,7 +56,7 @@ export default function AppBar({ hostLocale }: Readonly<{ hostLocale: string }>)
           <p className="text-sm text-white">by Langpal話朋</p>
         </h1>
       </Link>
-      <AppbarNavigation userMetadata={userMetadata} t={t} hostLocale={hostLocale} />
+      {/* <AppbarNavigation userMetadata={userMetadata} t={t} hostLocale={hostLocale} /> */}
     </div>
   );
 }
