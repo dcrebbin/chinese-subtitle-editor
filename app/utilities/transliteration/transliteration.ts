@@ -1,13 +1,7 @@
 import ToJyutping from "to-jyutping";
-import {
-  CONTAINS_CHINESE_CHARACTERS,
-  KANGXI_RADICAL_LOOKUP,
-  PINYIN_MAPPING,
-} from "./mandarin";
-import type {
-  CaptionSegment,
-  CaptionLanguage,
-} from "../../store/session.store";
+
+import type { CaptionLanguage, CaptionSegment } from "../../store/session.store";
+import { CONTAINS_CHINESE_CHARACTERS, KANGXI_RADICAL_LOOKUP, PINYIN_MAPPING } from "./mandarin";
 
 export const CaptionLanguages: CaptionLanguage[] = [
   { name: "Cantonese", code: "yue" },
@@ -19,22 +13,15 @@ export const CaptionLanguages: CaptionLanguage[] = [
   { name: "Hokkien", code: "min_NAN" },
 ];
 
-function parseMultilingualText(
-  fullText: string
-): Record<string, string | null> {
+function parseMultilingualText(fullText: string): Record<string, string | null> {
   const result: Record<string, string | null> = {};
 
   for (const language of CaptionLanguages) {
-    const nextLanguageCodes = CaptionLanguages.filter(
-      (lang) => lang.code !== language.code
-    )
+    const nextLanguageCodes = CaptionLanguages.filter((lang) => lang.code !== language.code)
       .map((lang) => `\\(${lang.code}\\)`)
       .join("|");
 
-    const regex = new RegExp(
-      `\\(${language.code}\\)(.*?)(?=${nextLanguageCodes}|$)`,
-      "s"
-    );
+    const regex = new RegExp(`\\(${language.code}\\)(.*?)(?=${nextLanguageCodes}|$)`, "s");
 
     const match = fullText.match(regex);
     const text = match?.[1]?.trim() || null;
@@ -107,7 +94,7 @@ export function convertCaptionsToSrt(captions: CaptionSegment[]) {
 
 export function convertToCustomTransliterations(
   inputText: string,
-  customTransliterationsMap: Record<string, string>
+  customTransliterationsMap: Record<string, string>,
 ) {
   const transliterations = [];
   for (const char of inputText) {
@@ -158,10 +145,7 @@ export function convertToJyutping(captionText: string) {
   return jyutping.join(",");
 }
 
-export function retrieveChineseRomanizationMap(
-  transliteratedText: string,
-  inputText: string
-) {
+export function retrieveChineseRomanizationMap(transliteratedText: string, inputText: string) {
   const transliterated = transliteratedText.split(",").filter((x) => x);
 
   const result: { jyutping: string; chinese: string }[] = [];

@@ -677,7 +677,7 @@ export default function OverlayPage() {
   );
 
   return (
-    <div className="z-20 flex h-[90vh] w-full flex-col items-center rounded-3xl border-2 border-white/50 bg-black/50 p-2 font-sans text-white backdrop-blur-xs">
+    <div className="z-20 flex h-[90vh] w-full flex-col items-center overflow-y-auto rounded-3xl border-2 border-white/50 bg-black/50 p-2 font-sans text-white backdrop-blur-xs">
       {overlay.isLoading || (overlay.videoIsDownloading && <Loading />)}
       {videoOverlayContent}
     </div>

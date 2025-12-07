@@ -38,9 +38,15 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any, time:
 
   if (subtitle) {
     const cantonese = subtitle.text.split("(yue)")[1]?.split("(en)")[0]?.trim() || "";
-    const transliteratedText = transliterateCaptions(cantonese, true, {});
+    const mandarin = subtitle.text.split("(zh)")[1]?.split("(en)")[0]?.trim() || "";
 
-    const transliterationMap = retrieveChineseRomanizationMap(transliteratedText, cantonese);
+    const isCantonese = subtitle.text.includes("(yue)");
+    const transliteratedText = transliterateCaptions(cantonese || mandarin, isCantonese, {});
+
+    const transliterationMap = retrieveChineseRomanizationMap(
+      transliteratedText,
+      cantonese || mandarin,
+    );
     setOverlayState({ jsonData: { transliterationMap } });
     const english = subtitle.text.split("(en)")[1]?.trim() || "";
     const rows = updateTransliterationRows(transliterationMap);
@@ -196,7 +202,7 @@ export const drawCharacterCell = (
     ctx.fillText(jyutpingText, x + cellSize / 2, y + cellSize / 2 - paddingY);
   }
 
-  ctx.font = `${defaultChineseFontSize * sizeMultiplier}px Arial`;
+  ctx.font = `${defaultChineseFontSize * sizeMultiplier}px Times New Roman`;
   ctx.fillText(caption.chinese, x + cellSize / 2, y + cellSize / 2 + paddingY);
 };
 

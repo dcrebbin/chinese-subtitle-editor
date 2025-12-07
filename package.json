@@ -25,6 +25,7 @@
     "mediabunny": "^1.25.1",
     "next": "16.0.3",
     "next-intl": "^4.5.5",
+    "pinyin": "^4.0.0",
     "posthog-js": "^1.298.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
