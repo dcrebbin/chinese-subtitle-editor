@@ -64,8 +64,6 @@ export default function OverlayPage() {
   const format = new Mp4OutputFormat();
   const videoRef = useRef<HTMLVideoElement>(null);
   const currentTimeRef = useRef<HTMLInputElement>(null);
-  const startTimeRef = useRef<HTMLInputElement>(null);
-  const endTimeRef = useRef<HTMLInputElement>(null);
   const { session, setSession } = useSessionStore();
   const inputFileRef = useRef<HTMLInputElement>(null);
   const { overlay } = useOverlayStore();
@@ -419,6 +417,7 @@ export default function OverlayPage() {
                 display: overlay.previewUrl ? "block" : "none",
                 placeSelf: overlay.videoPosition === "center" ? "anchor-center" : "auto",
                 width: overlay.isLandscapeMode ? "100%" : "500px",
+                marginTop: overlay.videoPosition === "top" ? "0" : "50%",
               }}
               preload="auto"
               className="absolute top-0 left-0 h-auto w-auto self-center justify-self-center"
@@ -677,7 +676,7 @@ export default function OverlayPage() {
   );
 
   return (
-    <div className="z-20 flex h-[90vh] w-full flex-col items-center overflow-y-auto rounded-3xl border-2 border-white/50 bg-black/50 p-2 font-sans text-white backdrop-blur-xs">
+    <div className="z-20 flex h-[102vh] w-full flex-col items-center overflow-y-auto rounded-3xl border-2 border-white/50 bg-black/50 p-2 font-sans text-white backdrop-blur-xs">
       {overlay.isLoading || (overlay.videoIsDownloading && <Loading />)}
       {videoOverlayContent}
     </div>

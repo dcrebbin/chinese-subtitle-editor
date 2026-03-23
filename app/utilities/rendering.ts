@@ -304,6 +304,8 @@ export async function convertCanvas(
             | OffscreenCanvasRenderingContext2D;
         }
 
+        // Proper scaling with videoScale
+        const videoScale = 1;
         addBackground(ctx, width, height, overlay.colour as string);
 
         const rendererSizeMultiplier = sizeMultiplier / 2;
@@ -311,28 +313,39 @@ export async function convertCanvas(
         const adjustedTimestamp = sample.timestamp + overlay.startTime;
         const subtitle = getSubtitleAtTime(parsedSubtitles, adjustedTimestamp + lyricsOffset);
 
-        let drawX = -(sample.displayWidth - width) / 2;
+        // Calculate drawWidth and drawHeight based on videoScale
+        let drawWidth = sample.displayWidth * videoScale;
+        let drawHeight = sample.displayHeight * videoScale;
+        let drawY = overlay.videoPosition === "center" ? (height - drawHeight) / 2 : 0;
+        let drawX = overlay.isLandscapeMode ? (width - drawWidth) / 2 : 0;
 
-        let drawY = overlay.videoPosition === "center" ? -(sample.displayHeight - height) / 2 : 0;
-        let drawWidth = sample.displayWidth;
-        let drawHeight = sample.displayHeight;
-
+        // Adjust scaling for portrait mode if sample is larger than canvas
         if (!overlay.isLandscapeMode && sample.displayWidth > width) {
           const scale = width / sample.displayWidth;
-          drawWidth = width;
-          drawHeight = sample.displayHeight * scale;
-          drawX = 0;
+          drawWidth = sample.displayWidth * scale * videoScale;
+          drawHeight = sample.displayHeight * scale * videoScale;
+          drawX = (width - drawWidth) / 2;
           drawY = overlay.videoPosition === "center" ? (height - drawHeight) / 2 : 0;
         }
 
+        // Ensure drawX/drawY are rounded for subpixel rendering accuracy
+        drawX = Math.round(drawX);
+        drawY = Math.round(drawY);
+
+        // Draw the sample correctly scaled and positioned
         sample.draw(ctx, drawX, drawY, drawWidth, drawHeight);
 
         if (subtitle) {
+          const isCantonese = subtitle.text.includes("(yue)");
           const cantonese = subtitle.text.split("(yue)")[1]?.split("(en)")[0]?.trim() || "";
+          const mandarin = subtitle.text.split("(zh)")[1]?.split("(en)")[0]?.trim() || "";
           const english = subtitle.text.split("(en)")[1]?.trim() || "";
 
-          const transliteratedText = transliterateCaptions(cantonese, true, {});
-          const transliterationMap = retrieveChineseRomanizationMap(transliteratedText, cantonese);
+          const transliteratedText = transliterateCaptions(cantonese || mandarin, isCantonese, {});
+          const transliterationMap = retrieveChineseRomanizationMap(
+            transliteratedText,
+            cantonese || mandarin,
+          );
           const rows = updateTransliterationRows(transliterationMap);
 
           const rowSpacing = 0;
