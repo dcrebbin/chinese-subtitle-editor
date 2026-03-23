@@ -49,7 +49,7 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any, time:
     );
     setOverlayState({ jsonData: { transliterationMap } });
     const english = subtitle.text.split("(en)")[1]?.trim() || "";
-    const rows = updateTransliterationRows(transliterationMap);
+    const rows = updateTransliterationRows(mergeConsecutiveEnglishWords(transliterationMap));
 
     const rowSpacing = 0;
     const topMargin = overlay.verticalPosition;
@@ -121,6 +121,9 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any, time:
         if (caption.chinese === " " || caption.chinese === "") {
           return acc + cellSize / 3;
         }
+        if (caption.jyutping === "EN") {
+          return acc + computeEnglishCellWidth(ctx, caption.chinese, rendererSizeMultiplier);
+        }
         return acc + cellSize;
       }, 0);
       const startX = (canvas.width - totalWidth) / 2;
@@ -130,12 +133,53 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any, time:
           currentX += cellSize / 3;
         } else {
           drawCharacterCell(ctx, caption, currentX, rowY, rendererSizeMultiplier);
-          currentX += cellSize;
+          const captionWidth =
+            caption.jyutping === "EN"
+              ? computeEnglishCellWidth(ctx, caption.chinese, rendererSizeMultiplier)
+              : cellSize;
+          currentX += captionWidth;
         }
       }
     }
   }
 }
+
+export const mergeConsecutiveEnglishWords = (
+  map: { jyutping: string; chinese: string }[],
+): { jyutping: string; chinese: string }[] => {
+  const result: { jyutping: string; chinese: string }[] = [];
+  let i = 0;
+
+  while (i < map.length) {
+    const entry = map[i];
+
+    if (entry.jyutping === "EN" && entry.chinese !== " " && entry.chinese !== "") {
+      let combined = entry.chinese;
+      let j = i + 1;
+
+      while (
+        j < map.length &&
+        map[j].jyutping === "EN" &&
+        map[j].chinese === " " &&
+        j + 1 < map.length &&
+        map[j + 1].jyutping === "EN" &&
+        map[j + 1].chinese !== " " &&
+        map[j + 1].chinese !== ""
+      ) {
+        combined += ` ${map[j + 1].chinese}`;
+        j += 2;
+      }
+
+      result.push({ jyutping: "EN", chinese: combined });
+      i = j;
+    } else {
+      result.push(entry);
+      i++;
+    }
+  }
+
+  return result;
+};
 
 export const updateTransliterationRows = (
   transliterationMap: { jyutping: string; chinese: string }[],
@@ -175,6 +219,18 @@ const toneToSegment = (tone: number) => {
   }
 };
 
+export const computeEnglishCellWidth = (
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  text: string,
+  sizeMultiplier: number,
+): number => {
+  const savedFont = ctx.font;
+  ctx.font = `${defaultChineseFontSize * sizeMultiplier}px Arial`;
+  const measured = ctx.measureText(text).width;
+  ctx.font = savedFont;
+  return measured + 16 * sizeMultiplier;
+};
+
 export const drawCharacterCell = (
   ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
   caption: { jyutping: string; chinese: string },
@@ -183,10 +239,23 @@ export const drawCharacterCell = (
   sizeMultiplier: number,
 ) => {
   if (!ctx) return;
+  const cellSize = defaultCellSize * sizeMultiplier;
+
+  if (caption.jyutping === "EN") {
+    const cellWidth = computeEnglishCellWidth(ctx, caption.chinese, sizeMultiplier);
+    ctx.fillStyle = "white";
+    ctx.fillRect(x, y, cellWidth, cellSize);
+    ctx.fillStyle = "black";
+    ctx.font = `${defaultChineseFontSize * sizeMultiplier}px Arial`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(caption.chinese, x + cellWidth / 2, y + cellSize / 2);
+    return;
+  }
+
   const extractedTone = caption.jyutping.match(/[1-9]/);
   const tone = extractedTone ? extractedTone[0] : "";
   const segment = toneToSegment(Number.parseInt(tone));
-  const cellSize = defaultCellSize * sizeMultiplier;
 
   ctx.fillStyle = "white";
   ctx.fillRect(x, y, cellSize, cellSize);
@@ -197,7 +266,7 @@ export const drawCharacterCell = (
   ctx.textBaseline = "middle";
   const paddingY = 15 * sizeMultiplier;
 
-  const jyutpingText = caption.jyutping === "EN" ? "" : caption.jyutping.replace(tone, segment);
+  const jyutpingText = caption.jyutping.replace(tone, segment);
   if (jyutpingText) {
     ctx.fillText(jyutpingText, x + cellSize / 2, y + cellSize / 2 - paddingY);
   }
@@ -346,7 +415,7 @@ export async function convertCanvas(
             transliteratedText,
             cantonese || mandarin,
           );
-          const rows = updateTransliterationRows(transliterationMap);
+          const rows = updateTransliterationRows(mergeConsecutiveEnglishWords(transliterationMap));
 
           const rowSpacing = 0;
           const topMargin = verticalPosition;
@@ -420,6 +489,11 @@ export async function convertCanvas(
                 if (caption.chinese === " " || caption.chinese === "") {
                   return acc + cellSize / 3;
                 }
+                if (caption.jyutping === "EN") {
+                  return (
+                    acc + computeEnglishCellWidth(ctx!, caption.chinese, rendererSizeMultiplier)
+                  );
+                }
                 return acc + cellSize;
               }, 0);
               const startX = ((ctx?.canvas?.width || 0) - totalWidth) / 2;
@@ -430,7 +504,11 @@ export async function convertCanvas(
                   currentX += cellSize / 3;
                 } else {
                   drawCharacterCell(ctx, caption, currentX, rowY, rendererSizeMultiplier);
-                  currentX += cellSize;
+                  const captionWidth =
+                    caption.jyutping === "EN"
+                      ? computeEnglishCellWidth(ctx!, caption.chinese, rendererSizeMultiplier)
+                      : cellSize;
+                  currentX += captionWidth;
                 }
               }
             }
