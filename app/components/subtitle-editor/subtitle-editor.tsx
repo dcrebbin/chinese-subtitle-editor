@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { PlusIcon, TrashIcon } from "@heroicons/react/24/solid";
+import { ArrowPathIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/solid";
 
 import {
   ParsedSubtitle,
@@ -54,6 +54,8 @@ export default function SubtitleEditor() {
   const offsetInput = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const originalCaptionsInitialized = useRef<boolean>(false);
+  /** Last global offset (seconds) baked into local caption times; new values apply as a delta so we do not stack. */
+  const lastCommittedSubtitleOffsetRef = useRef(0);
 
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
 
@@ -72,7 +74,8 @@ export default function SubtitleEditor() {
         originalCaptions: captions,
         localSrtContent: convertCaptionsToSrt(captions),
         srtContent: session.srtContent,
-        originalSrtContent: session.srtContent,
+        // Keep import baseline; only code paths that replace the file should update originalSrtContent
+        originalSrtContent: session.originalSrtContent,
       });
       originalCaptionsInitialized.current = true;
     }
@@ -81,6 +84,13 @@ export default function SubtitleEditor() {
   useEffect(() => {
     loadCaptions();
   }, [session.srtContent]);
+
+  useEffect(() => {
+    lastCommittedSubtitleOffsetRef.current = 0;
+    if (offsetInput.current) {
+      offsetInput.current.value = "";
+    }
+  }, [session.originalSrtContent]);
 
   function handleAdd(index: number, endTime: string, newLanguage: string) {
     const newCaption: CaptionSegment = {
@@ -127,25 +137,29 @@ export default function SubtitleEditor() {
     });
   }
   function handleDeleteAllCaptions() {
+    lastCommittedSubtitleOffsetRef.current = 0;
+    if (offsetInput.current) {
+      offsetInput.current.value = "";
+    }
     setSessionState({
       ...session,
       srtContent: "",
       localSrtContent: "",
       localCaptions: [],
-      originalCaptions: [], // Update original captions to reflect the deletion
+      originalCaptions: [],
+      originalSrtContent: "",
     });
   }
 
   function handleOffsetChange(offsetSeconds: number) {
     if (!Number.isFinite(offsetSeconds)) return;
 
-    // Use originalCaptions if available, otherwise use current localCaptions as base
-    const baseCaptions =
-      session.originalCaptions.length > 0 ? session.originalCaptions : session.localCaptions;
+    const delta = offsetSeconds - lastCommittedSubtitleOffsetRef.current;
+    lastCommittedSubtitleOffsetRef.current = offsetSeconds;
 
-    const updatedCaptions = baseCaptions.map((caption: CaptionSegment) => {
-      const newStart = Math.max(0, timeStringToSeconds(caption.startTime) + offsetSeconds);
-      const newEnd = Math.max(0, timeStringToSeconds(caption.endTime) + offsetSeconds);
+    const updatedCaptions = session.localCaptions.map((caption: CaptionSegment) => {
+      const newStart = Math.max(0, timeStringToSeconds(caption.startTime) + delta);
+      const newEnd = Math.max(0, timeStringToSeconds(caption.endTime) + delta);
       return {
         ...caption,
         startTime: formatTime(newStart),
@@ -156,9 +170,17 @@ export default function SubtitleEditor() {
     setSessionState({
       ...session,
       localCaptions: updatedCaptions,
+      originalCaptions: updatedCaptions,
       srtContent: convertCaptionsToSrt(updatedCaptions),
       localSrtContent: convertCaptionsToSrt(updatedCaptions),
     });
+  }
+
+  function handleResetSubtitleOffset() {
+    if (offsetInput.current) {
+      offsetInput.current.value = "";
+    }
+    handleOffsetChange(0);
   }
 
   const languageContent = (language: CaptionLanguage, caption: CaptionSegment, index: number) => (
@@ -288,37 +310,48 @@ export default function SubtitleEditor() {
 
   const subtitleEditorHeaderControls = (
     <div className="relative top-0 grid w-full grid-cols-4 items-center justify-center gap-2.5 p-2.5 text-2xl">
-      <input
-        type="number"
-        placeholder="Offset"
-        ref={offsetInput}
-        onKeyDown={(e) => {
-          e.stopPropagation();
-        }}
-        onKeyUp={(e) => {
-          e.stopPropagation();
-        }}
-        onChange={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          const offsetValue = Number(e.target.value);
-          if (!Number.isNaN(offsetValue)) {
-            handleOffsetChange(offsetValue);
-          }
-        }}
-        className="w-42 rounded-3xl border border-solid border-white/20 bg-transparent p-1.5 text-white"
-      />
+      <div className="flex min-w-0 items-center gap-2">
+        <input
+          type="number"
+          placeholder="Offset"
+          ref={offsetInput}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+          }}
+          onKeyUp={(e) => {
+            e.stopPropagation();
+          }}
+          onChange={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const offsetValue = Number(e.target.value);
+            if (!Number.isNaN(offsetValue)) {
+              handleOffsetChange(offsetValue);
+            }
+          }}
+          className="min-w-0 flex-1 rounded-3xl border border-solid border-white/20 bg-transparent p-1.5 text-white"
+        />
+        <button
+          type="button"
+          data-tooltip-id="global-tooltip"
+          data-tooltip-content="Reset offset to 0s"
+          onClick={handleResetSubtitleOffset}
+          className="flex shrink-0 cursor-pointer items-center justify-center rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20"
+        >
+          <ArrowPathIcon className="h-8 w-8" />
+        </button>
+      </div>
       <button
         type="button"
         onClick={() => setAutoScroll(!autoScroll)}
-        className="cursor-pointer rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20"
+        className="w-64 cursor-pointer rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20"
       >
         {autoScroll ? "Disable Auto Scroll" : "Enable Auto Scroll"}
       </button>
       <button
         type="button"
         onClick={() => handleDeleteAllCaptions()}
-        className="flex cursor-pointer flex-row items-center justify-center rounded-3xl border-none bg-black/30 p-1.5 hover:bg-white/20"
+        className="ml-10 flex cursor-pointer flex-row items-center justify-center rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20"
       >
         Delete All
         <TrashIcon className="h-8 w-8" />

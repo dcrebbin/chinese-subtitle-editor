@@ -235,6 +235,7 @@ export default function OverlayPage() {
     setSession({
       ...session,
       srtContent: customSubtitles,
+      originalSrtContent: customSubtitles,
     });
   }
 

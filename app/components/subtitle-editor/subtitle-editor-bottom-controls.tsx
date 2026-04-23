@@ -23,6 +23,7 @@ export default function SubtitleEditorBottomControls() {
         ...session,
         localSrtContent: convertedSrt,
         srtContent: convertedSrt,
+        originalSrtContent: convertedSrt,
         parsedSubtitles: parsedSubtitles as ParsedSubtitle[],
       });
       console.log(session.videoId);
