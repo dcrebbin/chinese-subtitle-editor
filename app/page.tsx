@@ -1,6 +1,7 @@
 "use client";
 
 import SubtitleEditor from "./components/subtitle-editor/subtitle-editor";
+import SubtitleEditorSearchView from "./components/subtitle-editor/subtitle-editor-search-view";
 import OverlayPage from "./components/video-overlay/page";
 
 export default function Home() {

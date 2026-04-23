@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowPathIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/solid";
+import { ArrowPathIcon, PencilIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/solid";
 
 import {
   ParsedSubtitle,
@@ -18,6 +18,7 @@ import {
 } from "../../utilities/transliteration/transliteration";
 import Loading from "../common/loading";
 import SubtitleEditorBottomControls from "./subtitle-editor-bottom-controls";
+import SubtitleEditorSearchView from "./subtitle-editor-search-view";
 
 export interface Subtitle {
   title: string;
@@ -568,12 +569,38 @@ export default function SubtitleEditor() {
       id="langpal-subtitle-editor"
       className="relative flex h-[102vh] w-full flex-col rounded-3xl border-2 border-white/50 bg-black/50 backdrop-blur-xs"
     >
+      <div className="mx-4 flex items-center gap-2 p-3">
+        <button
+          type="button"
+          onClick={() => setSessionState({ ...session, selectedTab: "captions" })}
+          className={`flex cursor-pointer items-center justify-center p-2 ${
+            session.selectedTab === "captions" ? "border-b-2 border-white/20" : ""
+          }`}
+        >
+          Subtitles
+        </button>
+        <button
+          type="button"
+          onClick={() => setSessionState({ ...session, selectedTab: "search" })}
+          className={`flex cursor-pointer items-center justify-center p-2 ${
+            session.selectedTab === "search" ? "border-b-2 border-white/20" : ""
+          }`}
+        >
+          Search
+        </button>
+      </div>
       {session.isLoading && <Loading />}
       {session.selectedTab === "captions" ? (
         <div className="relative flex h-full w-full flex-col overflow-auto">
           {subtitleEditorHeaderControls}
           {subtitleEditorContent}
           <SubtitleEditorBottomControls />
+        </div>
+      ) : null}
+
+      {session.selectedTab === "search" ? (
+        <div className="relative flex h-full w-full flex-col overflow-auto">
+          <SubtitleEditorSearchView />
         </div>
       ) : null}
     </div>

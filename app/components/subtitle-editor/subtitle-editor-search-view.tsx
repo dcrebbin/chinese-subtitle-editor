@@ -1,33 +1,48 @@
+import { useRef, useState } from "react";
+import { MagnifyingGlassIcon, PlusIcon } from "@heroicons/react/24/solid";
+
 import { setSessionState, useSessionStore } from "../../store/session.store";
 import { convertSrtToCaptions } from "../../utilities/transliteration/transliteration";
-import { MagnifyingGlassIcon, PlusIcon } from "@heroicons/react/24/solid";
-import { useRef, useState } from "react";
 import type { Subtitle } from "./subtitle-editor";
 
 export default function SubtitleEditorSearchView() {
   const searchInput = useRef<HTMLInputElement>(null);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
-  const [subtitleSearchResults, setSubtitleSearchResults] = useState<
-    Subtitle[]
-  >([]);
+  const [subtitleSearchResults, setSubtitleSearchResults] = useState<Subtitle[]>([]);
   const { session } = useSessionStore();
 
   async function handleSearch() {
     if (!searchInput.current) {
       return;
     }
-    // setSessionState({ ...session, isLoading: true });
-    // const searchValue = searchInput.current?.value;
-    // const response = await sendMessage(Message.SEARCH_SUBTITLES, {
-    //   query: searchValue || "",
-    // });
-    // console.log("response", response);
-    // if (response.success) {
-    //   setSubtitleSearchResults(response.data as Subtitle[]);
-    // } else {
-    //   alert("Search failed");
-    // }
-    // setSessionState({ ...session, isLoading: false });
+    setSessionState({ ...session, isLoading: true });
+    const searchValue = searchInput.current?.value;
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_LANGPAL_API_URL}/api/subtitles?query=${encodeURIComponent(searchValue)}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "x-langpal-api-key": process.env.NEXT_PUBLIC_LANGPAL_API_KEY as string,
+        },
+      },
+    ).catch((error) => {
+      alert("Failed to search for subtitles");
+      setSessionState({ ...session, isLoading: false });
+      return;
+    });
+
+    if (!response) {
+      return;
+    }
+    if (!response.ok) {
+      alert("Search failed");
+      setSessionState({ ...session, isLoading: false });
+      return;
+    }
+    const data = await response.json();
+    setSubtitleSearchResults(data as Subtitle[]);
+    setSessionState({ ...session, isLoading: false });
   }
 
   async function handleRetrieveSubtitle(subtitle: Subtitle) {
@@ -54,8 +69,8 @@ export default function SubtitleEditorSearchView() {
   }
 
   return (
-    <div className="flex flex-col gap-1.5 w-full h-full px-4 overflow-y-scroll">
-      <div className="flex flex-row gap-1.5 px-2 rounded-3xl border-white/20 border-[1px] mx-4 mt-4">
+    <div className="flex h-full w-full flex-col gap-1.5 overflow-y-scroll px-4">
+      <div className="mx-4 mt-4 flex flex-row gap-1.5 rounded-3xl border border-white/20 px-2">
         <input
           type="text"
           placeholder="Search"
@@ -74,32 +89,28 @@ export default function SubtitleEditorSearchView() {
           onKeyUp={(e) => {
             e.stopPropagation();
           }}
-          className="w-full bg-transparent p-1.5 rounded-md border-none"
+          className="w-full rounded-md border-none bg-transparent p-1.5"
         />
-        <button
-          type="button"
-          onClick={() => handleSearch()}
-          ref={searchButtonRef}
-        >
-          <MagnifyingGlassIcon className="w-10 h-10 hover:bg-white/20  cursor-pointer p-1.5" />
+        <button type="button" onClick={() => handleSearch()} ref={searchButtonRef}>
+          <MagnifyingGlassIcon className="h-10 w-10 cursor-pointer p-1.5 hover:bg-white/20" />
         </button>
       </div>
-      <div className="flex flex-col w-full h-full justify-start items-start gap-1.5">
+      <div className="flex h-full w-full flex-col items-start justify-start gap-1.5">
         {subtitleSearchResults.map((result) => (
           <div
             key={result.video_id}
-            className="flex flex-row gap-1.5 border-b border-white/20 pb-1.5 w-full px-4 items-center justify-between"
+            className="flex w-full flex-row items-center justify-between gap-1.5 border-b border-white/20 px-4 pb-1.5"
           >
-            <div className="flex flex-col gap-1.5 w-full">
+            <div className="flex w-full flex-col gap-1.5">
               <p className="m-0 p-0 text-left">{result.title}</p>
               <p className="m-0 p-0 text-left">{result.artist}</p>
             </div>
             <button
               type="button"
               onClick={() => handleRetrieveSubtitle(result)}
-              className="border-none rounded-3xl bg-black/30 hover:bg-white/20 flex items-center justify-center p-1.5 cursor-pointer"
+              className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-1.5 hover:bg-white/20"
             >
-              <PlusIcon className="w-10 h-10" />
+              <PlusIcon className="h-10 w-10" />
             </button>
           </div>
         ))}
