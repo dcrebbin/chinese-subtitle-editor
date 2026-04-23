@@ -3,6 +3,7 @@ import { MagnifyingGlassIcon, PlusIcon } from "@heroicons/react/24/solid";
 
 import { setSessionState, useSessionStore } from "../../store/session.store";
 import { convertSrtToCaptions } from "../../utilities/transliteration/transliteration";
+import { retrieveCustomSubtitles } from "../video-overlay/page";
 import type { Subtitle } from "./subtitle-editor";
 
 export default function SubtitleEditorSearchView() {
@@ -45,27 +46,20 @@ export default function SubtitleEditorSearchView() {
     setSessionState({ ...session, isLoading: false });
   }
 
-  async function handleRetrieveSubtitle(subtitle: Subtitle) {
-    // setSessionState({ ...session, isLoading: true });
-    // const response =
-    //   (await requestCustomYouTubeSubtitles(subtitle.video_id, "")) ?? "";
-    // if (!response || response === "") {
-    //   alert("Subtitles retrieval failed");
-    //   return;
-    // }
-    // const captions = convertSrtToCaptions(response);
-    // setSessionState({
-    //   ...session,
-    //   selectedTab: "captions",
-    //   localSrtContent: response,
-    //   hasCustomCaptions: true,
-    //   srtContent: response,
-    //   isLoading: false,
-    //   localCaptions: captions,
-    //   originalCaptions: captions, // Store original captions for offset calculations
-    //   originalSrtContent: response,
-    // });
-    // updateSubtitleEvent(response);
+  async function handleRetrieveSubtitle(videoId: string) {
+    setSessionState({ ...session, isLoading: true });
+    const customSubtitles = await retrieveCustomSubtitles(videoId);
+    if (!customSubtitles) {
+      alert("Failed to load video subtitles");
+      return;
+    }
+    setSessionState({
+      ...session,
+      srtContent: customSubtitles,
+      originalSrtContent: customSubtitles,
+      selectedTab: "captions",
+      isLoading: false,
+    });
   }
 
   return (
@@ -107,7 +101,7 @@ export default function SubtitleEditorSearchView() {
             </div>
             <button
               type="button"
-              onClick={() => handleRetrieveSubtitle(result)}
+              onClick={() => handleRetrieveSubtitle(result.video_id)}
               className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-1.5 hover:bg-white/20"
             >
               <PlusIcon className="h-10 w-10" />

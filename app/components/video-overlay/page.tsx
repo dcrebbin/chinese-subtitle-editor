@@ -24,6 +24,23 @@ import { retrieveChineseRomanizationMap } from "../../utilities/transliteration/
 import Loading from "../common/loading";
 import VideoTabs from "./video-tabs";
 
+export async function retrieveCustomSubtitles(videoId: string) {
+  const customSubtitlesResponse = await fetch(`https://www.langpal.com.hk/api/subtitles`, {
+    method: "POST",
+    body: JSON.stringify({ youtube_id: videoId, retrieve_backup: true }),
+  });
+  if (!customSubtitlesResponse.ok) {
+    alert("Failed to load video subtitles");
+    return;
+  }
+  const customSubtitles = await customSubtitlesResponse.text();
+  if (!customSubtitles) {
+    alert("Failed to load video subtitles");
+    return;
+  }
+  return customSubtitles;
+}
+
 function formatTime(time: number) {
   const minutes = Math.floor((time % 3600) / 60)
     .toString()
@@ -222,16 +239,11 @@ export default function OverlayPage() {
     const videoId = overlay.loadedVideoId.includes("https://www.youtube.com/watch?v=")
       ? getVideoIdFromUrl(overlay.loadedVideoId)
       : overlay.loadedVideoId;
-    const customSubtitlesResponse = await fetch(`https://www.langpal.com.hk/api/subtitles`, {
-      method: "POST",
-      body: JSON.stringify({ youtube_id: videoId, retrieve_backup: true }),
-    });
-    setSessionState({ isLoading: false });
-    if (!customSubtitlesResponse.ok) {
+    const customSubtitles = await retrieveCustomSubtitles(videoId);
+    if (!customSubtitles) {
       alert("Failed to load video subtitles");
       return;
     }
-    const customSubtitles = await customSubtitlesResponse.text();
     setSession({
       ...session,
       srtContent: customSubtitles,
