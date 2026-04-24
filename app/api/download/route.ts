@@ -20,7 +20,7 @@ async function downloadVideo(videoId: string) {
     }
     const args = [
       "-f",
-      "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
+      "bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/mp4[height<=1080]",
       "--merge-output-format",
       "mp4",
       "--no-geo-bypass",
