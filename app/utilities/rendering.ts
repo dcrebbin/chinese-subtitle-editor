@@ -386,7 +386,7 @@ export async function convertCanvas(
         let drawWidth = sample.displayWidth * videoScale;
         let drawHeight = sample.displayHeight * videoScale;
         let drawY = overlay.videoPosition === "center" ? (height - drawHeight) / 2 : 0;
-        let drawX = overlay.isLandscapeMode ? (width - drawWidth) / 2 : 0;
+        let drawX = (width - drawWidth) / 2;
 
         // Adjust scaling for portrait mode if sample is larger than canvas
         if (!overlay.isLandscapeMode && sample.displayWidth > width) {
