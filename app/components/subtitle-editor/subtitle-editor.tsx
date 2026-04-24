@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowPathIcon, PencilIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/solid";
 
+import { useOverlayStore } from "../../store/overlay.store";
 import {
   ParsedSubtitle,
   setSessionState,
@@ -50,10 +51,12 @@ export const timeStringToSeconds = (timeString: string): number => {
 
 export default function SubtitleEditor() {
   const { session } = useSessionStore();
+  const { overlay } = useOverlayStore();
 
   const editorRef = useRef<HTMLDivElement>(null);
   const offsetInput = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const captionElementRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const originalCaptionsInitialized = useRef<boolean>(false);
   /** Last global offset (seconds) baked into local caption times; new values apply as a delta so we do not stack. */
   const lastCommittedSubtitleOffsetRef = useRef(0);
@@ -92,6 +95,26 @@ export default function SubtitleEditor() {
       offsetInput.current.value = "";
     }
   }, [session.originalSrtContent]);
+
+  const activeCaptionIndex = session.localCaptions.findIndex((caption: CaptionSegment) => {
+    const captionStartTime = timeStringToSeconds(caption.startTime);
+    const captionEndTime = timeStringToSeconds(caption.endTime);
+    return overlay.currentTime >= captionStartTime && overlay.currentTime <= captionEndTime;
+  });
+
+  useEffect(() => {
+    if (!autoScroll || activeCaptionIndex < 0 || session.selectedTab !== "captions") {
+      return;
+    }
+    const activeCaptionElement = captionElementRefs.current[activeCaptionIndex];
+    if (!activeCaptionElement) {
+      return;
+    }
+    activeCaptionElement.scrollIntoView({
+      block: "center",
+      behavior: "smooth",
+    });
+  }, [activeCaptionIndex, autoScroll, session.selectedTab]);
 
   function handleAdd(index: number, endTime: string, newLanguage: string) {
     const newCaption: CaptionSegment = {
@@ -370,7 +393,14 @@ export default function SubtitleEditor() {
       {session.localCaptions.map((caption: CaptionSegment, index: number) => (
         <div
           key={`caption-editor-${index}-${caption.startTime}-${caption.endTime}`}
-          className="mt-14 flex h-full w-full flex-col items-center justify-center gap-1.5"
+          ref={(element) => {
+            captionElementRefs.current[index] = element;
+          }}
+          className={`mt-14 flex h-full w-full flex-col items-center justify-center gap-1.5 rounded-xl border p-1.5 transition-colors ${
+            activeCaptionIndex === index
+              ? "border-blue-400/80 bg-blue-500/10"
+              : "border-transparent"
+          }`}
         >
           <button
             type="button"
