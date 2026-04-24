@@ -8,6 +8,11 @@ import { defaultCellSize, defaultChineseFontSize, jyutpingFontSize } from "./con
 import { getSubtitleAtTime, parseSrt, transliterateCaptions } from "./srt";
 import { retrieveChineseRomanizationMap } from "./transliteration/transliteration";
 
+const INLINE_ENGLISH_FONT_SCALE = 0.5;
+const INLINE_ENGLISH_CELL_MAX_WIDTH_MULTIPLIER = 3;
+const INLINE_ENGLISH_CELL_PADDING = 2;
+const INLINE_ENGLISH_MIN_FONT_PX = 4;
+
 export function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any, time: number) {
   if (!canvas?.clientWidth || !canvas.clientHeight) {
     return;
@@ -49,7 +54,9 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any, time:
     );
     setOverlayState({ jsonData: { transliterationMap } });
     const english = subtitle.text.split("(en)")[1]?.trim() || "";
-    const rows = updateTransliterationRows(mergeConsecutiveEnglishWords(transliterationMap));
+    const rows = updateTransliterationRows(
+      mergeConsecutiveEnglishWords(transliterationMap, ctx, rendererSizeMultiplier),
+    );
 
     const rowSpacing = 0;
     const topMargin = overlay.verticalPosition;
@@ -146,9 +153,15 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any, time:
 
 export const mergeConsecutiveEnglishWords = (
   map: { jyutping: string; chinese: string }[],
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  sizeMultiplier: number,
 ): { jyutping: string; chinese: string }[] => {
   const result: { jyutping: string; chinese: string }[] = [];
   let i = 0;
+  const savedFont = ctx.font;
+  const englishFontSize = defaultChineseFontSize * sizeMultiplier * INLINE_ENGLISH_FONT_SCALE;
+  const maxCellWidth = defaultCellSize * sizeMultiplier * INLINE_ENGLISH_CELL_MAX_WIDTH_MULTIPLIER;
+  ctx.font = `${englishFontSize}px Arial`;
 
   while (i < map.length) {
     const entry = map[i];
@@ -166,7 +179,13 @@ export const mergeConsecutiveEnglishWords = (
         map[j + 1].chinese !== " " &&
         map[j + 1].chinese !== ""
       ) {
-        combined += ` ${map[j + 1].chinese}`;
+        const nextCombined = `${combined} ${map[j + 1].chinese}`;
+        const nextCombinedWidth =
+          ctx.measureText(nextCombined).width + INLINE_ENGLISH_CELL_PADDING * sizeMultiplier;
+        if (nextCombinedWidth > maxCellWidth) {
+          break;
+        }
+        combined = nextCombined;
         j += 2;
       }
 
@@ -178,6 +197,7 @@ export const mergeConsecutiveEnglishWords = (
     }
   }
 
+  ctx.font = savedFont;
   return result;
 };
 
@@ -225,10 +245,49 @@ export const computeEnglishCellWidth = (
   sizeMultiplier: number,
 ): number => {
   const savedFont = ctx.font;
-  ctx.font = `${defaultChineseFontSize * sizeMultiplier}px Arial`;
+  const englishFontSize = defaultChineseFontSize * sizeMultiplier * INLINE_ENGLISH_FONT_SCALE;
+  const maxCellWidth = defaultCellSize * sizeMultiplier * INLINE_ENGLISH_CELL_MAX_WIDTH_MULTIPLIER;
+  ctx.font = `${englishFontSize}px Arial`;
   const measured = ctx.measureText(text).width;
   ctx.font = savedFont;
-  return measured + 16 * sizeMultiplier;
+  return Math.min(measured + INLINE_ENGLISH_CELL_PADDING * sizeMultiplier, maxCellWidth);
+};
+
+const fitEnglishTextToWidth = (
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  text: string,
+  preferredFontPx: number,
+  maxWidth: number,
+): { text: string; fontPx: number } => {
+  const savedFont = ctx.font;
+  let fontPx = preferredFontPx;
+  let displayText = text;
+
+  while (fontPx > INLINE_ENGLISH_MIN_FONT_PX) {
+    ctx.font = `${fontPx}px Arial`;
+    if (ctx.measureText(displayText).width <= maxWidth) {
+      ctx.font = savedFont;
+      return { text: displayText, fontPx };
+    }
+    fontPx -= 1;
+  }
+
+  ctx.font = `${INLINE_ENGLISH_MIN_FONT_PX}px Arial`;
+  const ellipsis = "...";
+  if (ctx.measureText(ellipsis).width > maxWidth) {
+    ctx.font = savedFont;
+    return { text: "", fontPx: INLINE_ENGLISH_MIN_FONT_PX };
+  }
+
+  while (displayText.length > 0 && ctx.measureText(`${displayText}${ellipsis}`).width > maxWidth) {
+    displayText = displayText.slice(0, -1);
+  }
+
+  ctx.font = savedFont;
+  return {
+    text: displayText.length < text.length ? `${displayText}${ellipsis}` : displayText,
+    fontPx: INLINE_ENGLISH_MIN_FONT_PX,
+  };
 };
 
 export const drawCharacterCell = (
@@ -246,10 +305,24 @@ export const drawCharacterCell = (
     ctx.fillStyle = "white";
     ctx.fillRect(x, y, cellWidth, cellSize);
     ctx.fillStyle = "black";
-    ctx.font = `${defaultChineseFontSize * sizeMultiplier}px Arial`;
+    const preferredInlineEnglishFontSize =
+      defaultChineseFontSize * sizeMultiplier * INLINE_ENGLISH_FONT_SCALE;
+    const maxTextWidth = Math.max(0, cellWidth - INLINE_ENGLISH_CELL_PADDING * sizeMultiplier);
+    const fitted = fitEnglishTextToWidth(
+      ctx,
+      caption.chinese,
+      preferredInlineEnglishFontSize,
+      maxTextWidth,
+    );
+    ctx.font = `${fitted.fontPx}px Arial`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(caption.chinese, x + cellWidth / 2, y + cellSize / 2);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, cellWidth, cellSize);
+    ctx.clip();
+    ctx.fillText(fitted.text, x + cellWidth / 2, y + cellSize / 2);
+    ctx.restore();
     return;
   }
 
@@ -415,7 +488,9 @@ export async function convertCanvas(
             transliteratedText,
             cantonese || mandarin,
           );
-          const rows = updateTransliterationRows(mergeConsecutiveEnglishWords(transliterationMap));
+          const rows = updateTransliterationRows(
+            mergeConsecutiveEnglishWords(transliterationMap, ctx!, rendererSizeMultiplier),
+          );
 
           const rowSpacing = 0;
           const topMargin = verticalPosition;
