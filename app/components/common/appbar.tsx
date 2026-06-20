@@ -3,9 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "@supabase/auth-helpers-react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 import type { ApiUser } from "../../interfaces/User";
 import { useSessionStore } from "../../store/session.store";
@@ -50,7 +49,7 @@ export default function AppBar({ hostLocale }: Readonly<{ hostLocale: string }>)
     <div
       className={`titlebar-drag fixed top-0 left-0 z-50 flex h-[8vh] w-full flex-row items-center justify-between rounded-b-2xl bg-black/50 p-4 px-2 backdrop-blur-sm transition-all duration-300 lg:pt-4`}
     >
-      <Link href="/" className="titlebar-no-drag mt-4">
+      <Link to="/" className="titlebar-no-drag mt-4">
         <h1 className="flex flex-col items-center font-sans text-white drop-shadow-md">
           <span className="w-full text-center font-sans text-2xl">Chinese Subtitle Editor</span>
           <p className="text-sm text-white">by Langpal話朋</p>

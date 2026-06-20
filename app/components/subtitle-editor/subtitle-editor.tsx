@@ -58,7 +58,6 @@ export default function SubtitleEditor() {
   const contentRef = useRef<HTMLDivElement>(null);
   const captionElementRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const originalCaptionsInitialized = useRef<boolean>(false);
-  /** Last global offset (seconds) baked into local caption times; new values apply as a delta so we do not stack. */
   const lastCommittedSubtitleOffsetRef = useRef(0);
 
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
@@ -318,9 +317,27 @@ export default function SubtitleEditor() {
     });
   }
 
+  function setCaptionTime(index: number, time: number, isStartTime: boolean) {
+    const updatedCaptions = [...session.localCaptions];
+    if (!updatedCaptions[index]) {
+      return;
+    }
+
+    const formattedTime = formatTime(time);
+    updatedCaptions[index] = {
+      ...updatedCaptions[index],
+      [isStartTime ? "startTime" : "endTime"]: formattedTime,
+    };
+    setSessionState({
+      ...session,
+      localCaptions: updatedCaptions,
+      originalCaptions: updatedCaptions, // Update original captions to reflect the time change
+    });
+  }
+
   function createSubtitlesSection() {
     return (
-      <div className="relative my-2 flex h-[100vh] flex-col items-center justify-center gap-2.5">
+      <div className="relative my-2 flex min-h-48 flex-col items-center justify-center gap-2.5 py-16">
         <button
           type="button"
           onClick={() => handleAdd(0, "00:00:00,000", "yue")}
@@ -333,7 +350,7 @@ export default function SubtitleEditor() {
   }
 
   const subtitleEditorHeaderControls = (
-    <div className="relative top-0 grid w-full grid-cols-4 items-center justify-center gap-2.5 p-2.5 text-2xl">
+    <div className="relative top-0 grid w-full shrink-0 grid-cols-4 items-center justify-center gap-2.5 p-2.5 text-2xl">
       <div className="flex min-w-0 items-center gap-2">
         <input
           type="number"
@@ -387,7 +404,7 @@ export default function SubtitleEditor() {
     <div
       id="langpal-subtitle-editor-content"
       ref={contentRef}
-      className="scrollbar-thin relative flex w-full flex-col gap-2.5 overflow-y-scroll border-none bg-transparent px-8 pt-4 pb-24 outline-none"
+      className="scrollbar-thin relative flex min-h-0 w-full flex-1 flex-col gap-2.5 overflow-y-auto border-none bg-transparent px-8 pt-4 pb-24 outline-none"
     >
       {session.localCaptions.length === 0 && createSubtitlesSection()}
       {session.localCaptions.map((caption: CaptionSegment, index: number) => (
@@ -491,21 +508,7 @@ export default function SubtitleEditor() {
                 data-tooltip-id="global-tooltip"
                 data-tooltip-content="Set Start Time"
                 onClick={() => {
-                  const video = session.video;
-                  if (video) {
-                    const time = video.currentTime;
-                    const formattedTime = formatTime(time);
-                    const updatedCaptions = [...session.localCaptions];
-                    if (!updatedCaptions[index]) {
-                      return;
-                    }
-                    updatedCaptions[index].startTime = formattedTime;
-                    setSessionState({
-                      ...session,
-                      localCaptions: updatedCaptions,
-                      originalCaptions: updatedCaptions, // Update original captions to reflect the time change
-                    });
-                  }
+                  setCaptionTime(index, overlay.currentTime, true);
                 }}
                 className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 text-2xl hover:bg-white/20"
               >
@@ -518,21 +521,7 @@ export default function SubtitleEditor() {
                 data-tooltip-id="global-tooltip"
                 data-tooltip-content="Set End Time"
                 onClick={() => {
-                  const video = session.video;
-                  if (video) {
-                    const time = video.currentTime;
-                    const formattedTime = formatTime(time);
-                    const updatedCaptions = [...session.localCaptions];
-                    if (!updatedCaptions[index]) {
-                      return;
-                    }
-                    updatedCaptions[index].endTime = formattedTime;
-                    setSessionState({
-                      ...session,
-                      localCaptions: updatedCaptions,
-                      originalCaptions: updatedCaptions, // Update original captions to reflect the time change
-                    });
-                  }
+                  setCaptionTime(index, overlay.currentTime, false);
                 }}
                 className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 text-2xl hover:bg-white/20"
               >
@@ -597,9 +586,9 @@ export default function SubtitleEditor() {
     <div
       ref={editorRef}
       id="langpal-subtitle-editor"
-      className="relative flex h-[102vh] w-full flex-col rounded-3xl border-2 border-white/50 bg-black/50 backdrop-blur-xs"
+      className="relative flex h-full min-h-0 w-full flex-col rounded-3xl border-2 border-white/50 bg-black/50 backdrop-blur-xs"
     >
-      <div className="mx-4 flex items-center gap-2 p-3">
+      <div className="mx-4 flex shrink-0 items-center gap-2 p-3">
         <button
           type="button"
           onClick={() => setSessionState({ ...session, selectedTab: "captions" })}
@@ -621,7 +610,7 @@ export default function SubtitleEditor() {
       </div>
       {session.isLoading && <Loading />}
       {session.selectedTab === "captions" ? (
-        <div className="relative flex h-full w-full flex-col overflow-auto">
+        <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden">
           {subtitleEditorHeaderControls}
           {subtitleEditorContent}
           <SubtitleEditorBottomControls />
@@ -629,7 +618,7 @@ export default function SubtitleEditor() {
       ) : null}
 
       {session.selectedTab === "search" ? (
-        <div className="relative flex h-full w-full flex-col overflow-auto">
+        <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden">
           <SubtitleEditorSearchView />
         </div>
       ) : null}

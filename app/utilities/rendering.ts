@@ -13,6 +13,8 @@ const INLINE_ENGLISH_CELL_MAX_WIDTH_MULTIPLIER = 3;
 const INLINE_ENGLISH_CELL_PADDING = 2;
 const INLINE_ENGLISH_MIN_FONT_PX = 4;
 
+const TRANSLITERATION_ROWS_PER_LINE = 7;
+
 export function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any, time: number) {
   if (!canvas?.clientWidth || !canvas.clientHeight) {
     return;
@@ -205,10 +207,10 @@ export const updateTransliterationRows = (
   transliterationMap: { jyutping: string; chinese: string }[],
 ) => {
   const rows: { jyutping: string; chinese: string }[][] = [];
-  for (let i = 0; i < Math.ceil(transliterationMap.length / 5); i++) {
+  for (let i = 0; i < Math.ceil(transliterationMap.length / TRANSLITERATION_ROWS_PER_LINE); i++) {
     const newRow: { jyutping: string; chinese: string }[] = [];
-    for (let j = 0; j < 5; j++) {
-      const item = transliterationMap[i * 5 + j];
+    for (let j = 0; j < TRANSLITERATION_ROWS_PER_LINE; j++) {
+      const item = transliterationMap[i * TRANSLITERATION_ROWS_PER_LINE + j];
       if (item) {
         newRow.push(item);
       } else {
@@ -446,8 +448,6 @@ export async function convertCanvas(
             | OffscreenCanvasRenderingContext2D;
         }
 
-        // Proper scaling with videoScale
-        const videoScale = 1;
         addBackground(ctx, width, height, overlay.colour as string);
 
         const rendererSizeMultiplier = sizeMultiplier / 2;
@@ -455,20 +455,11 @@ export async function convertCanvas(
         const adjustedTimestamp = sample.timestamp + overlay.startTime;
         const subtitle = getSubtitleAtTime(parsedSubtitles, adjustedTimestamp + lyricsOffset);
 
-        // Calculate drawWidth and drawHeight based on videoScale
-        let drawWidth = sample.displayWidth * videoScale;
-        let drawHeight = sample.displayHeight * videoScale;
+        const videoScale = Math.min(width / sample.displayWidth, height / sample.displayHeight);
+        const drawWidth = sample.displayWidth * videoScale;
+        const drawHeight = sample.displayHeight * videoScale;
         let drawY = overlay.videoPosition === "center" ? (height - drawHeight) / 2 : 0;
         let drawX = (width - drawWidth) / 2;
-
-        // Adjust scaling for portrait mode if sample is larger than canvas
-        if (!overlay.isLandscapeMode && sample.displayWidth > width) {
-          const scale = width / sample.displayWidth;
-          drawWidth = sample.displayWidth * scale * videoScale;
-          drawHeight = sample.displayHeight * scale * videoScale;
-          drawX = (width - drawWidth) / 2;
-          drawY = overlay.videoPosition === "center" ? (height - drawHeight) / 2 : 0;
-        }
 
         // Ensure drawX/drawY are rounded for subpixel rendering accuracy
         drawX = Math.round(drawX);

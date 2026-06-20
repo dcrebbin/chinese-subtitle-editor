@@ -41,6 +41,14 @@ export async function retrieveCustomSubtitles(videoId: string) {
   return customSubtitles;
 }
 
+declare global {
+  interface Window {
+    electron?: {
+      downloadVideo?: (videoId: string) => Promise<ArrayBuffer>;
+    };
+  }
+}
+
 function formatTime(time: number) {
   const minutes = Math.floor((time % 3600) / 60)
     .toString()
@@ -156,18 +164,25 @@ export default function OverlayPage() {
     const videoId = overlay.downloadVideoId.includes("https://www.youtube.com/watch?v=")
       ? getVideoIdFromUrl(overlay.downloadVideoId)
       : overlay.downloadVideoId;
-    const response = await fetch("/api/download", {
-      method: "POST",
-      body: JSON.stringify({ videoId: videoId }),
-    });
-    setOverlayState({ videoIsDownloading: false });
 
-    if (!response.ok) {
-      alert("Failed to download video");
-      return;
-    }
     try {
-      const blob = await response.blob();
+      const electronVideo = await window.electron?.downloadVideo?.(videoId);
+      let blob: Blob;
+      if (electronVideo) {
+        blob = new Blob([electronVideo], { type: "video/mp4" });
+      } else {
+        const response = await fetch("/api/download", {
+          method: "POST",
+          body: JSON.stringify({ videoId: videoId }),
+        });
+
+        if (!response.ok) {
+          alert("Failed to download video");
+          return;
+        }
+
+        blob = await response.blob();
+      }
       const url = URL.createObjectURL(blob);
       setOverlayState({
         previewUrl: url,
@@ -189,7 +204,10 @@ export default function OverlayPage() {
       }
     } catch (error) {
       console.error("Error processing downloaded video:", error);
-      alert("An error occurred while processing the downloaded video.");
+      const message = error instanceof Error ? error.message : "Unknown error";
+      alert(`An error occurred while processing the downloaded video.\n\n${message}`);
+    } finally {
+      setOverlayState({ videoIsDownloading: false });
     }
   }
 
@@ -689,7 +707,7 @@ export default function OverlayPage() {
   );
 
   return (
-    <div className="z-20 flex h-[102vh] w-full flex-col items-center overflow-y-auto rounded-3xl border-2 border-white/50 bg-black/50 p-2 font-sans text-white backdrop-blur-xs">
+    <div className="z-20 flex h-full min-h-0 w-full flex-col items-center overflow-y-auto rounded-3xl border-2 border-white/50 bg-black/50 p-2 font-sans text-white backdrop-blur-xs">
       {overlay.isLoading || (overlay.videoIsDownloading && <Loading />)}
       {videoOverlayContent}
     </div>

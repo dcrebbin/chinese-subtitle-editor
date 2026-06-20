@@ -1,16 +1,106 @@
-import { useRef, useState } from "react";
-import { MagnifyingGlassIcon, PlusIcon } from "@heroicons/react/24/solid";
+import { useRef, useState, type ChangeEvent } from "react";
+import { ArrowUpTrayIcon, MagnifyingGlassIcon, PlusIcon } from "@heroicons/react/24/solid";
 
-import { setSessionState, useSessionStore } from "../../store/session.store";
-import { convertSrtToCaptions } from "../../utilities/transliteration/transliteration";
+import { useOverlayStore } from "../../store/overlay.store";
+import { setSessionState, useSessionStore, type CaptionSegment } from "../../store/session.store";
+import {
+  convertCaptionsToSrt,
+  convertSrtToCaptions,
+} from "../../utilities/transliteration/transliteration";
 import { retrieveCustomSubtitles } from "../video-overlay/page";
 import type { Subtitle } from "./subtitle-editor";
 
+function formatTime(time: number) {
+  const hours = Math.floor(time / 3600)
+    .toString()
+    .padStart(2, "0");
+  const minutes = Math.floor((time % 3600) / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = Math.floor(time % 60)
+    .toString()
+    .padStart(2, "0");
+  const milliseconds = Math.floor((time % 1) * 1000)
+    .toString()
+    .padStart(3, "0");
+  return `${hours}:${minutes}:${seconds},${milliseconds}`;
+}
+
+function timeStringToSeconds(timeString: string): number {
+  const [time, milliseconds] = timeString.split(",");
+  const [hours, minutes, seconds] = time?.split(":").map(Number) || [];
+  return (hours || 0) * 3600 + (minutes || 0) * 60 + (seconds || 0) + Number(milliseconds) / 1000;
+}
+
 export default function SubtitleEditorSearchView() {
   const searchInput = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const [uploadAtCurrentTime, setUploadAtCurrentTime] = useState<boolean>(true);
+  const [uploadedFileName, setUploadedFileName] = useState<string>("");
   const [subtitleSearchResults, setSubtitleSearchResults] = useState<Subtitle[]>([]);
   const { session } = useSessionStore();
+  const { overlay } = useOverlayStore();
+
+  function loadSrtContent(srtContent: string, fileName?: string) {
+    const captions = convertSrtToCaptions(srtContent);
+    if (captions.length === 0) {
+      alert("No captions found in the SRT file");
+      return;
+    }
+
+    const firstCaptionStartTime = timeStringToSeconds(captions[0]?.startTime || "00:00:00,000");
+    const offsetSeconds = uploadAtCurrentTime ? overlay.currentTime - firstCaptionStartTime : 0;
+    if (!Number.isFinite(offsetSeconds)) {
+      alert("Current video time is not available");
+      return;
+    }
+
+    const shiftedCaptions = captions.map((caption: CaptionSegment) => ({
+      ...caption,
+      startTime: formatTime(Math.max(0, timeStringToSeconds(caption.startTime) + offsetSeconds)),
+      endTime: formatTime(Math.max(0, timeStringToSeconds(caption.endTime) + offsetSeconds)),
+    }));
+    const mergedCaptions = [...session.localCaptions, ...shiftedCaptions].sort(
+      (a, b) => timeStringToSeconds(a.startTime) - timeStringToSeconds(b.startTime),
+    );
+    const mergedSrtContent = convertCaptionsToSrt(mergedCaptions);
+
+    setUploadedFileName(fileName || "");
+    setSessionState({
+      ...session,
+      hasCustomCaptions: true,
+      srtContent: mergedSrtContent,
+      originalSrtContent: mergedSrtContent,
+      originalCaptions: mergedCaptions,
+      localSrtContent: mergedSrtContent,
+      selectedTab: "captions",
+      localCaptions: mergedCaptions,
+      isLoading: false,
+    });
+  }
+
+  async function handleSrtUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!file.name.toLowerCase().endsWith(".srt")) {
+      alert("Please upload an .srt file");
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      const srtContent = await file.text();
+      loadSrtContent(srtContent, file.name);
+    } catch {
+      alert("Failed to read SRT file");
+    } finally {
+      event.target.value = "";
+    }
+  }
 
   async function handleSearch() {
     if (!searchInput.current) {
@@ -19,15 +109,15 @@ export default function SubtitleEditorSearchView() {
     setSessionState({ ...session, isLoading: true });
     const searchValue = searchInput.current?.value;
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_LANGPAL_API_URL}/api/subtitles?query=${encodeURIComponent(searchValue)}`,
+      `${import.meta.env.VITE_LANGPAL_API_URL}/api/subtitles?query=${encodeURIComponent(searchValue)}`,
       {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          "x-langpal-api-key": process.env.NEXT_PUBLIC_LANGPAL_API_KEY as string,
+          "x-langpal-api-key": import.meta.env.VITE_LANGPAL_API_KEY as string,
         },
       },
-    ).catch((error) => {
+    ).catch(() => {
       alert("Failed to search for subtitles");
       setSessionState({ ...session, isLoading: false });
       return;
@@ -63,7 +153,49 @@ export default function SubtitleEditorSearchView() {
   }
 
   return (
-    <div className="flex h-full w-full flex-col gap-1.5 overflow-y-scroll px-4">
+    <div className="flex min-h-0 w-full flex-1 flex-col gap-1.5 overflow-y-auto px-4">
+      <div className="mx-4 mt-4 flex flex-col gap-2 rounded-3xl border border-white/20 p-3">
+        <p className="m-0 p-0 text-left text-lg font-bold">Upload SRT</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="m-0 min-w-0 truncate p-0 text-left text-sm text-white/70">
+            {uploadedFileName ||
+              (uploadAtCurrentTime
+                ? `Upload at current time ${formatTime(overlay.currentTime)}`
+                : "Use SRT timings")}
+          </p>
+          <button
+            type="button"
+            className="relative inline-block h-5 w-10 shrink-0 cursor-pointer border-none bg-transparent disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => setUploadAtCurrentTime(!uploadAtCurrentTime)}
+          >
+            <div
+              className={`absolute top-0 right-0 bottom-0 left-0 cursor-pointer rounded-full transition-all duration-300 ${
+                uploadAtCurrentTime ? "bg-blue-600" : "bg-gray-300"
+              }`}
+            />
+            <div
+              className={`absolute bottom-0.5 left-0.5 h-4 w-4 cursor-pointer rounded-full bg-white transition-all duration-300 ${
+                uploadAtCurrentTime ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".srt,text/plain,application/x-subrip"
+            onChange={handleSrtUpload}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-3xl border-none bg-black/30 p-2 hover:bg-white/20"
+          >
+            <ArrowUpTrayIcon className="h-8 w-8" />
+            Upload
+          </button>
+        </div>
+      </div>
       <div className="mx-4 mt-4 flex flex-row gap-1.5 rounded-3xl border border-white/20 px-2">
         <input
           type="text"

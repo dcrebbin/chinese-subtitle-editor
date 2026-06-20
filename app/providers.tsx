@@ -1,12 +1,9 @@
-"use client";
-
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createClient } from "@supabase/supabase-js";
 import { SessionContextProvider } from "@supabase/auth-helpers-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NextIntlClientProvider } from "next-intl";
-import posthog from "posthog-js";
-import { PostHogProvider } from "posthog-js/react";
 import { useMemo, useState } from "react";
+
 export interface UserMetadata {
   name: string;
   email: string;
@@ -15,43 +12,26 @@ export interface UserMetadata {
   usageLeft: number;
 }
 
-// if (typeof window !== "undefined") {
-//   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
-//     api_host: "/ingest",
-//     ui_host: "https://us.posthog.com",
-//     person_profiles: "identified_only", // or 'always' to create profiles for anonymous users as well
-//     loaded: (posthog) => {
-//       if (process.env.NODE_ENV === "development") posthog.debug(); // debug mode in development
-//     },
-//   });
-// }
-
-interface KnownCharactersMap {
-  [languageCode: string]: {
-    [character: string]: number;
-  };
-}
-
-interface Character {
-  text: string;
-  learnt_at: string;
-  user_id: string;
-  id: number;
-  language_code: string;
-}
-
 export function Providers({
   children,
   messages,
   hostLocale,
 }: Readonly<{
   children: React.ReactNode;
-  messages: Record<string, string>;
+  messages: Record<string, unknown>;
   hostLocale: string;
 }>) {
   const [queryClient] = useState(() => new QueryClient());
-  const supabase = useMemo(() => createClientComponentClient(), []);
-  // const posthogClient = useMemo(() => posthog, []);
+  const supabase = useMemo(() => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return createClient("https://placeholder.supabase.co", "placeholder-key");
+    }
+
+    return createClient(supabaseUrl, supabaseAnonKey);
+  }, []);
 
   supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === "SIGNED_IN") {
@@ -75,7 +55,6 @@ export function Providers({
 
   return (
     <SessionContextProvider supabaseClient={supabase}>
-      {/* <PostHogProvider client={posthogClient}> */}
       <QueryClientProvider client={queryClient}>
         <NextIntlClientProvider
           timeZone="America/San_Francisco"
@@ -85,7 +64,6 @@ export function Providers({
           {children}
         </NextIntlClientProvider>
       </QueryClientProvider>
-      {/* </PostHogProvider> */}
     </SessionContextProvider>
   );
 }

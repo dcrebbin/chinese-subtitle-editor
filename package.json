@@ -4,27 +4,31 @@
   "version": "0.1.0",
   "private": true,
   "main": "main/main.js",
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "vite dev",
+    "build": "vite build",
     "prepare": "node node_modules/electron/install.js",
-    "start": "next start",
-    "lint": "eslint",
+    "start": "node .output/server/index.mjs",
+    "lint": "eslint app main router.tsx vite.config.ts env.d.ts",
+    "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "electron:dev": "electron .",
-    "electron:build": "next build && electron-builder"
+    "electron:build": "vite build && electron-builder"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
-    "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/auth-helpers-react": "^0.5.0",
+    "@supabase/supabase-js": "^2.108.2",
     "@tanstack/react-query": "^5.90.10",
+    "@tanstack/react-router": "^1.170.16",
+    "@tanstack/react-start": "^1.168.26",
     "@types/swagger-jsdoc": "^6.0.4",
-    "electron-next": "^3.1.5",
+    "@vitejs/plugin-react": "^6.0.2",
     "mediabunny": "^1.25.1",
-    "next": "16.0.3",
     "next-intl": "^4.5.5",
+    "nitro": "^3.0.260610-beta",
     "pinyin": "^4.0.0",
     "posthog-js": "^1.298.0",
     "react": "19.2.0",
@@ -32,41 +36,56 @@
     "react-tooltip": "^5.30.0",
     "swagger-jsdoc": "^6.2.8",
     "to-jyutping": "^3.1.1",
+    "vite": "^8.0.16",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@ianvs/prettier-plugin-sort-imports": "^4.7.0",
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/vite": "^4.3.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "electron": "^34.2.0",
     "electron-builder": "^25.1.8",
     "eslint": "^9",
-    "eslint-config-next": "16.0.3",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.6.0",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.7.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "typescript-eslint": "^8.61.1"
   },
   "build": {
     "appId": "cn.langpal.cantosubtitles",
     "files": [
       "main/**/*",
-      "out/**/*",
+      ".output/**/*",
       "public/icon.png",
       "package.json"
     ],
-    "name": "Chinese Subtitle Editor",
+    "asarUnpack": [
+      ".output/**/*",
+      "main/preload.cjs"
+    ],
+    "extraResources": [
+      {
+        "from": "youtube",
+        "to": "youtube"
+      }
+    ],
     "productName": "Chinese Subtitle Editor",
-    "version": "0.1.0",
     "directories": {
       "output": "dist"
     },
     "mac": {
       "category": "public.app-category.education",
-      "icon": "public/icon.png"
+      "icon": "public/icon.png",
+      "identity": null,
+      "target": "dir"
     }
   }
 }

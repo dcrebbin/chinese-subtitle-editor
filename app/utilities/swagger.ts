@@ -11,7 +11,7 @@ export const getSwaggerSpec = () => {
       },
       servers: [
         {
-          url: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
+          url: import.meta.env.VITE_API_URL || "http://localhost:3000",
           description: "API server",
         },
       ],
@@ -31,7 +31,7 @@ export const getSwaggerSpec = () => {
         },
       ],
     },
-    apis: ["./src/app/api/**/*.ts"],
+    apis: ["./app/routes/api/**/*.ts"],
   };
 
   return swaggerJsdoc(options);

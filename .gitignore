@@ -21,9 +21,13 @@ cookies.txt
 # testing
 /coverage
 
-# next.js
+# next.js / tanstack start
 /.next/
 /out/
+/.output/
+
+# vite
+/dist
 
 # production
 /build
