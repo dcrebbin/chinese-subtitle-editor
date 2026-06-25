@@ -90,6 +90,7 @@ async function startProductionServer() {
   serverProcess = spawn(process.execPath, [serverEntry], {
     env: {
       ...process.env,
+      ELECTRON_RUN_AS_NODE: "1",
       PORT: "4310",
       NITRO_PORT: "4310",
       HOST: "127.0.0.1",

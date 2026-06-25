@@ -211,10 +211,13 @@ export default function SubtitleEditor() {
       {caption.text[language.code] !== null && (
         <div
           key={`${index}-${language.code}-caption-edit`}
-          className="flex w-full flex-row gap-1.5 border-b border-white/20 pb-1.5"
+          className="flex w-full flex-row gap-1.5 border-b border-white/20 pb-1.5 xl:gap-1.5 xl:pb-1.5"
         >
           <div className="flex w-full flex-col gap-1.5">
-            <label htmlFor={`${index}-${language.code}`} className="text-left text-2xl font-bold">
+            <label
+              htmlFor={`${index}-${language.code}`}
+              className="text-left text-xl font-bold xl:text-2xl"
+            >
               {language.name}
             </label>
             <textarea
@@ -240,7 +243,7 @@ export default function SubtitleEditor() {
               onKeyUp={(e) => {
                 e.stopPropagation();
               }}
-              className="m-0 h-16 w-full rounded-md border border-white/20 bg-white p-2 text-left text-3xl text-black"
+              className="m-0 h-12 w-full rounded-md border border-white/20 bg-white p-2 text-left text-lg text-black xl:h-16 xl:text-3xl"
             />
           </div>
           <button
@@ -248,9 +251,9 @@ export default function SubtitleEditor() {
             data-tooltip-id="global-tooltip"
             data-tooltip-content="Delete Language Section"
             onClick={() => handleDeleteLanguage(index, language.code)}
-            className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 hover:bg-white/20"
+            className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-2 hover:bg-white/20 xl:p-3"
           >
-            <TrashIcon className="h-10 w-10" />
+            <TrashIcon className="h-6 w-6 xl:h-10 xl:w-10" />
           </button>
         </div>
       )}
@@ -350,7 +353,7 @@ export default function SubtitleEditor() {
   }
 
   const subtitleEditorHeaderControls = (
-    <div className="relative top-0 grid w-full shrink-0 grid-cols-4 items-center justify-center gap-2.5 p-2.5 text-2xl">
+    <div className="relative top-0 grid w-full shrink-0 grid-cols-1 items-center justify-center gap-2.5 p-2.5 text-base sm:grid-cols-2 xl:grid-cols-4 xl:text-2xl">
       <div className="flex min-w-0 items-center gap-2">
         <input
           type="number"
@@ -379,23 +382,26 @@ export default function SubtitleEditor() {
           onClick={handleResetSubtitleOffset}
           className="flex shrink-0 cursor-pointer items-center justify-center rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20"
         >
-          <ArrowPathIcon className="h-8 w-8" />
+          <ArrowPathIcon className="h-6 w-6 xl:h-8 xl:w-8" />
         </button>
       </div>
       <button
         type="button"
         onClick={() => setAutoScroll(!autoScroll)}
-        className="w-64 cursor-pointer rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20"
+        className="w-full cursor-pointer rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20"
       >
-        {autoScroll ? "Disable Auto Scroll" : "Enable Auto Scroll"}
+        <span className="xl:hidden">{autoScroll ? "Auto Scroll" : "No Scroll"}</span>
+        <span className="hidden xl:inline">
+          {autoScroll ? "Disable Auto Scroll" : "Enable Auto Scroll"}
+        </span>
       </button>
       <button
         type="button"
         onClick={() => handleDeleteAllCaptions()}
-        className="ml-10 flex cursor-pointer flex-row items-center justify-center rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20"
+        className="flex cursor-pointer flex-row items-center justify-center rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20 sm:col-span-2 xl:col-span-1 xl:ml-10"
       >
         Delete All
-        <TrashIcon className="h-8 w-8" />
+        <TrashIcon className="h-6 w-6 xl:h-8 xl:w-8" />
       </button>
     </div>
   );
@@ -404,7 +410,7 @@ export default function SubtitleEditor() {
     <div
       id="langpal-subtitle-editor-content"
       ref={contentRef}
-      className="scrollbar-thin relative flex min-h-0 w-full flex-1 flex-col gap-2.5 overflow-y-auto border-none bg-transparent px-8 pt-4 pb-24 outline-none"
+      className="scrollbar-thin relative flex min-h-0 w-full flex-1 flex-col gap-2.5 overflow-y-auto border-none bg-transparent px-3 pt-4 pb-20 outline-none xl:px-8 xl:pb-24"
     >
       {session.localCaptions.length === 0 && createSubtitlesSection()}
       {session.localCaptions.map((caption: CaptionSegment, index: number) => (
@@ -413,7 +419,7 @@ export default function SubtitleEditor() {
           ref={(element) => {
             captionElementRefs.current[index] = element;
           }}
-          className={`mt-14 flex h-full w-full flex-col items-center justify-center gap-1.5 rounded-xl border p-1.5 transition-colors ${
+          className={`mt-6 flex h-full w-full flex-col items-center justify-center gap-1.5 rounded-xl border p-1.5 transition-colors xl:mt-14 ${
             activeCaptionIndex === index
               ? "border-blue-400/80 bg-blue-500/10"
               : "border-transparent"
@@ -424,13 +430,13 @@ export default function SubtitleEditor() {
             data-tooltip-id="global-tooltip"
             data-tooltip-content="Add New Caption Above"
             onClick={() => handleAdd(index, caption.startTime, selectedLanguage[index] || "yue")}
-            className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 hover:bg-white/20"
+            className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-2 hover:bg-white/20 xl:p-3"
           >
-            <PlusIcon className="h-10 w-10" />
+            <PlusIcon className="h-6 w-6 xl:h-10 xl:w-10" />
           </button>
-          <div className="m-1.5 flex h-full w-full flex-col gap-1.5 rounded-lg border border-white/20 p-1.5 text-2xl">
-            <div className="flex items-center justify-between gap-4">
-              <p className="m-0 p-0 text-left text-2xl font-bold">{index + 1}</p>
+          <div className="text-md flex h-full w-full flex-col gap-1.5 rounded-lg border border-white/20 xl:m-1.5 xl:p-1.5 xl:text-2xl">
+            <div className="flex flex-col items-stretch justify-between gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+              <p className="m-0 p-0 text-left text-lg font-bold xl:text-2xl">{index + 1}</p>
               <div className="flex items-center justify-center gap-1.5 rounded-3xl bg-black/30 p-1.5">
                 <button
                   type="button"
@@ -461,7 +467,7 @@ export default function SubtitleEditor() {
                   {"+1"}
                 </button>
               </div>
-              <div className="flex items-center justify-center gap-1.5 rounded-3xl bg-black/30 p-1.5 text-xl">
+              <div className="flex items-center justify-center gap-1.5 rounded-3xl bg-black/30 p-1.5 text-sm xl:text-xl">
                 <button
                   type="button"
                   className="flex cursor-pointer items-center justify-center rounded-3xl border-none p-1.5 hover:bg-white/20"
@@ -495,14 +501,16 @@ export default function SubtitleEditor() {
               <button
                 type="button"
                 onClick={() => handleDelete(index)}
-                className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 hover:bg-white/20"
+                className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-2 hover:bg-white/20 xl:p-3"
               >
-                <TrashIcon className="h-10 w-10" />
+                <TrashIcon className="h-6 w-6 xl:h-10 xl:w-10" />
               </button>
             </div>
 
-            <div className="flex items-center justify-center gap-4 text-2xl">
-              <p className="m-0 p-0 text-left text-3xl font-bold">{caption.startTime}</p>
+            <div className="flex flex-col items-center justify-center gap-2 text-base sm:flex-row sm:gap-4 sm:text-2xl">
+              <p className="m-0 p-0 text-left text-lg font-bold sm:text-2xl xl:text-3xl">
+                {caption.startTime}
+              </p>
               <button
                 type="button"
                 data-tooltip-id="global-tooltip"
@@ -510,12 +518,14 @@ export default function SubtitleEditor() {
                 onClick={() => {
                   setCaptionTime(index, overlay.currentTime, true);
                 }}
-                className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 text-2xl hover:bg-white/20"
+                className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-2 text-base hover:bg-white/20 xl:p-3 xl:text-2xl"
               >
                 Set
               </button>
 
-              <p className="m-0 p-0 text-left text-3xl font-bold">{caption.endTime}</p>
+              <p className="m-0 p-0 text-left text-lg font-bold sm:text-2xl xl:text-3xl">
+                {caption.endTime}
+              </p>
               <button
                 type="button"
                 data-tooltip-id="global-tooltip"
@@ -523,7 +533,7 @@ export default function SubtitleEditor() {
                 onClick={() => {
                   setCaptionTime(index, overlay.currentTime, false);
                 }}
-                className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 text-2xl hover:bg-white/20"
+                className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-2 text-base hover:bg-white/20 xl:p-3 xl:text-2xl"
               >
                 Set
               </button>
@@ -559,12 +569,12 @@ export default function SubtitleEditor() {
                 data-tooltip-id="global-tooltip"
                 data-tooltip-content="Add New Language Section"
                 disabled={caption?.text[selectedLanguage[index] || ""] !== null}
-                className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 hover:bg-white/20"
+                className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-2 hover:bg-white/20 xl:p-3"
                 onClick={() => {
                   handleNewCaptionLanguage(index, selectedLanguage[index] || "yue");
                 }}
               >
-                <PlusIcon className="h-10 w-10" />
+                <PlusIcon className="h-6 w-6 xl:h-10 xl:w-10" />
               </button>
             </div>
           </div>
@@ -573,9 +583,9 @@ export default function SubtitleEditor() {
             data-tooltip-id="global-tooltip"
             data-tooltip-content="Add New Caption Below"
             onClick={() => handleAdd(index + 1, caption.endTime, selectedLanguage[index] || "yue")}
-            className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 hover:bg-white/20"
+            className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-2 hover:bg-white/20 xl:p-3"
           >
-            <PlusIcon className="h-10 w-10" />
+            <PlusIcon className="h-6 w-6 xl:h-10 xl:w-10" />
           </button>
         </div>
       ))}

@@ -153,10 +153,10 @@ export default function SubtitleEditorSearchView() {
   }
 
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col gap-1.5 overflow-y-auto px-4">
-      <div className="mx-4 mt-4 flex flex-col gap-2 rounded-3xl border border-white/20 p-3">
+    <div className="flex min-h-0 w-full flex-1 flex-col gap-1.5 overflow-y-auto px-2 xl:px-4">
+      <div className="mx-2 mt-4 flex flex-col gap-2 rounded-3xl border border-white/20 p-3 xl:mx-4">
         <p className="m-0 p-0 text-left text-lg font-bold">Upload SRT</p>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="m-0 min-w-0 truncate p-0 text-left text-sm text-white/70">
             {uploadedFileName ||
               (uploadAtCurrentTime
@@ -191,12 +191,12 @@ export default function SubtitleEditorSearchView() {
             onClick={() => fileInputRef.current?.click()}
             className="flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-3xl border-none bg-black/30 p-2 hover:bg-white/20"
           >
-            <ArrowUpTrayIcon className="h-8 w-8" />
+            <ArrowUpTrayIcon className="h-6 w-6 xl:h-8 xl:w-8" />
             Upload
           </button>
         </div>
       </div>
-      <div className="mx-4 mt-4 flex flex-row gap-1.5 rounded-3xl border border-white/20 px-2">
+      <div className="mx-2 mt-4 flex flex-row gap-1.5 rounded-3xl border border-white/20 px-2 xl:mx-4">
         <input
           type="text"
           placeholder="Search"
@@ -218,7 +218,7 @@ export default function SubtitleEditorSearchView() {
           className="w-full rounded-md border-none bg-transparent p-1.5"
         />
         <button type="button" onClick={() => handleSearch()} ref={searchButtonRef}>
-          <MagnifyingGlassIcon className="h-10 w-10 cursor-pointer p-1.5 hover:bg-white/20" />
+          <MagnifyingGlassIcon className="h-6 w-6 cursor-pointer p-1.5 hover:bg-white/20 xl:h-10 xl:w-10" />
         </button>
       </div>
       <div className="flex h-full w-full flex-col items-start justify-start gap-1.5">
@@ -236,7 +236,7 @@ export default function SubtitleEditorSearchView() {
               onClick={() => handleRetrieveSubtitle(result.video_id)}
               className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-1.5 hover:bg-white/20"
             >
-              <PlusIcon className="h-10 w-10" />
+              <PlusIcon className="h-6 w-6 xl:h-10 xl:w-10" />
             </button>
           </div>
         ))}

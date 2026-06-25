@@ -52,7 +52,7 @@ export default function SubtitleEditorBottomControls() {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 m-2.5 grid w-fit grid-cols-2 items-center justify-center gap-2.5 rounded-3xl bg-black/60 p-2.5 backdrop-blur-md">
+    <div className="absolute bottom-[calc(var(--mobile-tab-bar-height)+0.5rem+env(safe-area-inset-bottom,0px))] left-2 z-10 grid w-fit grid-cols-2 items-center justify-center gap-2.5 rounded-3xl bg-black/60 p-2.5 backdrop-blur-md xl:fixed xl:bottom-0 xl:left-0 xl:m-2.5">
       <button
         data-tooltip-id="global-tooltip"
         data-tooltip-content="Save Subtitles to Local Storage"
