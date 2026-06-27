@@ -15,6 +15,25 @@ const INLINE_ENGLISH_MIN_FONT_PX = 4;
 
 const TRANSLITERATION_ROWS_PER_LINE = 7;
 
+export function getBackgroundImageDrawOffsetY(
+  isLandscapeMode: boolean,
+  canvasHeight: number,
+  drawHeight: number,
+  offsetY: number,
+): number {
+  const baseOffsetY = isLandscapeMode ? (canvasHeight - drawHeight) / 2 : 0;
+  return baseOffsetY + offsetY;
+}
+
+export function scaleBackgroundImageOffsetY(
+  offsetY: number,
+  previewHeight: number,
+  isLandscapeMode: boolean,
+): number {
+  const renderHeight = isLandscapeMode ? 1080 : 1920;
+  return offsetY * (previewHeight / renderHeight);
+}
+
 export function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any, time: number) {
   if (!canvas?.clientWidth || !canvas.clientHeight) {
     return;
@@ -371,22 +390,24 @@ function addBackground(
         const canvasAspect = width / height;
         const imageAspect = image.width / image.height;
 
-        let drawWidth: number, drawHeight: number, offsetX: number, offsetY: number;
+        let drawWidth: number, drawHeight: number;
 
         // Cover the canvas while maintaining aspect ratio
         if (imageAspect > canvasAspect) {
-          // Image is wider than canvas
           drawHeight = height;
           drawWidth = height * imageAspect;
-          offsetX = (width - drawWidth) / 2;
-          offsetY = 0;
         } else {
-          // Image is taller than canvas
           drawWidth = width;
           drawHeight = width / imageAspect;
-          offsetX = 0;
-          offsetY = (height - drawHeight) / 2;
         }
+
+        const offsetX = (width - drawWidth) / 2;
+        const offsetY = getBackgroundImageDrawOffsetY(
+          overlay.isLandscapeMode,
+          height,
+          drawHeight,
+          overlay.backgroundImageOffsetY,
+        );
 
         ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
       };

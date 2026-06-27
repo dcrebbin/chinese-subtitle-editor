@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowDownCircleIcon,
   ArrowUpCircleIcon,
@@ -17,6 +17,7 @@ import {
   convertCanvas,
   drawCharacterCell,
   handleDrawCanvas,
+  scaleBackgroundImageOffsetY,
   updateTransliterationRows,
 } from "../../utilities/rendering";
 import { getSubtitleAtTime, parseSrt, transliterateCaptions } from "../../utilities/srt";
@@ -25,8 +26,11 @@ import Loading from "../common/loading";
 import VideoTabs from "./video-tabs";
 
 export async function retrieveCustomSubtitles(videoId: string) {
-  const customSubtitlesResponse = await fetch(`https://www.langpal.com.hk/api/subtitles`, {
+  const customSubtitlesResponse = await fetch("/api/subtitles", {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ youtube_id: videoId, retrieve_backup: true }),
   });
   if (!customSubtitlesResponse.ok) {
@@ -91,8 +95,10 @@ export default function OverlayPage() {
   const currentTimeRef = useRef<HTMLInputElement>(null);
   const { session, setSession } = useSessionStore();
   const inputFileRef = useRef<HTMLInputElement>(null);
+  const backgroundPreviewRef = useRef<HTMLDivElement>(null);
   const hasAttemptedAutoDownload = useRef(false);
   const { overlay } = useOverlayStore();
+  const [previewHeight, setPreviewHeight] = useState(0);
   const output = new Output({
     target: target,
     format: format,
@@ -155,6 +161,26 @@ export default function OverlayPage() {
       videoRef.current.load();
     }
   }, [overlay.outputUrl]);
+
+  useEffect(() => {
+    const element = backgroundPreviewRef.current;
+    if (!element) {
+      return;
+    }
+
+    const updatePreviewHeight = () => {
+      setPreviewHeight(element.clientHeight);
+    };
+
+    updatePreviewHeight();
+
+    const resizeObserver = new ResizeObserver(updatePreviewHeight);
+    resizeObserver.observe(element);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [overlay.selectedTab, overlay.isLandscapeMode]);
 
   const handleDownloadVideo = useCallback(async () => {
     if (!overlay.downloadVideoId) {
@@ -307,6 +333,15 @@ export default function OverlayPage() {
     }
   }
 
+  const scaledBackgroundOffsetY = scaleBackgroundImageOffsetY(
+    overlay.backgroundImageOffsetY,
+    previewHeight,
+    overlay.isLandscapeMode,
+  );
+  const backgroundPosition = overlay.isLandscapeMode
+    ? `center calc(50% + ${scaledBackgroundOffsetY}px)`
+    : `center ${scaledBackgroundOffsetY}px`;
+
   const videoOverlayContent = (
     <div className="flex h-full w-full flex-col gap-4">
       <div className="my-4 flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -382,7 +417,6 @@ export default function OverlayPage() {
         </select>
         {overlay.backgroundMode === "full-image" && (
           <div className="flex flex-col gap-2">
-            <p className="text-sm">Background Image:</p>
             <input
               type="file"
               accept="image/*"
@@ -391,6 +425,20 @@ export default function OverlayPage() {
                 const backgroundImage = URL.createObjectURL(e.target.files?.[0] as Blob);
                 setOverlayState({
                   backgroundImage: backgroundImage,
+                });
+              }}
+            />
+            <p className="text-sm">Background Y Offset: {overlay.backgroundImageOffsetY}px</p>
+            <input
+              className="w-full"
+              type="range"
+              min={-500}
+              max={500}
+              step={1}
+              value={overlay.backgroundImageOffsetY}
+              onChange={(e) => {
+                setOverlayState({
+                  backgroundImageOffsetY: Number.parseInt(e.target.value, 10),
                 });
               }}
             />
@@ -449,10 +497,11 @@ export default function OverlayPage() {
           }`}
         >
           <div
+            ref={backgroundPreviewRef}
             className="absolute h-full w-full"
             style={{
               backgroundSize: "cover",
-              backgroundPosition: overlay.isLandscapeMode ? "center" : "top",
+              backgroundPosition,
               backgroundRepeat: "no-repeat",
               backgroundImage:
                 overlay.backgroundMode === "full-image"
@@ -623,7 +672,7 @@ export default function OverlayPage() {
         </div>
         {overlay.outputUrl && (
           <video
-            className="h-full w-full max-w-full rounded-2xl border-2 border-white"
+            className="h-[35rem] w-full max-w-full rounded-2xl border-2 border-white"
             ref={videoRef}
             controls
           >

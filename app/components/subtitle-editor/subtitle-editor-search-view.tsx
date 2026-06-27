@@ -7,7 +7,7 @@ import {
   convertCaptionsToSrt,
   convertSrtToCaptions,
 } from "../../utilities/transliteration/transliteration";
-import { retrieveCustomSubtitles } from "../video-overlay/page";
+import { retrieveCustomSubtitles } from "../video-overlay/overlay-page";
 import type { Subtitle } from "./subtitle-editor";
 
 function formatTime(time: number) {
@@ -108,16 +108,12 @@ export default function SubtitleEditorSearchView() {
     }
     setSessionState({ ...session, isLoading: true });
     const searchValue = searchInput.current?.value;
-    const response = await fetch(
-      `${import.meta.env.VITE_LANGPAL_API_URL}/api/subtitles?query=${encodeURIComponent(searchValue)}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "x-langpal-api-key": import.meta.env.VITE_LANGPAL_API_KEY as string,
-        },
+    const response = await fetch(`/api/subtitles?query=${encodeURIComponent(searchValue)}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
       },
-    ).catch(() => {
+    }).catch(() => {
       alert("Failed to search for subtitles");
       setSessionState({ ...session, isLoading: false });
       return;

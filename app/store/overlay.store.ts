@@ -42,6 +42,8 @@ type OverlayStore = {
     setBackgroundMode: (backgroundMode: "colour" | "full-image" | "double-image") => void;
     backgroundImage: string | null;
     setBackgroundImage: (backgroundImage: string | null) => void;
+    backgroundImageOffsetY: number;
+    setBackgroundImageOffsetY: (backgroundImageOffsetY: number) => void;
     doubleBackgroundImage: { image1: string | null; image2: string | null };
     setDoubleBackgroundImage: (doubleBackgroundImage: {
       image1: string | null;
@@ -67,6 +69,7 @@ type PersistableOverlaySettings = Pick<
   | "isLandscapeMode"
   | "backgroundMode"
   | "backgroundImage"
+  | "backgroundImageOffsetY"
   | "doubleBackgroundImage"
   | "colour"
   | "videoPosition"
@@ -82,6 +85,7 @@ const defaultPersistableOverlaySettings: PersistableOverlaySettings = {
   isLandscapeMode: true,
   backgroundMode: "colour",
   backgroundImage: null,
+  backgroundImageOffsetY: 0,
   doubleBackgroundImage: { image1: null, image2: null },
   colour: null,
   videoPosition: "center",
@@ -152,6 +156,7 @@ function persistOverlaySettings(overlay: OverlayStore["overlay"]) {
     isLandscapeMode: overlay.isLandscapeMode,
     backgroundMode: overlay.backgroundMode,
     backgroundImage: overlay.backgroundImage,
+    backgroundImageOffsetY: overlay.backgroundImageOffsetY,
     doubleBackgroundImage: overlay.doubleBackgroundImage,
     colour: overlay.colour,
     videoPosition: overlay.videoPosition,

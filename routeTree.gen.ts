@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './app/routes/__root'
 import { Route as IndexRouteImport } from './app/routes/index'
+import { Route as ApiSubtitlesRouteImport } from './app/routes/api/subtitles'
 import { Route as ApiDownloadRouteImport } from './app/routes/api/download'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSubtitlesRoute = ApiSubtitlesRouteImport.update({
+  id: '/api/subtitles',
+  path: '/api/subtitles',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiDownloadRoute = ApiDownloadRouteImport.update({
@@ -26,27 +32,31 @@ const ApiDownloadRoute = ApiDownloadRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/download': typeof ApiDownloadRoute
+  '/api/subtitles': typeof ApiSubtitlesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/download': typeof ApiDownloadRoute
+  '/api/subtitles': typeof ApiSubtitlesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/download': typeof ApiDownloadRoute
+  '/api/subtitles': typeof ApiSubtitlesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/download'
+  fullPaths: '/' | '/api/download' | '/api/subtitles'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/download'
-  id: '__root__' | '/' | '/api/download'
+  to: '/' | '/api/download' | '/api/subtitles'
+  id: '__root__' | '/' | '/api/download' | '/api/subtitles'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiDownloadRoute: typeof ApiDownloadRoute
+  ApiSubtitlesRoute: typeof ApiSubtitlesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/subtitles': {
+      id: '/api/subtitles'
+      path: '/api/subtitles'
+      fullPath: '/api/subtitles'
+      preLoaderRoute: typeof ApiSubtitlesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/download': {
@@ -71,6 +88,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiDownloadRoute: ApiDownloadRoute,
+  ApiSubtitlesRoute: ApiSubtitlesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
