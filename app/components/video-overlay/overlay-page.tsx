@@ -415,6 +415,21 @@ export default function OverlayPage() {
           <option value="colour">Colour</option>
           <option value="full-image">Full Image</option>
         </select>
+        {overlay.backgroundMode === "full-image" && (
+          <input
+            type="file"
+            className="w-fit rounded-2xl bg-white p-2 text-black"
+            accept="image/*"
+            onChange={(e) => {
+              const selectedFile = e.target.files?.[0];
+              if (selectedFile) {
+                const url = URL.createObjectURL(selectedFile);
+                setOverlayState({ backgroundImage: url });
+              }
+            }}
+          />
+        )}
+
         {overlay.backgroundMode === "colour" && (
           <input
             type="color"
