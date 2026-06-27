@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './app/routes/__root'
 import { Route as IndexRouteImport } from './app/routes/index'
 import { Route as ApiSubtitlesRouteImport } from './app/routes/api/subtitles'
 import { Route as ApiDownloadRouteImport } from './app/routes/api/download'
+import { Route as ApiSubtitlesSearchRouteImport } from './app/routes/api/subtitles/search'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,48 @@ const ApiDownloadRoute = ApiDownloadRouteImport.update({
   path: '/api/download',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSubtitlesSearchRoute = ApiSubtitlesSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => ApiSubtitlesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/download': typeof ApiDownloadRoute
-  '/api/subtitles': typeof ApiSubtitlesRoute
+  '/api/subtitles': typeof ApiSubtitlesRouteWithChildren
+  '/api/subtitles/search': typeof ApiSubtitlesSearchRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/download': typeof ApiDownloadRoute
-  '/api/subtitles': typeof ApiSubtitlesRoute
+  '/api/subtitles': typeof ApiSubtitlesRouteWithChildren
+  '/api/subtitles/search': typeof ApiSubtitlesSearchRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/download': typeof ApiDownloadRoute
-  '/api/subtitles': typeof ApiSubtitlesRoute
+  '/api/subtitles': typeof ApiSubtitlesRouteWithChildren
+  '/api/subtitles/search': typeof ApiSubtitlesSearchRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/download' | '/api/subtitles'
+  fullPaths: '/' | '/api/download' | '/api/subtitles' | '/api/subtitles/search'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/download' | '/api/subtitles'
-  id: '__root__' | '/' | '/api/download' | '/api/subtitles'
+  to: '/' | '/api/download' | '/api/subtitles' | '/api/subtitles/search'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/download'
+    | '/api/subtitles'
+    | '/api/subtitles/search'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiDownloadRoute: typeof ApiDownloadRoute
-  ApiSubtitlesRoute: typeof ApiSubtitlesRoute
+  ApiSubtitlesRoute: typeof ApiSubtitlesRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -82,13 +96,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDownloadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/subtitles/search': {
+      id: '/api/subtitles/search'
+      path: '/search'
+      fullPath: '/api/subtitles/search'
+      preLoaderRoute: typeof ApiSubtitlesSearchRouteImport
+      parentRoute: typeof ApiSubtitlesRoute
+    }
   }
 }
+
+interface ApiSubtitlesRouteChildren {
+  ApiSubtitlesSearchRoute: typeof ApiSubtitlesSearchRoute
+}
+
+const ApiSubtitlesRouteChildren: ApiSubtitlesRouteChildren = {
+  ApiSubtitlesSearchRoute: ApiSubtitlesSearchRoute,
+}
+
+const ApiSubtitlesRouteWithChildren = ApiSubtitlesRoute._addFileChildren(
+  ApiSubtitlesRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiDownloadRoute: ApiDownloadRoute,
-  ApiSubtitlesRoute: ApiSubtitlesRoute,
+  ApiSubtitlesRoute: ApiSubtitlesRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

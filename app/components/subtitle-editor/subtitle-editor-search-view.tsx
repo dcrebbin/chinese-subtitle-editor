@@ -108,7 +108,7 @@ export default function SubtitleEditorSearchView() {
     }
     setSessionState({ ...session, isLoading: true });
     const searchValue = searchInput.current?.value;
-    const response = await fetch(`/api/subtitles?query=${encodeURIComponent(searchValue)}`, {
+    const response = await fetch(`/api/subtitles/search?query=${encodeURIComponent(searchValue)}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

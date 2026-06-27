@@ -1,17 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const LANGPAL_API_URL = process.env.LANGPAL_API_URL ?? "https://www.langpal.com.hk";
-
-function langpalHeaders(): HeadersInit {
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-  };
-  const apiKey = process.env.LANGPAL_API_KEY ?? process.env.VITE_LANGPAL_API_KEY;
-  if (apiKey) {
-    headers["x-langpal-api-key"] = apiKey;
-  }
-  return headers;
-}
+import { getLangpalHeaders, LANGPAL_API_URL } from "../../utilities/api";
 
 export const Route = createFileRoute("/api/subtitles")({
   server: {
@@ -22,7 +11,7 @@ export const Route = createFileRoute("/api/subtitles")({
           `${LANGPAL_API_URL}/api/subtitles?query=${encodeURIComponent(query)}`,
           {
             method: "GET",
-            headers: langpalHeaders(),
+            headers: getLangpalHeaders(),
           },
         );
 
@@ -37,7 +26,7 @@ export const Route = createFileRoute("/api/subtitles")({
         const body = await request.text();
         const upstream = await fetch(`${LANGPAL_API_URL}/api/subtitles`, {
           method: "POST",
-          headers: langpalHeaders(),
+          headers: getLangpalHeaders(),
           body,
         });
 
