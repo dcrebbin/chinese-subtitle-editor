@@ -1,5 +1,7 @@
 import { create } from "zustand";
 
+const OVERLAY_SETTINGS_STORAGE_KEY = "langpal-overlay-settings";
+
 type OverlayStore = {
   overlay: {
     previewUrl: string | null;
@@ -56,14 +58,123 @@ type OverlayStore = {
   };
 };
 
-const overlayStore = create<OverlayStore>((set) => ({
+type PersistableOverlaySettings = Pick<
+  OverlayStore["overlay"],
+  | "verticalPosition"
+  | "sizeMultiplier"
+  | "lyricOffset"
+  | "selectedTab"
+  | "isLandscapeMode"
+  | "backgroundMode"
+  | "backgroundImage"
+  | "doubleBackgroundImage"
+  | "colour"
+  | "videoPosition"
+  | "downloadVideoId"
+  | "loadedVideoId"
+>;
+
+const defaultPersistableOverlaySettings: PersistableOverlaySettings = {
+  verticalPosition: 200,
+  sizeMultiplier: 1,
+  lyricOffset: 0,
+  selectedTab: "editor",
+  isLandscapeMode: true,
+  backgroundMode: "colour",
+  backgroundImage: null,
+  doubleBackgroundImage: { image1: null, image2: null },
+  colour: null,
+  videoPosition: "center",
+  downloadVideoId: null,
+  loadedVideoId: null,
+};
+
+function isPersistableImageUrl(url: string | null) {
+  return url !== null && !url.startsWith("blob:");
+}
+
+function sanitizePersistableOverlaySettings(
+  settings: Partial<PersistableOverlaySettings>,
+): PersistableOverlaySettings {
+  const merged = {
+    ...defaultPersistableOverlaySettings,
+    ...settings,
+    doubleBackgroundImage: {
+      ...defaultPersistableOverlaySettings.doubleBackgroundImage,
+      ...settings.doubleBackgroundImage,
+    },
+  };
+
+  if (!isPersistableImageUrl(merged.backgroundImage)) {
+    merged.backgroundImage = null;
+  }
+
+  merged.doubleBackgroundImage = {
+    image1: isPersistableImageUrl(merged.doubleBackgroundImage.image1)
+      ? merged.doubleBackgroundImage.image1
+      : null,
+    image2: isPersistableImageUrl(merged.doubleBackgroundImage.image2)
+      ? merged.doubleBackgroundImage.image2
+      : null,
+  };
+
+  return merged;
+}
+
+function loadOverlaySettingsFromStorage(): PersistableOverlaySettings {
+  if (typeof window === "undefined") {
+    return defaultPersistableOverlaySettings;
+  }
+
+  try {
+    const storedSettings = localStorage.getItem(OVERLAY_SETTINGS_STORAGE_KEY);
+    if (!storedSettings) {
+      return defaultPersistableOverlaySettings;
+    }
+
+    return sanitizePersistableOverlaySettings(JSON.parse(storedSettings));
+  } catch (error) {
+    console.error("Failed to load overlay settings from localStorage:", error);
+    return defaultPersistableOverlaySettings;
+  }
+}
+
+function persistOverlaySettings(overlay: OverlayStore["overlay"]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const settingsToSave = sanitizePersistableOverlaySettings({
+    verticalPosition: overlay.verticalPosition,
+    sizeMultiplier: overlay.sizeMultiplier,
+    lyricOffset: overlay.lyricOffset,
+    selectedTab: overlay.selectedTab,
+    isLandscapeMode: overlay.isLandscapeMode,
+    backgroundMode: overlay.backgroundMode,
+    backgroundImage: overlay.backgroundImage,
+    doubleBackgroundImage: overlay.doubleBackgroundImage,
+    colour: overlay.colour,
+    videoPosition: overlay.videoPosition,
+    downloadVideoId: overlay.downloadVideoId,
+    loadedVideoId: overlay.loadedVideoId,
+  });
+
+  try {
+    localStorage.setItem(
+      OVERLAY_SETTINGS_STORAGE_KEY,
+      JSON.stringify(settingsToSave),
+    );
+  } catch (error) {
+    console.error("Failed to save overlay settings to localStorage:", error);
+  }
+}
+
+const persistedOverlaySettings = loadOverlaySettingsFromStorage();
+
+const overlayStore = create<OverlayStore>(() => ({
   overlay: {
     previewUrl: null,
-    loadedVideoId: null,
-    verticalPosition: 200,
     videoIsDownloading: false,
-    sizeMultiplier: 1,
-    lyricOffset: 0,
     startTime: 0,
     endTime: 0,
     currentTime: 0,
@@ -74,22 +185,17 @@ const overlayStore = create<OverlayStore>((set) => ({
     videoDimensions: { width: 1920, height: 1080 },
     file: null,
     videoLength: 100,
-    selectedTab: "editor",
-    isLandscapeMode: true,
-    backgroundMode: "colour",
-    backgroundImage: null,
-    doubleBackgroundImage: { image1: null, image2: null },
-    colour: null,
-    videoPosition: "center",
-    downloadVideoId: null,
+    ...persistedOverlaySettings,
   } as OverlayStore["overlay"],
 }));
 
 export const getOverlayState = () => overlayStore.getState();
 export const setOverlayState = (updates: Partial<OverlayStore["overlay"]>) => {
   const currentState = overlayStore.getState();
+  const updatedOverlay = { ...currentState.overlay, ...updates };
   overlayStore.setState({
-    overlay: { ...currentState.overlay, ...updates },
+    overlay: updatedOverlay,
   });
+  persistOverlaySettings(updatedOverlay);
 };
 export const useOverlayStore = overlayStore;

@@ -1,5 +1,7 @@
 import { create } from "zustand";
 
+const SETTINGS_STORAGE_KEY = "langpal-settings";
+
 export interface SettingsStore {
   settings: {
     segmentStyling: number;
@@ -33,63 +35,100 @@ export interface SettingsStore {
   getSettings: () => SettingsStore["settings"];
 }
 
-export const useSettingsStore = create<SettingsStore>((set, get) => ({
-  settings: {
-    segmentStyling: 0,
-    subtitleSize: 16,
-    subtitlePadding: 10,
-    opacity: 100,
-    knownCharacters: {
-      zh_CN: {},
-      zh_HK: {},
-    },
-    language: "yue",
-    subtitleScreenPercentage: 0.9,
-    uploadSrt: false,
-    asrModel: "whisper-large-v2",
-    selectedLanguageCode: "yue",
-    hideKnownCharacters: false,
-    alwaysTryToRetrieveSubtitles: false,
-    isEnglishEnabled: false,
-    yAxis: 0,
-    isLangpalSubtitlesOn: true,
-    isCustomSubtitlesEnabled: false,
-    visualFonts: "Arial",
-    timeSinceSync: 0,
-    accessToken: "",
-    refreshToken: "",
-    forceSimplifiedChinese: false,
-    useToneNumbers: false,
+export const defaultSettings: SettingsStore["settings"] = {
+  segmentStyling: 0,
+  subtitleSize: 16,
+  subtitlePadding: 10,
+  opacity: 100,
+  knownCharacters: {
+    zh_CN: {},
+    zh_HK: {},
   },
-  isLoaded: false,
-  setSettings: (newSettings) => {
-    const { settings } = get();
-    const updatedSettings = { ...settings, ...newSettings };
+  language: "yue",
+  subtitleScreenPercentage: 0.9,
+  uploadSrt: false,
+  asrModel: "whisper-large-v2",
+  selectedLanguageCode: "yue",
+  hideKnownCharacters: false,
+  alwaysTryToRetrieveSubtitles: false,
+  isEnglishEnabled: false,
+  yAxis: 0,
+  isLangpalSubtitlesOn: true,
+  isCustomSubtitlesEnabled: false,
+  visualFonts: "Arial",
+  timeSinceSync: 0,
+  accessToken: "",
+  refreshToken: "",
+  forceSimplifiedChinese: false,
+  useToneNumbers: false,
+};
 
+function mergeSettings(
+  stored: Partial<SettingsStore["settings"]>,
+): SettingsStore["settings"] {
+  return {
+    ...defaultSettings,
+    ...stored,
+    knownCharacters: {
+      zh_CN: {
+        ...defaultSettings.knownCharacters.zh_CN,
+        ...stored.knownCharacters?.zh_CN,
+      },
+      zh_HK: {
+        ...defaultSettings.knownCharacters.zh_HK,
+        ...stored.knownCharacters?.zh_HK,
+      },
+    },
+  };
+}
+
+function loadSettingsFromStorage(): SettingsStore["settings"] {
+  if (typeof window === "undefined") {
+    return defaultSettings;
+  }
+
+  try {
+    const storedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!storedSettings) {
+      return defaultSettings;
+    }
+
+    return mergeSettings(JSON.parse(storedSettings));
+  } catch (error) {
+    console.error("Failed to load settings from localStorage:", error);
+    return defaultSettings;
+  }
+}
+
+function persistSettings(settings: SettingsStore["settings"]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  } catch (error) {
+    console.error("Failed to save settings to localStorage:", error);
+  }
+}
+
+export const useSettingsStore = create<SettingsStore>((set, get) => ({
+  settings: loadSettingsFromStorage(),
+  isLoaded: typeof window !== "undefined",
+  setSettings: (newSettings) => {
+    const updatedSettings = mergeSettings({ ...get().settings, ...newSettings });
     set({ settings: updatedSettings });
+    persistSettings(updatedSettings);
   },
   getSettings: () => {
     return get().settings;
   },
 }));
 
-async function loadAndInitializeSettings() {
-  const storedSettings = localStorage.getItem("langpal-settings");
-  if (storedSettings) {
-    useSettingsStore.getState().setSettings(JSON.parse(storedSettings));
-  }
-}
-
-void loadAndInitializeSettings();
-
 export const getSettingsState = () => useSettingsStore.getState();
 
 export const setSettingsState = (
-  updates: Partial<SettingsStore["settings"]>
+  updates: Partial<SettingsStore["settings"]>,
 ) => {
-  const currentState = useSettingsStore.getState();
-  useSettingsStore.setState({
-    setSettings: currentState.setSettings,
-    settings: { ...currentState.settings, ...updates },
-  });
+  useSettingsStore.getState().setSettings(updates);
 };

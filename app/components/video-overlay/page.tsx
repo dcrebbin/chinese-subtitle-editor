@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   ArrowDownCircleIcon,
   ArrowUpCircleIcon,
@@ -91,6 +91,7 @@ export default function OverlayPage() {
   const currentTimeRef = useRef<HTMLInputElement>(null);
   const { session, setSession } = useSessionStore();
   const inputFileRef = useRef<HTMLInputElement>(null);
+  const hasAttemptedAutoDownload = useRef(false);
   const { overlay } = useOverlayStore();
   const output = new Output({
     target: target,
@@ -155,7 +156,7 @@ export default function OverlayPage() {
     }
   }, [overlay.outputUrl]);
 
-  async function handleDownloadVideo() {
+  const handleDownloadVideo = useCallback(async () => {
     if (!overlay.downloadVideoId) {
       alert("No video ID");
       return;
@@ -209,7 +210,19 @@ export default function OverlayPage() {
     } finally {
       setOverlayState({ videoIsDownloading: false });
     }
-  }
+  }, [overlay.downloadVideoId]);
+
+  useEffect(() => {
+    if (hasAttemptedAutoDownload.current) {
+      return;
+    }
+    if (!overlay.downloadVideoId?.trim() || overlay.previewUrl) {
+      return;
+    }
+
+    hasAttemptedAutoDownload.current = true;
+    void handleDownloadVideo();
+  }, [overlay.downloadVideoId, overlay.previewUrl, handleDownloadVideo]);
 
   function handleDownload() {
     if (!overlay.outputUrl) {
