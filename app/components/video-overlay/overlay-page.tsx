@@ -415,35 +415,6 @@ export default function OverlayPage() {
           <option value="colour">Colour</option>
           <option value="full-image">Full Image</option>
         </select>
-        {overlay.backgroundMode === "full-image" && (
-          <div className="flex flex-col gap-2">
-            <input
-              type="file"
-              accept="image/*"
-              className="w-full rounded-2xl bg-white p-2 text-black"
-              onChange={(e) => {
-                const backgroundImage = URL.createObjectURL(e.target.files?.[0] as Blob);
-                setOverlayState({
-                  backgroundImage: backgroundImage,
-                });
-              }}
-            />
-            <p className="text-sm">Background Y Offset: {overlay.backgroundImageOffsetY}px</p>
-            <input
-              className="w-full"
-              type="range"
-              min={-500}
-              max={500}
-              step={1}
-              value={overlay.backgroundImageOffsetY}
-              onChange={(e) => {
-                setOverlayState({
-                  backgroundImageOffsetY: Number.parseInt(e.target.value, 10),
-                });
-              }}
-            />
-          </div>
-        )}
         {overlay.backgroundMode === "colour" && (
           <input
             type="color"
@@ -616,32 +587,65 @@ export default function OverlayPage() {
             <PlayIcon className="h-6 w-6" />
           </button>
         </div>
-        <p
-          className="absolute top-1/3 right-0 hidden text-xs whitespace-nowrap sm:block"
-          style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
-        >
-          Vertical Position (Y): {overlay.verticalPosition}px
-        </p>
-        <div className="absolute top-1/2 right-4 hidden h-[50%] w-6 -translate-y-1/2 flex-col items-center justify-center gap-2 sm:flex">
-          <input
-            className="vertical-slider h-6 w-156 cursor-pointer"
-            style={{
-              transform: "rotate(90deg)",
-              accentColor: "#3182ce",
-              marginTop: "100px",
-              marginBottom: "100px",
-            }}
-            type="range"
-            min={0}
-            max={3000}
-            step={1}
-            value={overlay.verticalPosition}
-            onChange={(e) => {
-              setOverlayState({
-                verticalPosition: Number.parseInt(e.target.value),
-              });
-            }}
-          />
+        {overlay.backgroundMode === "full-image" && (
+          <div>
+            <p
+              className="absolute top-1/3 right-10 hidden text-xs whitespace-nowrap sm:block"
+              style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
+            >
+              Background Y Offset: {overlay.backgroundImageOffsetY}px
+            </p>
+            <div className="absolute top-1/2 right-14 hidden h-[50%] w-6 -translate-y-1/2 flex-col items-center justify-center gap-2 sm:flex">
+              <input
+                className="vertical-slider h-6 w-156 cursor-pointer"
+                style={{
+                  transform: "rotate(90deg)",
+                  accentColor: "#3182ce",
+                  marginTop: "100px",
+                  marginBottom: "100px",
+                }}
+                type="range"
+                min={0}
+                max={3000}
+                step={1}
+                value={overlay.backgroundImageOffsetY}
+                onChange={(e) => {
+                  setOverlayState({
+                    backgroundImageOffsetY: Number.parseInt(e.target.value),
+                  });
+                }}
+              />
+            </div>
+          </div>
+        )}
+        <div>
+          <p
+            className="absolute top-1/3 right-0 hidden text-xs whitespace-nowrap sm:block"
+            style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
+          >
+            Vertical Position (Y): {overlay.verticalPosition}px
+          </p>
+          <div className="absolute top-1/2 right-4 hidden h-[50%] w-6 -translate-y-1/2 flex-col items-center justify-center gap-2 sm:flex">
+            <input
+              className="vertical-slider h-6 w-156 cursor-pointer"
+              style={{
+                transform: "rotate(90deg)",
+                accentColor: "#3182ce",
+                marginTop: "100px",
+                marginBottom: "100px",
+              }}
+              type="range"
+              min={0}
+              max={3000}
+              step={1}
+              value={overlay.verticalPosition}
+              onChange={(e) => {
+                setOverlayState({
+                  verticalPosition: Number.parseInt(e.target.value),
+                });
+              }}
+            />
+          </div>
         </div>
       </div>
       <div
