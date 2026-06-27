@@ -141,6 +141,7 @@ export default function SubtitleEditorSearchView() {
     }
     setSessionState({
       ...session,
+      videoId,
       srtContent: customSubtitles,
       originalSrtContent: customSubtitles,
       selectedTab: "captions",

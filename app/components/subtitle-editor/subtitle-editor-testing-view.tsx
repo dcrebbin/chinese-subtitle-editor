@@ -1,12 +1,49 @@
+import { useEffect } from "react";
+
 import { setSettingsState, useSettingsStore } from "@/app/store/settings.store";
+import { useOverlayStore } from "../../store/overlay.store";
 import { setSessionState, useSessionStore } from "../../store/session.store";
 import { convertSrtToCaptions } from "../../utilities/transliteration/transliteration";
-import { useState } from "react";
+import {
+  loadLyricsFromLocalStorage,
+  saveLyricsToLocalStorage,
+} from "../../utilities/video-storage";
+import { getVideoIdFromUrl } from "../video-overlay/overlay-page";
+
+function resolveVideoId(rawId: string | null | undefined): string {
+  if (!rawId?.trim()) {
+    return "";
+  }
+
+  const extractedId = getVideoIdFromUrl(rawId);
+  return extractedId || rawId.trim();
+}
 
 export default function SubtitleEditorTestingView() {
   const { session } = useSessionStore();
   const { settings } = useSettingsStore();
-  const [lyrics, setLyrics] = useState<string>("");
+  const { overlay } = useOverlayStore();
+  const videoId =
+    session.videoId ||
+    resolveVideoId(overlay.loadedVideoId) ||
+    resolveVideoId(overlay.downloadVideoId);
+
+  useEffect(() => {
+    if (!videoId) {
+      setSessionState({ lyrics: "" });
+      return;
+    }
+
+    const storedLyrics = loadLyricsFromLocalStorage(videoId);
+    setSessionState({ lyrics: storedLyrics ?? "" });
+  }, [videoId]);
+
+  function handleLyricsChange(value: string) {
+    setSessionState({ lyrics: value });
+    if (videoId) {
+      saveLyricsToLocalStorage(videoId, value);
+    }
+  }
 
   function updateSubtitles(srtContent: string) {
     const subtitleResponse = srtContent;
@@ -85,57 +122,51 @@ export default function SubtitleEditorTestingView() {
   }
 
   return (
-    <div className="flex flex-col mx-2 top-0 left-0 gap-1.5 items-start justify-start w-full h-full p-1.5 rounded-lg">
-      <p className="text-2xl font-bold text-left">
-        Alpha Testing (role required)
-      </p>
-      <div className="flex flex-col gap-1.5 p-1.5 w-full">
+    <div className="top-0 left-0 mx-2 flex h-full w-full flex-col items-start justify-start gap-1.5 rounded-lg p-1.5">
+      <p className="text-left text-2xl font-bold">Alpha Testing (role required)</p>
+      <div className="flex w-full flex-col gap-1.5 p-1.5">
         <div>
-          <p className="text-lg font-sans">Video ID</p>
+          <p className="font-sans text-lg">Video ID</p>
           <p>{session.videoId}</p>
         </div>
         <p>Language</p>
         <select
           id="language-select"
           value={settings.language}
-          onChange={(e) =>
-            setSettingsState({ ...settings, language: e.target.value })
-          }
-          className="border-none flex p-3 font-bold bg-black/30 items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer"
+          onChange={(e) => setSettingsState({ ...settings, language: e.target.value })}
+          className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 font-bold hover:bg-white/20"
         >
           <option value="yue">Cantonese</option>
           <option value="zh">Mandarin</option>
         </select>
-        <div className="flex items-center gap-2.5 justify-between">
-          <p className="text-lg font-sans">Upload SRT</p>
+        <div className="flex items-center justify-between gap-2.5">
+          <p className="font-sans text-lg">Upload SRT</p>
           <button
             type="button"
-            className="relative inline-block disabled:cursor-not-allowed w-10 h-5 bg-transparent border-none cursor-pointer disabled:opacity-50"
+            className="relative inline-block h-5 w-10 cursor-pointer border-none bg-transparent disabled:cursor-not-allowed disabled:opacity-50"
             onClick={() => {
               setSettingsState({ ...settings, uploadSrt: !settings.uploadSrt });
             }}
           >
             <div
-              className={`absolute cursor-pointer rounded-full left-0 right-0 bottom-0 top-0 transition-all duration-300 ${
+              className={`absolute top-0 right-0 bottom-0 left-0 cursor-pointer rounded-full transition-all duration-300 ${
                 settings.uploadSrt ? "bg-blue-600" : "bg-gray-300"
               }`}
             />
             <div
-              className={`absolute cursor-pointer  rounded-full bg-white h-4 w-4 left-0.5 bottom-0.5 transition-all duration-300 ${
+              className={`absolute bottom-0.5 left-0.5 h-4 w-4 cursor-pointer rounded-full bg-white transition-all duration-300 ${
                 settings.uploadSrt ? "translate-x-5" : "translate-x-0"
               }`}
             />
           </button>
         </div>
-        <div className="flex items-center gap-2.5 justify-between">
-          <p className="text-lg font-sans">ASR Model</p>
+        <div className="flex items-center justify-between gap-2.5">
+          <p className="font-sans text-lg">ASR Model</p>
           <select
             id="asr-model-select"
             value={settings.asrModel}
-            onChange={(e) =>
-              setSettingsState({ ...settings, asrModel: e.target.value })
-            }
-            className="border-none flex p-3 font-bold bg-black/30 items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer"
+            onChange={(e) => setSettingsState({ ...settings, asrModel: e.target.value })}
+            className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 font-bold hover:bg-white/20"
           >
             <option value="whisper-large-v2">Whisper Large V2</option>
             <option value="whisper-large-v3">Whisper Large V3</option>
@@ -145,7 +176,7 @@ export default function SubtitleEditorTestingView() {
           type="button"
           disabled={session.isLoading}
           onClick={() => handleMergeSubtitles()}
-          className="border-none flex p-3 font-bold bg-black/30 w-fit items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer"
+          className="flex w-fit cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 font-bold hover:bg-white/20"
         >
           Merge Subtitles
         </button>
@@ -154,22 +185,22 @@ export default function SubtitleEditorTestingView() {
           type="button"
           disabled={session.isLoading}
           onClick={() => handleTranslateSubtitles()}
-          className="border-none flex p-3 font-bold bg-black/30 w-fit items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer"
+          className="flex w-fit cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 font-bold hover:bg-white/20"
         >
           Translate Subtitles
         </button>
         <textarea
           onChange={(e) => {
-            setLyrics(e.target.value);
+            handleLyricsChange(e.target.value);
           }}
-          value={lyrics}
-          className="w-full h-20 p-1.5 border-2 border-white/20 rounded-lg text-white bg-black/30"
+          value={session.lyrics}
+          className="h-20 w-full rounded-lg border-2 border-white/20 bg-black/30 p-1.5 text-white"
         />
         <button
           type="button"
           disabled={session.isLoading}
           onClick={() => handleGenerateSubtitles()}
-          className="border-none flex p-3 font-bold bg-black/30 w-fit items-center justify-center rounded-3xl hover:bg-white/20  cursor-pointer"
+          className="flex w-fit cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-3 font-bold hover:bg-white/20"
         >
           Generate Subtitles
         </button>

@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
 import { ArrowDownOnSquareIcon } from "@heroicons/react/24/solid";
 
 import { useSessionStore, type ParsedSubtitle } from "../../store/session.store";
 import { parseSrt } from "../../utilities/srt";
 import {
   convertCaptionsToSrt,
-  convertSrtToCaptions,
 } from "../../utilities/transliteration/transliteration";
+import { getSrtStorageKey } from "../../utilities/video-storage";
 import SaveIcon from "../common/icons/save";
 
 export default function SubtitleEditorBottomControls() {
@@ -29,7 +28,7 @@ export default function SubtitleEditorBottomControls() {
       console.log(session.videoId);
       if (session.videoId) {
         try {
-          localStorage.setItem(`langpal-srt-content-${session.videoId}`, convertedSrt);
+          localStorage.setItem(getSrtStorageKey(session.videoId), convertedSrt);
           console.log(`Saved subtitles to localStorage for video: ${session.videoId}`);
         } catch (error) {
           console.error(`Failed to save to localStorage: ${error}`);

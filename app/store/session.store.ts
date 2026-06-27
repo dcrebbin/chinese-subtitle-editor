@@ -61,6 +61,7 @@ export interface SessionStore {
     karaokeModalOpen: boolean;
     karaokeText: string;
     karaokeGuess: string;
+    lyrics: string;
   };
   setSession: (session: SessionStore["session"]) => void;
 }
@@ -102,6 +103,7 @@ const sessionStore = create<SessionStore>((set) => ({
     karaokeModalOpen: false,
     karaokeText: "",
     karaokeGuess: "",
+    lyrics: "",
   },
   setSession: (session) => set({ session }),
 }));

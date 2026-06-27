@@ -215,6 +215,7 @@ export default function OverlayPage() {
         previewUrl: url,
         file: new File([blob], "downloaded.mp4", { type: "video/mp4" }),
       });
+      setSessionState({ videoId });
 
       if (previewVideoRef.current) {
         previewVideoRef.current.src = url;
@@ -303,8 +304,10 @@ export default function OverlayPage() {
     }
     setSession({
       ...session,
+      videoId,
       srtContent: customSubtitles,
       originalSrtContent: customSubtitles,
+      isLoading: false,
     });
   }
 
@@ -664,7 +667,7 @@ export default function OverlayPage() {
         </div>
       </div>
       <div
-        className="relative mx-0 flex w-full max-w-full flex-col items-center justify-start gap-2 rounded-2xl border-2 border-white drop-shadow-md sm:mx-4"
+        className="relative mx-0 flex min-h-138 w-full max-w-full flex-col items-center justify-start gap-1 rounded-2xl border-2 border-white drop-shadow-md"
         style={{ display: overlay.selectedTab === "render" ? "flex" : "none" }}
       >
         <div className="absolute top-0 left-0 z-999 flex justify-start">
@@ -690,16 +693,12 @@ export default function OverlayPage() {
           </button>
         </div>
         {overlay.outputUrl && (
-          <video
-            className="h-[35rem] w-full max-w-full rounded-2xl border-2 border-white"
-            ref={videoRef}
-            controls
-          >
+          <video className="h-140 w-full max-w-full rounded-2xl" ref={videoRef} controls>
             <track kind="captions" src={undefined} />
           </video>
         )}
       </div>
-      <div className="mt-6 flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center">
         <input
           ref={inputFileRef}
           type="file"
@@ -748,7 +747,7 @@ export default function OverlayPage() {
             };
           }}
         />
-        <div className="flex w-full flex-col flex-wrap items-center justify-center gap-2 px-2 sm:flex-row sm:px-6">
+        <div className="flex w-full flex-col flex-wrap items-center justify-center gap-1 sm:flex-row">
           <div className="flex flex-row items-center justify-center gap-2">
             <p className="text-sm font-bold">{formatTime(overlay.startTime)}s</p>
             <button

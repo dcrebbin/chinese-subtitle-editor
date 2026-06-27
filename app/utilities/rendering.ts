@@ -15,6 +15,57 @@ const INLINE_ENGLISH_MIN_FONT_PX = 4;
 
 const TRANSLITERATION_ROWS_PER_LINE = 7;
 
+type PreloadedBackgroundImages = {
+  fullImage: HTMLImageElement | null;
+  doubleImage1: HTMLImageElement | null;
+  doubleImage2: HTMLImageElement | null;
+};
+
+const backgroundImageCache = new Map<string, HTMLImageElement>();
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  const cached = backgroundImageCache.get(src);
+  if (cached?.complete) {
+    return Promise.resolve(cached);
+  }
+
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      backgroundImageCache.set(src, image);
+      resolve(image);
+    };
+    image.onerror = () => {
+      reject(new Error("Error loading background image"));
+    };
+    image.src = src;
+  });
+}
+
+async function preloadBackgroundImages(): Promise<PreloadedBackgroundImages> {
+  const overlay = getOverlayState().overlay;
+  const images: PreloadedBackgroundImages = {
+    fullImage: null,
+    doubleImage1: null,
+    doubleImage2: null,
+  };
+
+  if (overlay.backgroundMode === "full-image" && overlay.backgroundImage) {
+    images.fullImage = await loadImage(overlay.backgroundImage);
+  }
+
+  if (overlay.backgroundMode === "double-image") {
+    if (overlay.doubleBackgroundImage.image1) {
+      images.doubleImage1 = await loadImage(overlay.doubleBackgroundImage.image1);
+    }
+    if (overlay.doubleBackgroundImage.image2) {
+      images.doubleImage2 = await loadImage(overlay.doubleBackgroundImage.image2);
+    }
+  }
+
+  return images;
+}
+
 export function getBackgroundImageDrawOffsetY(
   isLandscapeMode: boolean,
   canvasHeight: number,
@@ -374,6 +425,7 @@ function addBackground(
   width: number,
   height: number,
   colour: string,
+  preloadedImages: PreloadedBackgroundImages,
 ) {
   if (!ctx) return;
   const overlay = getOverlayState().overlay;
@@ -382,60 +434,38 @@ function addBackground(
     ctx.fillRect(0, 0, width, height);
   }
   if (overlay.backgroundMode === "full-image") {
-    if (overlay.backgroundImage) {
-      const image = new Image();
-      image.src = overlay.backgroundImage;
-      image.onload = () => {
-        // Calculate aspect ratios
-        const canvasAspect = width / height;
-        const imageAspect = image.width / image.height;
+    const image = preloadedImages.fullImage;
+    if (image) {
+      const canvasAspect = width / height;
+      const imageAspect = image.width / image.height;
 
-        let drawWidth: number, drawHeight: number;
+      let drawWidth: number, drawHeight: number;
 
-        // Cover the canvas while maintaining aspect ratio
-        if (imageAspect > canvasAspect) {
-          drawHeight = height;
-          drawWidth = height * imageAspect;
-        } else {
-          drawWidth = width;
-          drawHeight = width / imageAspect;
-        }
+      if (imageAspect > canvasAspect) {
+        drawHeight = height;
+        drawWidth = height * imageAspect;
+      } else {
+        drawWidth = width;
+        drawHeight = width / imageAspect;
+      }
 
-        const offsetX = (width - drawWidth) / 2;
-        const offsetY = getBackgroundImageDrawOffsetY(
-          overlay.isLandscapeMode,
-          height,
-          drawHeight,
-          overlay.backgroundImageOffsetY,
-        );
+      const offsetX = (width - drawWidth) / 2;
+      const offsetY = getBackgroundImageDrawOffsetY(
+        overlay.isLandscapeMode,
+        height,
+        drawHeight,
+        overlay.backgroundImageOffsetY,
+      );
 
-        ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
-      };
-      image.onerror = () => {
-        console.error("Error loading background image");
-      };
+      ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
     }
   }
   if (overlay.backgroundMode === "double-image") {
-    if (overlay.doubleBackgroundImage.image1) {
-      const image = new Image();
-      image.src = overlay.doubleBackgroundImage.image1;
-      image.onload = () => {
-        ctx.drawImage(image, 0, 0, width, height);
-      };
-      image.onerror = () => {
-        console.error("Error loading background image");
-      };
+    if (preloadedImages.doubleImage1) {
+      ctx.drawImage(preloadedImages.doubleImage1, 0, 0, width, height);
     }
-    if (overlay.doubleBackgroundImage.image2) {
-      const image = new Image();
-      image.src = overlay.doubleBackgroundImage.image2;
-      image.onload = () => {
-        ctx.drawImage(image, 0, 0, width, height);
-      };
-      image.onerror = () => {
-        console.error("Error loading background image");
-      };
+    if (preloadedImages.doubleImage2) {
+      ctx.drawImage(preloadedImages.doubleImage2, 0, 0, width, height);
     }
   }
 }
@@ -450,6 +480,7 @@ export async function convertCanvas(
   lyricsOffset: number = 0,
 ) {
   const overlay = getOverlayState().overlay;
+  const preloadedImages = await preloadBackgroundImages();
 
   return await Conversion.init({
     input,
@@ -469,7 +500,7 @@ export async function convertCanvas(
             | OffscreenCanvasRenderingContext2D;
         }
 
-        addBackground(ctx, width, height, overlay.colour as string);
+        addBackground(ctx, width, height, overlay.colour as string, preloadedImages);
 
         const rendererSizeMultiplier = sizeMultiplier / 2;
         const cellSize = (defaultCellSize * sizeMultiplier) / 2 - 5;
