@@ -3,6 +3,8 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { createFileRoute } from "@tanstack/react-router";
 
+const youtubeDownloadsEnabled = import.meta.env.VITE_DOWNLOAD_ENABLED === "true";
+
 function exec(cmd: string, args: string[]): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const proc = spawn(cmd, args, { stdio: "inherit" });
@@ -41,6 +43,10 @@ export const Route = createFileRoute("/api/download")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        if (!youtubeDownloadsEnabled) {
+          return new Response(null, { status: 404 });
+        }
+
         try {
           const { videoId }: { videoId: string } = await request.json();
           if (!videoId) {

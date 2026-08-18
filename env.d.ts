@@ -7,6 +7,7 @@ interface ImportMetaEnv {
   readonly VITE_LANGPAL_API_KEY: string;
   readonly VITE_API_URL: string;
   readonly VITE_POSTHOG_KEY: string;
+  readonly VITE_DOWNLOAD_ENABLED: string;
 }
 
 interface ImportMeta {

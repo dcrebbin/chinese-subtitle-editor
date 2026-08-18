@@ -357,6 +357,7 @@ export default function SubtitleEditor() {
       <div className="flex min-w-0 items-center gap-2">
         <input
           type="number"
+          step="any"
           placeholder="Offset"
           ref={offsetInput}
           onKeyDown={(e) => {

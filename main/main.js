@@ -1,5 +1,5 @@
 import { spawn } from "child_process";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, readFileSync } from "fs";
 import { readFile } from "fs/promises";
 import http from "http";
 import path from "path";
@@ -8,6 +8,21 @@ import { app, BrowserWindow, ipcMain, nativeImage, screen } from "electron";
 
 const isDev = !app.isPackaged;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function areYoutubeDownloadsEnabled() {
+  if (isDev) {
+    return process.env.VITE_DOWNLOAD_ENABLED === "true";
+  }
+
+  try {
+    const configPath = path.join(process.resourcesPath, "download-config.json");
+    return JSON.parse(readFileSync(configPath, "utf8")).youtubeDownloadsEnabled === true;
+  } catch {
+    return false;
+  }
+}
+
+const youtubeDownloadsEnabled = areYoutubeDownloadsEnabled();
 
 let mainWindow;
 let serverProcess;
@@ -49,13 +64,15 @@ async function downloadVideo(videoId) {
   return readFile(outputPath);
 }
 
-ipcMain.handle("download-video", async (_event, videoId) => {
-  if (!videoId) {
-    throw new Error("No video ID provided");
-  }
+if (youtubeDownloadsEnabled) {
+  ipcMain.handle("download-video", async (_event, videoId) => {
+    if (!videoId) {
+      throw new Error("No video ID provided");
+    }
 
-  return downloadVideo(videoId);
-});
+    return downloadVideo(videoId);
+  });
+}
 
 async function waitForServer(url, timeoutMs = 30000) {
   const start = Date.now();

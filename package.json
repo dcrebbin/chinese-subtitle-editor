@@ -15,7 +15,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "electron:dev": "electron .",
-    "electron:build": "vite build && electron-builder"
+    "electron:build": "node scripts/build-electron.mjs",
+    "electron:build:downloads": "node scripts/build-electron.mjs --downloads"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -58,34 +59,5 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "typescript-eslint": "^8.61.1"
-  },
-  "build": {
-    "appId": "cn.langpal.cantosubtitles",
-    "files": [
-      "main/**/*",
-      ".output/**/*",
-      "public/icon.png",
-      "package.json"
-    ],
-    "asarUnpack": [
-      ".output/**/*",
-      "main/preload.cjs"
-    ],
-    "extraResources": [
-      {
-        "from": "youtube",
-        "to": "youtube"
-      }
-    ],
-    "productName": "Chinese Subtitle Editor",
-    "directories": {
-      "output": "dist"
-    },
-    "mac": {
-      "category": "public.app-category.education",
-      "icon": "public/icon.png",
-      "identity": null,
-      "target": "dir"
-    }
   }
 }
