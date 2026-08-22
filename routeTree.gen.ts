@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './app/routes/__root'
 import { Route as IndexRouteImport } from './app/routes/index'
 import { Route as ApiSubtitlesRouteImport } from './app/routes/api/subtitles'
+import { Route as ApiJapaneseTransliterationRouteImport } from './app/routes/api/japanese-transliteration'
 import { Route as ApiDownloadRouteImport } from './app/routes/api/download'
 import { Route as ApiSubtitlesSearchRouteImport } from './app/routes/api/subtitles/search'
 
@@ -24,6 +25,12 @@ const ApiSubtitlesRoute = ApiSubtitlesRouteImport.update({
   path: '/api/subtitles',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiJapaneseTransliterationRoute =
+  ApiJapaneseTransliterationRouteImport.update({
+    id: '/api/japanese-transliteration',
+    path: '/api/japanese-transliteration',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiDownloadRoute = ApiDownloadRouteImport.update({
   id: '/api/download',
   path: '/api/download',
@@ -38,12 +45,14 @@ const ApiSubtitlesSearchRoute = ApiSubtitlesSearchRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/download': typeof ApiDownloadRoute
+  '/api/japanese-transliteration': typeof ApiJapaneseTransliterationRoute
   '/api/subtitles': typeof ApiSubtitlesRouteWithChildren
   '/api/subtitles/search': typeof ApiSubtitlesSearchRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/download': typeof ApiDownloadRoute
+  '/api/japanese-transliteration': typeof ApiJapaneseTransliterationRoute
   '/api/subtitles': typeof ApiSubtitlesRouteWithChildren
   '/api/subtitles/search': typeof ApiSubtitlesSearchRoute
 }
@@ -51,18 +60,30 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/download': typeof ApiDownloadRoute
+  '/api/japanese-transliteration': typeof ApiJapaneseTransliterationRoute
   '/api/subtitles': typeof ApiSubtitlesRouteWithChildren
   '/api/subtitles/search': typeof ApiSubtitlesSearchRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/download' | '/api/subtitles' | '/api/subtitles/search'
+  fullPaths:
+    | '/'
+    | '/api/download'
+    | '/api/japanese-transliteration'
+    | '/api/subtitles'
+    | '/api/subtitles/search'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/download' | '/api/subtitles' | '/api/subtitles/search'
+  to:
+    | '/'
+    | '/api/download'
+    | '/api/japanese-transliteration'
+    | '/api/subtitles'
+    | '/api/subtitles/search'
   id:
     | '__root__'
     | '/'
     | '/api/download'
+    | '/api/japanese-transliteration'
     | '/api/subtitles'
     | '/api/subtitles/search'
   fileRoutesById: FileRoutesById
@@ -70,6 +91,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiDownloadRoute: typeof ApiDownloadRoute
+  ApiJapaneseTransliterationRoute: typeof ApiJapaneseTransliterationRoute
   ApiSubtitlesRoute: typeof ApiSubtitlesRouteWithChildren
 }
 
@@ -87,6 +109,13 @@ declare module '@tanstack/react-router' {
       path: '/api/subtitles'
       fullPath: '/api/subtitles'
       preLoaderRoute: typeof ApiSubtitlesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/japanese-transliteration': {
+      id: '/api/japanese-transliteration'
+      path: '/api/japanese-transliteration'
+      fullPath: '/api/japanese-transliteration'
+      preLoaderRoute: typeof ApiJapaneseTransliterationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/download': {
@@ -121,6 +150,7 @@ const ApiSubtitlesRouteWithChildren = ApiSubtitlesRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiDownloadRoute: ApiDownloadRoute,
+  ApiJapaneseTransliterationRoute: ApiJapaneseTransliterationRoute,
   ApiSubtitlesRoute: ApiSubtitlesRouteWithChildren,
 }
 export const routeTree = rootRouteImport

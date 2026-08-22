@@ -1,5 +1,8 @@
+import type { SavedJapaneseTransliteration } from "../store/session.store";
+
 const SRT_STORAGE_KEY_PREFIX = "langpal-srt-content-";
 const LYRICS_STORAGE_KEY_PREFIX = "langpal-lyrics-";
+const JAPANESE_TRANSLITERATION_STORAGE_KEY_PREFIX = "langpal-japanese-transliterations-";
 
 export function getSrtStorageKey(videoId: string) {
   return `${SRT_STORAGE_KEY_PREFIX}${videoId}`;
@@ -7,6 +10,38 @@ export function getSrtStorageKey(videoId: string) {
 
 export function getLyricsStorageKey(videoId: string) {
   return `${LYRICS_STORAGE_KEY_PREFIX}${videoId}`;
+}
+
+export function getJapaneseTransliterationStorageKey(videoId: string) {
+  return `${JAPANESE_TRANSLITERATION_STORAGE_KEY_PREFIX}${videoId || "draft"}`;
+}
+
+export function saveJapaneseTransliterationsToLocalStorage(
+  videoId: string,
+  transliterations: Record<string, SavedJapaneseTransliteration>,
+) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(
+      getJapaneseTransliterationStorageKey(videoId),
+      JSON.stringify(transliterations),
+    );
+  } catch (error) {
+    console.error("Failed to save Japanese transliterations:", error);
+  }
+}
+
+export function loadJapaneseTransliterationsFromLocalStorage(
+  videoId: string,
+): Record<string, SavedJapaneseTransliteration> {
+  if (typeof window === "undefined") return {};
+  try {
+    const saved = localStorage.getItem(getJapaneseTransliterationStorageKey(videoId));
+    return saved ? JSON.parse(saved) : {};
+  } catch (error) {
+    console.error("Failed to load Japanese transliterations:", error);
+    return {};
+  }
 }
 
 export function saveLyricsToLocalStorage(videoId: string, lyrics: string) {

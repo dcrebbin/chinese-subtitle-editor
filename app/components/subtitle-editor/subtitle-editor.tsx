@@ -5,11 +5,13 @@ import { ArrowPathIcon, PencilIcon, PlusIcon, TrashIcon } from "@heroicons/react
 
 import { useOverlayStore } from "../../store/overlay.store";
 import {
+  getSessionState,
   ParsedSubtitle,
   setSessionState,
   useSessionStore,
   type CaptionLanguage,
   type CaptionSegment,
+  type SavedJapaneseTransliteration,
 } from "../../store/session.store";
 import { parseSrt } from "../../utilities/srt";
 import {
@@ -17,6 +19,10 @@ import {
   convertCaptionsToSrt,
   convertSrtToCaptions,
 } from "../../utilities/transliteration/transliteration";
+import {
+  loadJapaneseTransliterationsFromLocalStorage,
+  saveJapaneseTransliterationsToLocalStorage,
+} from "../../utilities/video-storage";
 import Loading from "../common/loading";
 import SubtitleEditorBottomControls from "./subtitle-editor-bottom-controls";
 import SubtitleEditorSearchView from "./subtitle-editor-search-view";
@@ -63,6 +69,14 @@ export default function SubtitleEditor() {
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
 
   const [selectedLanguage, setSelectedLanguage] = useState<string[]>([]);
+  const [japaneseLoading, setJapaneseLoading] = useState<Record<number, boolean>>({});
+  const [japaneseErrors, setJapaneseErrors] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    setSessionState({
+      japaneseTransliterations: loadJapaneseTransliterationsFromLocalStorage(session.videoId),
+    });
+  }, [session.videoId]);
 
   function loadCaptions() {
     if (session.srtContent) {
@@ -70,7 +84,6 @@ export default function SubtitleEditor() {
       const parsedSubtitles = parseSrt(session.srtContent);
 
       setSessionState({
-        ...session,
         localCaptions: captions,
         isLoading: false,
         parsedSubtitles: parsedSubtitles as ParsedSubtitle[],
@@ -206,59 +219,131 @@ export default function SubtitleEditor() {
     handleOffsetChange(0);
   }
 
-  const languageContent = (language: CaptionLanguage, caption: CaptionSegment, index: number) => (
-    <>
-      {caption.text[language.code] !== null && (
-        <div
-          key={`${index}-${language.code}-caption-edit`}
-          className="flex w-full flex-row gap-1.5 border-b border-white/20 pb-1.5 xl:gap-1.5 xl:pb-1.5"
-        >
-          <div className="flex w-full flex-col gap-1.5">
-            <label
-              htmlFor={`${index}-${language.code}`}
-              className="text-left text-xl font-bold xl:text-2xl"
-            >
-              {language.name}
-            </label>
-            <textarea
-              id={`${index}-${language.code}`}
-              value={caption.text[language.code] || ""}
-              onChange={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                const updatedCaptions = [...session.localCaptions];
-                if (!updatedCaptions[index]) {
-                  return;
-                }
-                updatedCaptions[index].text[language.code] = e.target.value;
-                setSessionState({
-                  ...session,
-                  localCaptions: updatedCaptions,
-                  originalCaptions: updatedCaptions, // Update original captions to reflect the text change
-                });
-              }}
-              onKeyDown={(e) => {
-                e.stopPropagation();
-              }}
-              onKeyUp={(e) => {
-                e.stopPropagation();
-              }}
-              className="m-0 h-12 w-full rounded-md border border-white/20 bg-white p-2 text-left text-lg text-black xl:h-16 xl:text-3xl"
-            />
-          </div>
-          <button
-            type="button"
-            data-tooltip-id="global-tooltip"
-            data-tooltip-content="Delete Language Section"
-            onClick={() => handleDeleteLanguage(index, language.code)}
-            className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-2 hover:bg-white/20 xl:p-3"
+  async function handleJapaneseTransliteration(index: number, content: string) {
+    const sourceText = content.trim();
+    if (!sourceText || japaneseLoading[index]) return;
+
+    setJapaneseLoading((current) => ({ ...current, [index]: true }));
+    setJapaneseErrors((current) => ({ ...current, [index]: "" }));
+    try {
+      const response = await fetch("/api/japanese-transliteration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: sourceText }),
+      });
+      const result = (await response.json()) as SavedJapaneseTransliteration & { error?: string };
+      if (!response.ok) throw new Error(result.error || "Japanese transliteration failed");
+
+      const updated = {
+        ...getSessionState().session.japaneseTransliterations,
+        [sourceText]: result,
+      };
+      setSessionState({ japaneseTransliterations: updated });
+      saveJapaneseTransliterationsToLocalStorage(session.videoId, updated);
+    } catch (error) {
+      setJapaneseErrors((current) => ({
+        ...current,
+        [index]: error instanceof Error ? error.message : "Japanese transliteration failed",
+      }));
+    } finally {
+      setJapaneseLoading((current) => ({ ...current, [index]: false }));
+    }
+  }
+
+  const languageContent = (language: CaptionLanguage, caption: CaptionSegment, index: number) => {
+    const sourceText = caption.text[language.code]?.trim() || "";
+    const savedJapanese =
+      language.code === "jp" ? session.japaneseTransliterations[sourceText] : undefined;
+
+    return (
+      <>
+        {caption.text[language.code] !== null && (
+          <div
+            key={`${index}-${language.code}-caption-edit`}
+            className="flex w-full flex-row gap-1.5 border-b border-white/20 pb-1.5 xl:gap-1.5 xl:pb-1.5"
           >
-            <TrashIcon className="h-6 w-6 xl:h-10 xl:w-10" />
-          </button>
-        </div>
-      )}
-    </>
-  );
+            <div className="flex w-full flex-col gap-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <label
+                  htmlFor={`${index}-${language.code}`}
+                  className="text-left text-xl font-bold xl:text-2xl"
+                >
+                  {language.name}
+                </label>
+                {language.code === "jp" && (
+                  <button
+                    type="button"
+                    disabled={!sourceText || japaneseLoading[index]}
+                    onClick={() => void handleJapaneseTransliteration(index, sourceText)}
+                    className="cursor-pointer rounded-2xl bg-blue-600 px-3 py-1.5 text-sm font-bold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50 xl:text-base"
+                  >
+                    {japaneseLoading[index]
+                      ? "Converting…"
+                      : savedJapanese
+                        ? "Regenerate Romaji"
+                        : "Generate Romaji"}
+                  </button>
+                )}
+              </div>
+              <textarea
+                id={`${index}-${language.code}`}
+                value={caption.text[language.code] || ""}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  const updatedCaptions = [...session.localCaptions];
+                  if (!updatedCaptions[index]) {
+                    return;
+                  }
+                  updatedCaptions[index].text[language.code] = e.target.value;
+                  setSessionState({
+                    ...session,
+                    localCaptions: updatedCaptions,
+                    originalCaptions: updatedCaptions, // Update original captions to reflect the text change
+                  });
+                }}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                }}
+                onKeyUp={(e) => {
+                  e.stopPropagation();
+                }}
+                className="m-0 h-12 w-full rounded-md border border-white/20 bg-white p-2 text-left text-lg text-black xl:h-16 xl:text-3xl"
+              />
+              {language.code === "jp" && savedJapanese && (
+                <div className="flex flex-wrap gap-1.5 rounded-lg bg-black/30 p-2">
+                  {savedJapanese.groups.map((group, groupIndex) => (
+                    <span
+                      key={`${groupIndex}-${group.surface}-${group.romaji}`}
+                      title={[group.gloss, group.lemma, group.partOfSpeech]
+                        .filter(Boolean)
+                        .join(" · ")}
+                      className="flex min-w-10 flex-col items-center rounded bg-white px-2 py-1 text-black"
+                    >
+                      <span className="text-xs text-blue-700">{group.romaji}</span>
+                      <span className="text-lg">{group.surface}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+              {language.code === "jp" && japaneseErrors[index] && (
+                <p className="text-sm text-red-300">{japaneseErrors[index]}</p>
+              )}
+            </div>
+            <button
+              type="button"
+              data-tooltip-id="global-tooltip"
+              data-tooltip-content="Delete Language Section"
+              onClick={() => handleDeleteLanguage(index, language.code)}
+              className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-2 hover:bg-white/20 xl:p-3"
+            >
+              <TrashIcon className="h-6 w-6 xl:h-10 xl:w-10" />
+            </button>
+          </div>
+        )}
+      </>
+    );
+  };
 
   function handleNewCaptionLanguage(index: number, language: string) {
     const updatedSelectedLanguage = [...selectedLanguage];

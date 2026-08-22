@@ -76,14 +76,21 @@ export function getSubtitleAtTime(
 
 export function transliterateCaptions(
   inputText: string,
-  isCantoneseSelected: boolean,
+  languageCode: string,
   customTransliterationsMap: Record<string, string>,
 ): string {
   if (Object.keys(customTransliterationsMap).length > 0) {
     return convertToCustomTransliterations(inputText, customTransliterationsMap);
   }
-  if (isCantoneseSelected) {
-    return convertToJyutping(inputText);
+
+  switch (languageCode) {
+    case "yue":
+      return convertToJyutping(inputText);
+    case "jp":
+      // Japanese readings are generated explicitly per line and loaded from
+      // the saved structured groups, never generated automatically here.
+      return "";
+    default:
+      return convertToPinyin(inputText);
   }
-  return convertToPinyin(inputText);
 }

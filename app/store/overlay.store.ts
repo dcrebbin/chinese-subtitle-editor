@@ -49,6 +49,11 @@ type OverlayStore = {
       image1: string | null;
       image2: string | null;
     }) => void;
+    doubleBackgroundImageOffsetY: { image1: number; image2: number };
+    setDoubleBackgroundImageOffsetY: (doubleBackgroundImageOffsetY: {
+      image1: number;
+      image2: number;
+    }) => void;
     colour: string | null;
     setColour: (colour: string | null) => void;
     videoPosition: "top" | "center" | "bottom";
@@ -71,6 +76,7 @@ type PersistableOverlaySettings = Pick<
   | "backgroundImage"
   | "backgroundImageOffsetY"
   | "doubleBackgroundImage"
+  | "doubleBackgroundImageOffsetY"
   | "colour"
   | "videoPosition"
   | "downloadVideoId"
@@ -87,6 +93,7 @@ const defaultPersistableOverlaySettings: PersistableOverlaySettings = {
   backgroundImage: null,
   backgroundImageOffsetY: 0,
   doubleBackgroundImage: { image1: null, image2: null },
+  doubleBackgroundImageOffsetY: { image1: 0, image2: 0 },
   colour: null,
   videoPosition: "center",
   downloadVideoId: null,
@@ -106,6 +113,10 @@ function sanitizePersistableOverlaySettings(
     doubleBackgroundImage: {
       ...defaultPersistableOverlaySettings.doubleBackgroundImage,
       ...settings.doubleBackgroundImage,
+    },
+    doubleBackgroundImageOffsetY: {
+      ...defaultPersistableOverlaySettings.doubleBackgroundImageOffsetY,
+      ...settings.doubleBackgroundImageOffsetY,
     },
   };
 
@@ -158,6 +169,7 @@ function persistOverlaySettings(overlay: OverlayStore["overlay"]) {
     backgroundImage: overlay.backgroundImage,
     backgroundImageOffsetY: overlay.backgroundImageOffsetY,
     doubleBackgroundImage: overlay.doubleBackgroundImage,
+    doubleBackgroundImageOffsetY: overlay.doubleBackgroundImageOffsetY,
     colour: overlay.colour,
     videoPosition: overlay.videoPosition,
     downloadVideoId: overlay.downloadVideoId,

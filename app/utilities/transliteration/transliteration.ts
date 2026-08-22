@@ -1,16 +1,17 @@
 import ToJyutping from "to-jyutping";
 
-import type { CaptionLanguage, CaptionSegment } from "../../store/session.store";
+import type {
+  CaptionLanguage,
+  CaptionSegment,
+  SavedJapaneseTransliteration,
+} from "../../store/session.store";
 import { CONTAINS_CHINESE_CHARACTERS, KANGXI_RADICAL_LOOKUP, PINYIN_MAPPING } from "./mandarin";
 
 export const CaptionLanguages: CaptionLanguage[] = [
   { name: "Cantonese", code: "yue" },
   { name: "Mandarin", code: "zh" },
-  { name: "Shanghainese", code: "wuu_SH" },
   { name: "English", code: "en" },
-  { name: "Taishanese", code: "yue_TISA" },
-  { name: "Teochew", code: "wuu_TE" },
-  { name: "Hokkien", code: "min_NAN" },
+  { name: "Japanese", code: "jp" },
 ];
 
 function parseMultilingualText(fullText: string): Record<string, string | null> {
@@ -201,4 +202,23 @@ export function retrieveChineseRomanizationMap(transliteratedText: string, input
   }
 
   return result;
+}
+
+export function retrieveJapaneseRomanizationMap(
+  inputText: string,
+  saved?: SavedJapaneseTransliteration,
+) {
+  if (saved?.sourceText === inputText && saved.groups.length > 0) {
+    return saved.groups.map((group) => ({
+      jyutping: group.romaji,
+      chinese: group.surface,
+    }));
+  }
+
+  // Keep Japanese available before conversion, but do not silently generate a
+  // reading. The user explicitly triggers the remote conversion per line.
+  return Array.from(inputText).map((character) => ({
+    jyutping: "",
+    chinese: character,
+  }));
 }

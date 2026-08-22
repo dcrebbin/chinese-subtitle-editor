@@ -6,7 +6,10 @@ import { getOverlayState, setOverlayState } from "../store/overlay.store";
 import { getSessionState } from "../store/session.store";
 import { defaultCellSize, defaultChineseFontSize, jyutpingFontSize } from "./constants";
 import { getSubtitleAtTime, parseSrt, transliterateCaptions } from "./srt";
-import { retrieveChineseRomanizationMap } from "./transliteration/transliteration";
+import {
+  retrieveChineseRomanizationMap,
+  retrieveJapaneseRomanizationMap,
+} from "./transliteration/transliteration";
 
 const INLINE_ENGLISH_FONT_SCALE = 0.5;
 const INLINE_ENGLISH_CELL_MAX_WIDTH_MULTIPLIER = 3;
@@ -76,6 +79,16 @@ export function getBackgroundImageDrawOffsetY(
   return baseOffsetY + offsetY;
 }
 
+function determineNonEnglishLanguage(text: string): string {
+  if (text.includes("(jp)")) {
+    return "jp";
+  }
+  if (text.includes("(yue)")) {
+    return "yue";
+  }
+  return "zh";
+}
+
 export function scaleBackgroundImageOffsetY(
   offsetY: number,
   previewHeight: number,
@@ -85,7 +98,7 @@ export function scaleBackgroundImageOffsetY(
   return offsetY * (previewHeight / renderHeight);
 }
 
-export function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any, time: number) {
+export async function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any, time: number) {
   if (!canvas?.clientWidth || !canvas.clientHeight) {
     return;
   }
@@ -116,16 +129,23 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any, time:
   if (subtitle) {
     const cantonese = subtitle.text.split("(yue)")[1]?.split("(en)")[0]?.trim() || "";
     const mandarin = subtitle.text.split("(zh)")[1]?.split("(en)")[0]?.trim() || "";
+    const japanese = subtitle.text.split("(jp)")[1]?.split("(en)")[0]?.trim() || "";
 
-    const isCantonese = subtitle.text.includes("(yue)");
-    const transliteratedText = transliterateCaptions(cantonese || mandarin, isCantonese, {});
-
-    const transliterationMap = retrieveChineseRomanizationMap(
-      transliteratedText,
-      cantonese || mandarin,
-    );
+    const languageCode = determineNonEnglishLanguage(subtitle.text);
+    const sourceText = cantonese || mandarin || japanese;
+    const transliterationMap =
+      languageCode === "jp"
+        ? retrieveJapaneseRomanizationMap(
+            sourceText,
+            getSessionState().session.japaneseTransliterations[sourceText],
+          )
+        : retrieveChineseRomanizationMap(
+            transliterateCaptions(sourceText, languageCode, {}),
+            sourceText,
+          );
     setOverlayState({ jsonData: { transliterationMap } });
-    const english = subtitle.text.split("(en)")[1]?.trim() || "";
+
+    const english = subtitle.text.split("(en)")[1]?.trim().split("(")[0].trim();
     const rows = updateTransliterationRows(
       mergeConsecutiveEnglishWords(transliterationMap, ctx, rendererSizeMultiplier),
     );
@@ -200,10 +220,7 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any, time:
         if (caption.chinese === " " || caption.chinese === "") {
           return acc + cellSize / 3;
         }
-        if (caption.jyutping === "EN") {
-          return acc + computeEnglishCellWidth(ctx, caption.chinese, rendererSizeMultiplier);
-        }
-        return acc + cellSize;
+        return acc + computeTransliterationCellWidth(ctx, caption, rendererSizeMultiplier);
       }, 0);
       const startX = (canvas.width - totalWidth) / 2;
       let currentX = startX;
@@ -212,10 +229,11 @@ export function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any, time:
           currentX += cellSize / 3;
         } else {
           drawCharacterCell(ctx, caption, currentX, rowY, rendererSizeMultiplier);
-          const captionWidth =
-            caption.jyutping === "EN"
-              ? computeEnglishCellWidth(ctx, caption.chinese, rendererSizeMultiplier)
-              : cellSize;
+          const captionWidth = computeTransliterationCellWidth(
+            ctx,
+            caption,
+            rendererSizeMultiplier,
+          );
           currentX += captionWidth;
         }
       }
@@ -325,6 +343,19 @@ export const computeEnglishCellWidth = (
   return Math.min(measured + INLINE_ENGLISH_CELL_PADDING * sizeMultiplier, maxCellWidth);
 };
 
+export function computeTransliterationCellWidth(
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  caption: { jyutping: string; chinese: string },
+  sizeMultiplier: number,
+) {
+  if (caption.jyutping === "EN") {
+    return computeEnglishCellWidth(ctx, caption.chinese, sizeMultiplier);
+  }
+  const sourceUnits = Math.max(1, Array.from(caption.chinese).length);
+  const readingUnits = Math.max(1, Math.ceil(caption.jyutping.length / 6));
+  return defaultCellSize * sizeMultiplier * Math.max(sourceUnits, readingUnits);
+}
+
 const fitEnglishTextToWidth = (
   ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
   text: string,
@@ -371,6 +402,7 @@ export const drawCharacterCell = (
 ) => {
   if (!ctx) return;
   const cellSize = defaultCellSize * sizeMultiplier;
+  const cellWidth = computeTransliterationCellWidth(ctx, caption, sizeMultiplier);
 
   if (caption.jyutping === "EN") {
     const cellWidth = computeEnglishCellWidth(ctx, caption.chinese, sizeMultiplier);
@@ -403,7 +435,7 @@ export const drawCharacterCell = (
   const segment = toneToSegment(Number.parseInt(tone));
 
   ctx.fillStyle = "white";
-  ctx.fillRect(x, y, cellSize, cellSize);
+  ctx.fillRect(x, y, cellWidth, cellSize);
 
   ctx.fillStyle = "black";
   ctx.font = `${jyutpingFontSize * sizeMultiplier}px Arial`;
@@ -413,11 +445,11 @@ export const drawCharacterCell = (
 
   const jyutpingText = caption.jyutping.replace(tone, segment);
   if (jyutpingText) {
-    ctx.fillText(jyutpingText, x + cellSize / 2, y + cellSize / 2 - paddingY);
+    ctx.fillText(jyutpingText, x + cellWidth / 2, y + cellSize / 2 - paddingY);
   }
 
   ctx.font = `${defaultChineseFontSize * sizeMultiplier}px Times New Roman`;
-  ctx.fillText(caption.chinese, x + cellSize / 2, y + cellSize / 2 + paddingY);
+  ctx.fillText(caption.chinese, x + cellWidth / 2, y + cellSize / 2 + paddingY);
 };
 
 function addBackground(
@@ -461,12 +493,31 @@ function addBackground(
     }
   }
   if (overlay.backgroundMode === "double-image") {
-    if (preloadedImages.doubleImage1) {
-      ctx.drawImage(preloadedImages.doubleImage1, 0, 0, width, height);
-    }
-    if (preloadedImages.doubleImage2) {
-      ctx.drawImage(preloadedImages.doubleImage2, 0, 0, width, height);
-    }
+    const halfHeight = height / 2;
+    const drawHalfImage = (image: HTMLImageElement | null, top: number, offsetY: number) => {
+      if (!image) return;
+
+      const canvasAspect = width / halfHeight;
+      const imageAspect = image.width / image.height;
+      const drawWidth = imageAspect > canvasAspect ? halfHeight * imageAspect : width;
+      const drawHeight = imageAspect > canvasAspect ? halfHeight : width / imageAspect;
+      const offsetX = (width - drawWidth) / 2;
+      const baseOffsetY = top + (halfHeight - drawHeight) / 2;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, top, width, halfHeight);
+      ctx.clip();
+      ctx.drawImage(image, offsetX, baseOffsetY + offsetY, drawWidth, drawHeight);
+      ctx.restore();
+    };
+
+    drawHalfImage(preloadedImages.doubleImage1, 0, overlay.doubleBackgroundImageOffsetY.image1);
+    drawHalfImage(
+      preloadedImages.doubleImage2,
+      halfHeight,
+      overlay.doubleBackgroundImageOffsetY.image2,
+    );
   }
 }
 
@@ -490,7 +541,7 @@ export async function convertCanvas(
       end: overlay.endTime,
     },
     video: {
-      process: (sample) => {
+      process: async (sample) => {
         const width = overlay.isLandscapeMode ? 1920 : 1080;
         const height = overlay.isLandscapeMode ? 1080 : 1920;
         if (!ctx) {
@@ -521,16 +572,23 @@ export async function convertCanvas(
         sample.draw(ctx, drawX, drawY, drawWidth, drawHeight);
 
         if (subtitle) {
-          const isCantonese = subtitle.text.includes("(yue)");
           const cantonese = subtitle.text.split("(yue)")[1]?.split("(en)")[0]?.trim() || "";
           const mandarin = subtitle.text.split("(zh)")[1]?.split("(en)")[0]?.trim() || "";
+          const japanese = subtitle.text.split("(jp)")[1]?.split("(en)")[0]?.trim() || "";
           const english = subtitle.text.split("(en)")[1]?.trim() || "";
 
-          const transliteratedText = transliterateCaptions(cantonese || mandarin, isCantonese, {});
-          const transliterationMap = retrieveChineseRomanizationMap(
-            transliteratedText,
-            cantonese || mandarin,
-          );
+          const languageCode = determineNonEnglishLanguage(subtitle.text);
+          const sourceText = cantonese || mandarin || japanese;
+          const transliterationMap =
+            languageCode === "jp"
+              ? retrieveJapaneseRomanizationMap(
+                  sourceText,
+                  getSessionState().session.japaneseTransliterations[sourceText],
+                )
+              : retrieveChineseRomanizationMap(
+                  transliterateCaptions(sourceText, languageCode, {}),
+                  sourceText,
+                );
           const rows = updateTransliterationRows(
             mergeConsecutiveEnglishWords(transliterationMap, ctx!, rendererSizeMultiplier),
           );
@@ -607,12 +665,7 @@ export async function convertCanvas(
                 if (caption.chinese === " " || caption.chinese === "") {
                   return acc + cellSize / 3;
                 }
-                if (caption.jyutping === "EN") {
-                  return (
-                    acc + computeEnglishCellWidth(ctx!, caption.chinese, rendererSizeMultiplier)
-                  );
-                }
-                return acc + cellSize;
+                return acc + computeTransliterationCellWidth(ctx!, caption, rendererSizeMultiplier);
               }, 0);
               const startX = ((ctx?.canvas?.width || 0) - totalWidth) / 2;
 
@@ -622,10 +675,11 @@ export async function convertCanvas(
                   currentX += cellSize / 3;
                 } else {
                   drawCharacterCell(ctx, caption, currentX, rowY, rendererSizeMultiplier);
-                  const captionWidth =
-                    caption.jyutping === "EN"
-                      ? computeEnglishCellWidth(ctx!, caption.chinese, rendererSizeMultiplier)
-                      : cellSize;
+                  const captionWidth = computeTransliterationCellWidth(
+                    ctx!,
+                    caption,
+                    rendererSizeMultiplier,
+                  );
                   currentX += captionWidth;
                 }
               }

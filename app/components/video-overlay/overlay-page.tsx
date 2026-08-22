@@ -275,7 +275,7 @@ export default function OverlayPage() {
         session.parsedSubtitles,
         time + overlay.lyricOffset,
       );
-      handleDrawCanvas(
+      void handleDrawCanvas(
         canvasRef.current as HTMLCanvasElement,
         currentSubtitle ?? null,
         time + overlay.lyricOffset,
@@ -325,7 +325,7 @@ export default function OverlayPage() {
         session.parsedSubtitles,
         previewVideoRef.current?.currentTime ?? 0,
       );
-      handleDrawCanvas(
+      void handleDrawCanvas(
         canvasRef.current as HTMLCanvasElement,
         currentSubtitle,
         previewVideoRef.current?.currentTime ?? 0,
@@ -349,6 +349,16 @@ export default function OverlayPage() {
   const backgroundPosition = overlay.isLandscapeMode
     ? `center calc(50% + ${scaledBackgroundOffsetY}px)`
     : `center ${scaledBackgroundOffsetY}px`;
+  const scaledTopBackgroundOffsetY = scaleBackgroundImageOffsetY(
+    overlay.doubleBackgroundImageOffsetY.image1,
+    previewHeight,
+    overlay.isLandscapeMode,
+  );
+  const scaledBottomBackgroundOffsetY = scaleBackgroundImageOffsetY(
+    overlay.doubleBackgroundImageOffsetY.image2,
+    previewHeight,
+    overlay.isLandscapeMode,
+  );
 
   const videoOverlayContent = (
     <div className="flex h-full w-full flex-col gap-4">
@@ -424,6 +434,7 @@ export default function OverlayPage() {
         >
           <option value="colour">Colour</option>
           <option value="full-image">Full Image</option>
+          <option value="double-image">Double Image</option>
         </select>
         {overlay.backgroundMode === "full-image" && (
           <input
@@ -438,6 +449,48 @@ export default function OverlayPage() {
               }
             }}
           />
+        )}
+        {overlay.backgroundMode === "double-image" && (
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <label className="flex items-center gap-2 text-sm">
+              Top image
+              <input
+                type="file"
+                className="w-fit rounded-2xl bg-white p-2 text-black"
+                accept="image/*"
+                onChange={(e) => {
+                  const selectedFile = e.target.files?.[0];
+                  if (selectedFile) {
+                    setOverlayState({
+                      doubleBackgroundImage: {
+                        ...overlay.doubleBackgroundImage,
+                        image1: URL.createObjectURL(selectedFile),
+                      },
+                    });
+                  }
+                }}
+              />
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              Bottom image
+              <input
+                type="file"
+                className="w-fit rounded-2xl bg-white p-2 text-black"
+                accept="image/*"
+                onChange={(e) => {
+                  const selectedFile = e.target.files?.[0];
+                  if (selectedFile) {
+                    setOverlayState({
+                      doubleBackgroundImage: {
+                        ...overlay.doubleBackgroundImage,
+                        image2: URL.createObjectURL(selectedFile),
+                      },
+                    });
+                  }
+                }}
+              />
+            </label>
+          </div>
         )}
 
         {overlay.backgroundMode === "colour" && (
@@ -507,6 +560,28 @@ export default function OverlayPage() {
                 overlay.backgroundMode === "colour" ? overlay.colour || "#000000" : "transparent",
             }}
           >
+            {overlay.backgroundMode === "double-image" && (
+              <>
+                <div
+                  className="absolute top-0 left-0 h-1/2 w-full bg-cover bg-center bg-no-repeat"
+                  style={{
+                    backgroundImage: overlay.doubleBackgroundImage.image1
+                      ? `url(${overlay.doubleBackgroundImage.image1})`
+                      : "none",
+                    backgroundPosition: `center calc(50% + ${scaledTopBackgroundOffsetY}px)`,
+                  }}
+                />
+                <div
+                  className="absolute bottom-0 left-0 h-1/2 w-full bg-cover bg-center bg-no-repeat"
+                  style={{
+                    backgroundImage: overlay.doubleBackgroundImage.image2
+                      ? `url(${overlay.doubleBackgroundImage.image2})`
+                      : "none",
+                    backgroundPosition: `center calc(50% + ${scaledBottomBackgroundOffsetY}px)`,
+                  }}
+                />
+              </>
+            )}
             <video
               ref={previewVideoRef}
               style={{
@@ -641,6 +716,46 @@ export default function OverlayPage() {
                 }}
               />
             </div>
+          </div>
+        )}
+        {overlay.backgroundMode === "double-image" && (
+          <div className="pointer-events-auto absolute top-2 right-2 z-20 flex w-48 flex-col gap-3 rounded-xl bg-black/70 p-3 text-xs">
+            <label className="flex flex-col gap-1">
+              Top image Y: {overlay.doubleBackgroundImageOffsetY.image1}px
+              <input
+                type="range"
+                min={-1500}
+                max={1500}
+                step={1}
+                value={overlay.doubleBackgroundImageOffsetY.image1}
+                onChange={(e) =>
+                  setOverlayState({
+                    doubleBackgroundImageOffsetY: {
+                      ...overlay.doubleBackgroundImageOffsetY,
+                      image1: Number.parseInt(e.target.value),
+                    },
+                  })
+                }
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              Bottom image Y: {overlay.doubleBackgroundImageOffsetY.image2}px
+              <input
+                type="range"
+                min={-1500}
+                max={1500}
+                step={1}
+                value={overlay.doubleBackgroundImageOffsetY.image2}
+                onChange={(e) =>
+                  setOverlayState({
+                    doubleBackgroundImageOffsetY: {
+                      ...overlay.doubleBackgroundImageOffsetY,
+                      image2: Number.parseInt(e.target.value),
+                    },
+                  })
+                }
+              />
+            </label>
           </div>
         )}
         <div>

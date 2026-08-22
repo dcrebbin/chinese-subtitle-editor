@@ -21,6 +21,23 @@ export interface ParsedSubtitle {
   text: string;
 }
 
+export interface JapaneseTransliterationGroup {
+  surface: string;
+  romaji: string;
+  hiragana: string;
+  katakana: string;
+  gloss: string;
+  lemma: string;
+  partOfSpeech: string;
+  form: string;
+}
+
+export interface SavedJapaneseTransliteration {
+  sourceText: string;
+  groups: JapaneseTransliterationGroup[];
+  convertedAt: string;
+}
+
 export interface SessionStore {
   session: {
     isLangpalSubtitlesOn: boolean;
@@ -62,6 +79,7 @@ export interface SessionStore {
     karaokeText: string;
     karaokeGuess: string;
     lyrics: string;
+    japaneseTransliterations: Record<string, SavedJapaneseTransliteration>;
   };
   setSession: (session: SessionStore["session"]) => void;
 }
@@ -104,6 +122,7 @@ const sessionStore = create<SessionStore>((set) => ({
     karaokeText: "",
     karaokeGuess: "",
     lyrics: "",
+    japaneseTransliterations: {},
   },
   setSession: (session) => set({ session }),
 }));
