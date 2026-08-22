@@ -22,12 +22,18 @@ import {
 } from "../../utilities/rendering";
 import { getSubtitleAtTime, parseSrt, transliterateCaptions } from "../../utilities/srt";
 import { retrieveChineseRomanizationMap } from "../../utilities/transliteration/transliteration";
+import { loadSrtFromLocalStorage } from "../../utilities/video-storage";
 import Loading from "../common/loading";
 import VideoTabs from "./video-tabs";
 
 const youtubeDownloadsEnabled = import.meta.env.VITE_DOWNLOAD_ENABLED === "true";
 
 export async function retrieveCustomSubtitles(videoId: string) {
+  const savedSubtitles = loadSrtFromLocalStorage(videoId);
+  if (savedSubtitles !== null) {
+    return savedSubtitles;
+  }
+
   const customSubtitlesResponse = await fetch("/api/subtitles", {
     method: "POST",
     headers: {
@@ -304,6 +310,7 @@ export default function OverlayPage() {
       : overlay.loadedVideoId;
     const customSubtitles = await retrieveCustomSubtitles(videoId);
     if (!customSubtitles) {
+      setSessionState({ isLoading: false });
       alert("Failed to load video subtitles");
       return;
     }

@@ -136,6 +136,7 @@ export default function SubtitleEditorSearchView() {
     setSessionState({ ...session, isLoading: true });
     const customSubtitles = await retrieveCustomSubtitles(videoId);
     if (!customSubtitles) {
+      setSessionState({ isLoading: false });
       alert("Failed to load video subtitles");
       return;
     }

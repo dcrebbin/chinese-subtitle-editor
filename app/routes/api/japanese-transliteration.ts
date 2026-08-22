@@ -26,13 +26,21 @@ function serializeCookies(jar: CookieJar) {
 
 function requestHeaders(jar: CookieJar): HeadersInit {
   return {
-    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    Accept:
+      "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "Accept-Language": "en-GB,en;q=0.9",
+    "Cache-Control": "max-age=0",
     "Content-Type": "application/x-www-form-urlencoded",
     Cookie: serializeCookies(jar),
     Origin: J_TALK_ORIGIN,
     Referer: J_TALK_CONVERT_URL,
-    "User-Agent": "Canto-Subtitles-Maker/0.1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "same-origin",
+    "Sec-Fetch-User": "?1",
+    "Upgrade-Insecure-Requests": "1",
+    "User-Agent":
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
   };
 }
 
@@ -85,28 +93,35 @@ export function parseJTalkHtml(html: string, sourceText: string) {
   const $ = load(html);
   const groups: JapaneseTransliterationGroup[] = [];
 
-  $(".output-table tr.unit").each((_, row) => {
-    const element = $(row);
-    const source = element.find(".m").first();
-    const surface = source.text().trim();
-    if (!surface) return;
+  const parseElements = (selector: string) => {
+    $(selector).each((_, row) => {
+      const element = $(row);
+      const source = element.find(".m").first();
+      const surface = source.text().trim();
+      if (!surface) return;
 
-    groups.push({
-      surface,
-      romaji: element.find(".preference-romaji").first().text().trim().toLowerCase(),
-      hiragana: element.find(".preference-hiragana").first().text().trim(),
-      katakana: element.find(".preference-katakana").first().text().trim(),
-      gloss: element.find(".gloss").first().text().trim(),
-      lemma: source.attr("data-lemma") || surface,
-      partOfSpeech: source.attr("data-pos1") || "",
-      form: element.find(".form").first().text().trim(),
+      groups.push({
+        surface,
+        romaji: element.find(".preference-romaji").first().text().trim().toLowerCase(),
+        hiragana: element.find(".preference-hiragana").first().text().trim(),
+        katakana: element.find(".preference-katakana").first().text().trim(),
+        gloss: element.find(".gloss").first().text().trim(),
+        lemma: source.attr("data-lemma") || surface,
+        partOfSpeech: source.attr("data-pos1") || "",
+        form: element.find(".form").first().text().trim(),
+      });
     });
-  });
+  };
+
+  parseElements(".output-table tr.unit");
+  if (groups.length === 0) {
+    parseElements(".output-main .sentence .unit .word");
+  }
 
   return insertUnconvertedText(sourceText, groups);
 }
 
-async function convertJapanese(content: string) {
+async function convertJapaneseOnce(content: string) {
   const cookies: CookieJar = new Map();
   const formResponse = await fetch(J_TALK_CONVERT_URL, {
     headers: requestHeaders(cookies),
@@ -136,6 +151,9 @@ async function convertJapanese(content: string) {
   if (resultUrl) {
     const parsedUrl = new URL(resultUrl);
     if (parsedUrl.origin !== J_TALK_ORIGIN) throw new Error("Unexpected j-talk redirect origin");
+    if (parsedUrl.pathname === "/convert") {
+      throw new Error("j-talk returned its input form instead of a conversion result");
+    }
     const resultResponse = await fetch(parsedUrl, {
       headers: requestHeaders(cookies),
     });
@@ -151,6 +169,43 @@ async function convertJapanese(content: string) {
   return groups;
 }
 
+async function convertJapanese(content: string) {
+  let lastError: unknown;
+  const maximumAttempts = 5;
+  for (let attempt = 0; attempt < maximumAttempts; attempt++) {
+    try {
+      return await convertJapaneseOnce(content);
+    } catch (error) {
+      lastError = error;
+      if (attempt < maximumAttempts - 1) {
+        // j-talk intermittently redirects automated requests back to its empty
+        // form. A fresh session plus a real cooldown is much more reliable than
+        // immediately repeating the rejected request.
+        const delay = Math.min(1_500 * 2 ** attempt, 6_000);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("Japanese transliteration failed");
+}
+
+let conversionQueue: Promise<void> = Promise.resolve();
+
+async function queueJapaneseConversion(content: string) {
+  const previousConversion = conversionQueue.catch(() => undefined);
+  let releaseQueue!: () => void;
+  conversionQueue = new Promise<void>((resolve) => {
+    releaseQueue = resolve;
+  });
+
+  await previousConversion;
+  try {
+    return await convertJapanese(content);
+  } finally {
+    releaseQueue();
+  }
+}
+
 export const Route = createFileRoute("/api/japanese-transliteration")({
   server: {
     handlers: {
@@ -164,7 +219,7 @@ export const Route = createFileRoute("/api/japanese-transliteration")({
             return Response.json({ error: "Japanese text is too long" }, { status: 400 });
           }
 
-          const groups = await convertJapanese(content);
+          const groups = await queueJapaneseConversion(content);
           return Response.json({
             sourceText: content,
             convertedAt: new Date().toISOString(),

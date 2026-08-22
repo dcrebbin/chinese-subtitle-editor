@@ -16,6 +16,20 @@ export function getJapaneseTransliterationStorageKey(videoId: string) {
   return `${JAPANESE_TRANSLITERATION_STORAGE_KEY_PREFIX}${videoId || "draft"}`;
 }
 
+export function saveSrtToLocalStorage(videoId: string, srtContent: string): boolean {
+  if (typeof window === "undefined" || !videoId) {
+    return false;
+  }
+
+  try {
+    localStorage.setItem(getSrtStorageKey(videoId), srtContent);
+    return true;
+  } catch (error) {
+    console.error("Failed to save subtitles to localStorage:", error);
+    return false;
+  }
+}
+
 export function saveJapaneseTransliterationsToLocalStorage(
   videoId: string,
   transliterations: Record<string, SavedJapaneseTransliteration>,

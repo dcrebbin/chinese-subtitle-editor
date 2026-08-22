@@ -4,10 +4,8 @@ import { ArrowDownOnSquareIcon } from "@heroicons/react/24/solid";
 
 import { useSessionStore, type ParsedSubtitle } from "../../store/session.store";
 import { parseSrt } from "../../utilities/srt";
-import {
-  convertCaptionsToSrt,
-} from "../../utilities/transliteration/transliteration";
-import { getSrtStorageKey } from "../../utilities/video-storage";
+import { convertCaptionsToSrt } from "../../utilities/transliteration/transliteration";
+import { saveSrtToLocalStorage } from "../../utilities/video-storage";
 import SaveIcon from "../common/icons/save";
 
 export default function SubtitleEditorBottomControls() {
@@ -25,14 +23,8 @@ export default function SubtitleEditorBottomControls() {
         originalSrtContent: convertedSrt,
         parsedSubtitles: parsedSubtitles as ParsedSubtitle[],
       });
-      console.log(session.videoId);
-      if (session.videoId) {
-        try {
-          localStorage.setItem(getSrtStorageKey(session.videoId), convertedSrt);
-          console.log(`Saved subtitles to localStorage for video: ${session.videoId}`);
-        } catch (error) {
-          console.error(`Failed to save to localStorage: ${error}`);
-        }
+      if (saveSrtToLocalStorage(session.videoId, convertedSrt)) {
+        console.log(`Saved subtitles to localStorage for video: ${session.videoId}`);
       }
     } catch (error) {
       console.error("Error saving subtitles:", error);
