@@ -1,57 +1,32 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { load } from "cheerio";
 
-import type { JapaneseTransliterationGroup } from "../../store/session.store";
+import type {
+  JapaneseTransliterationGroup,
+  SavedJapaneseTransliteration,
+} from "../../store/session.store";
 
-const J_TALK_ORIGIN = "https://j-talk.com";
-const J_TALK_CONVERT_URL = `${J_TALK_ORIGIN}/convert`;
+const TRANSLITERATION_URL = "http://localhost:4000/v1/transliterate";
 
-type CookieJar = Map<string, string>;
+const REQUEST_TIMEOUT_MS = 10_000;
+const RETRY_DELAY_MS = 1_200;
+const MAXIMUM_ATTEMPTS = 4;
+const MAXIMUM_TOTAL_CHARACTERS = 20_000;
 
-function updateCookieJar(jar: CookieJar, headers: Headers) {
-  const headersWithCookies = headers as Headers & { getSetCookie?: () => string[] };
-  const setCookies = headersWithCookies.getSetCookie?.() ?? [];
-  const values = setCookies.length > 0 ? setCookies : [headers.get("set-cookie") || ""];
-
-  for (const value of values) {
-    for (const match of value.matchAll(/(?:^|,\s*)(XSRF-TOKEN|j_talk_session)=([^;]+)/g)) {
-      jar.set(match[1] as string, match[2] as string);
-    }
-  }
+function delay(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-function serializeCookies(jar: CookieJar) {
-  return [...jar.entries()].map(([name, value]) => `${name}=${value}`).join("; ");
-}
-
-function requestHeaders(jar: CookieJar): HeadersInit {
+function unconvertedGroup(surface: string): JapaneseTransliterationGroup {
   return {
-    Accept:
-      "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-    "Accept-Language": "en-GB,en;q=0.9",
-    "Cache-Control": "max-age=0",
-    "Content-Type": "application/x-www-form-urlencoded",
-    Cookie: serializeCookies(jar),
-    Origin: J_TALK_ORIGIN,
-    Referer: J_TALK_CONVERT_URL,
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "same-origin",
-    "Sec-Fetch-User": "?1",
-    "Upgrade-Insecure-Requests": "1",
-    "User-Agent":
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+    surface,
+    romaji: "",
+    hiragana: "",
+    katakana: "",
+    gloss: "",
+    lemma: surface,
+    partOfSpeech: "",
+    form: "",
   };
-}
-
-function extractResultUrl(html: string, response: Response): string | null {
-  const location = response.headers.get("location");
-  if (location) return new URL(location, J_TALK_ORIGIN).toString();
-
-  const $ = load(html);
-  const refresh = $('meta[http-equiv="refresh"]').attr("content") || "";
-  const match = refresh.match(/url=['"]?([^'";]+)['"]?/i);
-  return match?.[1] ? new URL(match[1], J_TALK_ORIGIN).toString() : null;
 }
 
 function insertUnconvertedText(
@@ -62,17 +37,7 @@ function insertUnconvertedText(
   let cursor = 0;
 
   const addGap = (surface: string) => {
-    if (!surface) return;
-    result.push({
-      surface,
-      romaji: "",
-      hiragana: "",
-      katakana: "",
-      gloss: "",
-      lemma: surface,
-      partOfSpeech: "",
-      form: "",
-    });
+    if (surface) result.push(unconvertedGroup(surface));
   };
 
   for (const group of groups) {
@@ -89,121 +54,97 @@ function insertUnconvertedText(
   return result;
 }
 
-export function parseJTalkHtml(html: string, sourceText: string) {
-  const $ = load(html);
-  const groups: JapaneseTransliterationGroup[] = [];
-
-  const parseElements = (selector: string) => {
-    $(selector).each((_, row) => {
-      const element = $(row);
-      const source = element.find(".m").first();
-      const surface = source.text().trim();
-      if (!surface) return;
-
-      groups.push({
-        surface,
-        romaji: element.find(".preference-romaji").first().text().trim().toLowerCase(),
-        hiragana: element.find(".preference-hiragana").first().text().trim(),
-        katakana: element.find(".preference-katakana").first().text().trim(),
-        gloss: element.find(".gloss").first().text().trim(),
-        lemma: source.attr("data-lemma") || surface,
-        partOfSpeech: source.attr("data-pos1") || "",
-        form: element.find(".form").first().text().trim(),
-      });
-    });
-  };
-
-  parseElements(".output-table tr.unit");
-  if (groups.length === 0) {
-    parseElements(".output-main .sentence .unit .word");
-  }
-
-  return insertUnconvertedText(sourceText, groups);
+interface TransliterationToken {
+  surface: string;
+  lemma?: string;
+  partOfSpeech?: { primary?: string | null };
+  reading?: { hiragana?: string; katakana?: string; romaji?: string };
+  inflection?: { form?: string } | null;
 }
 
-async function convertJapaneseOnce(content: string) {
-  const cookies: CookieJar = new Map();
-  const formResponse = await fetch(J_TALK_CONVERT_URL, {
-    headers: requestHeaders(cookies),
-  });
-  updateCookieJar(cookies, formResponse.headers);
-  if (!formResponse.ok) throw new Error(`j-talk form returned ${formResponse.status}`);
+interface TransliterationResponse {
+  tokens?: TransliterationToken[];
+  sentences?: Array<{ tokens?: TransliterationToken[] }>;
+}
 
-  const formHtml = await formResponse.text();
-  const csrfToken = load(formHtml)('input[name="_token"]').attr("value");
-  if (!csrfToken) throw new Error("j-talk CSRF token was not found");
+function tokenToGroup(token: TransliterationToken): JapaneseTransliterationGroup {
+  return {
+    surface: token.surface,
+    romaji: token.reading?.romaji ?? "",
+    hiragana: token.reading?.hiragana ?? "",
+    katakana: token.reading?.katakana ?? "",
+    gloss: "",
+    lemma: token.lemma ?? token.surface,
+    partOfSpeech: token.partOfSpeech?.primary ?? "",
+    form: token.inflection?.form ?? "",
+  };
+}
 
-  const body = new URLSearchParams({
-    _token: csrfToken,
-    content,
-    convertOption: "main",
-  });
-  const conversionResponse = await fetch(J_TALK_CONVERT_URL, {
-    method: "POST",
-    headers: requestHeaders(cookies),
-    body,
-    redirect: "manual",
-  });
-  updateCookieJar(cookies, conversionResponse.headers);
-  let resultHtml = await conversionResponse.text();
-
-  const resultUrl = extractResultUrl(resultHtml, conversionResponse);
-  if (resultUrl) {
-    const parsedUrl = new URL(resultUrl);
-    if (parsedUrl.origin !== J_TALK_ORIGIN) throw new Error("Unexpected j-talk redirect origin");
-    if (parsedUrl.pathname === "/convert") {
-      throw new Error("j-talk returned its input form instead of a conversion result");
-    }
-    const resultResponse = await fetch(parsedUrl, {
-      headers: requestHeaders(cookies),
-    });
-    updateCookieJar(cookies, resultResponse.headers);
-    if (!resultResponse.ok) throw new Error(`j-talk result returned ${resultResponse.status}`);
-    resultHtml = await resultResponse.text();
-  }
-
-  const groups = parseJTalkHtml(resultHtml, content);
+function parseTransliterationResponse(response: TransliterationResponse) {
+  const tokens =
+    response.tokens ?? response.sentences?.flatMap((sentence) => sentence.tokens ?? []) ?? [];
+  const groups = tokens.filter((token) => token.surface).map(tokenToGroup);
   if (groups.length === 0 || groups.every((group) => !group.romaji)) {
-    throw new Error("No transliteration groups were found in the j-talk response");
+    throw new Error("Transliteration service returned no readings");
   }
   return groups;
 }
 
+async function convertJapaneseOnce(content: string) {
+  const response = await fetch(TRANSLITERATION_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ text: content }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+
+  if (!response.ok) throw new Error(`Transliteration service returned ${response.status}`);
+  const result = (await response.json()) as TransliterationResponse;
+  return { groups: parseTransliterationResponse(result), resultUrl: TRANSLITERATION_URL };
+}
+
 async function convertJapanese(content: string) {
   let lastError: unknown;
-  const maximumAttempts = 5;
-  for (let attempt = 0; attempt < maximumAttempts; attempt++) {
+  for (let attempt = 0; attempt < MAXIMUM_ATTEMPTS; attempt++) {
     try {
       return await convertJapaneseOnce(content);
     } catch (error) {
       lastError = error;
-      if (attempt < maximumAttempts - 1) {
-        // j-talk intermittently redirects automated requests back to its empty
-        // form. A fresh session plus a real cooldown is much more reliable than
-        // immediately repeating the rejected request.
-        const delay = Math.min(1_500 * 2 ** attempt, 6_000);
-        await new Promise((resolve) => setTimeout(resolve, delay));
+      if (attempt < MAXIMUM_ATTEMPTS - 1) {
+        await delay(RETRY_DELAY_MS * (attempt + 1));
       }
     }
   }
   throw lastError instanceof Error ? lastError : new Error("Japanese transliteration failed");
 }
 
-let conversionQueue: Promise<void> = Promise.resolve();
+async function convertJapaneseLines(lines: string[]) {
+  const groupsByLine = new Map<number, JapaneseTransliterationGroup[]>();
+  const failures: string[] = [];
+  let requestCount = 0;
 
-async function queueJapaneseConversion(content: string) {
-  const previousConversion = conversionQueue.catch(() => undefined);
-  let releaseQueue!: () => void;
-  conversionQueue = new Promise<void>((resolve) => {
-    releaseQueue = resolve;
+  await Promise.all(
+    lines.map(async (line, lineIndex) => {
+      requestCount++;
+      try {
+        const conversion = await convertJapanese(line);
+        groupsByLine.set(lineIndex, insertUnconvertedText(line, conversion.groups));
+      } catch (error) {
+        failures.push(error instanceof Error ? error.message : "conversion failed");
+      }
+    }),
+  );
+
+  const convertedAt = new Date().toISOString();
+  const transliterations: Record<string, SavedJapaneseTransliteration> = {};
+
+  lines.forEach((line, lineIndex) => {
+    const groups = groupsByLine.get(lineIndex);
+    if (!groups?.length || groups.every((group) => !group.romaji)) return;
+    transliterations[line] = { sourceText: line, groups, convertedAt };
   });
 
-  await previousConversion;
-  try {
-    return await convertJapanese(content);
-  } finally {
-    releaseQueue();
-  }
+  return { transliterations, failures, requestCount, resultUrl: TRANSLITERATION_URL };
 }
 
 export const Route = createFileRoute("/api/japanese-transliteration")({
@@ -211,7 +152,42 @@ export const Route = createFileRoute("/api/japanese-transliteration")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const body = (await request.json()) as { content?: string };
+          const body = (await request.json()) as { content?: string; lines?: unknown };
+
+          if (Array.isArray(body.lines)) {
+            const lines = [
+              ...new Set(
+                body.lines
+                  .filter((line): line is string => typeof line === "string")
+                  .map((line) => line.trim())
+                  .filter(Boolean),
+              ),
+            ];
+            if (lines.length === 0) {
+              return Response.json({ error: "Japanese text is required" }, { status: 400 });
+            }
+            const totalCharacters = lines.reduce((total, line) => total + line.length, 0);
+            if (totalCharacters > MAXIMUM_TOTAL_CHARACTERS) {
+              return Response.json({ error: "Japanese text is too long" }, { status: 400 });
+            }
+
+            const batch = await convertJapaneseLines(lines);
+            if (Object.keys(batch.transliterations).length === 0) {
+              return Response.json(
+                { error: batch.failures[0] || "Japanese transliteration failed" },
+                { status: 502 },
+              );
+            }
+            return Response.json({
+              transliterations: batch.transliterations,
+              requestedCount: lines.length,
+              convertedCount: Object.keys(batch.transliterations).length,
+              requestCount: batch.requestCount,
+              failures: batch.failures,
+              providerResultUrl: batch.resultUrl,
+            });
+          }
+
           const content = body.content?.trim() || "";
           if (!content)
             return Response.json({ error: "Japanese text is required" }, { status: 400 });
@@ -219,11 +195,12 @@ export const Route = createFileRoute("/api/japanese-transliteration")({
             return Response.json({ error: "Japanese text is too long" }, { status: 400 });
           }
 
-          const groups = await queueJapaneseConversion(content);
+          const result = await convertJapanese(content);
           return Response.json({
             sourceText: content,
             convertedAt: new Date().toISOString(),
-            groups,
+            groups: insertUnconvertedText(content, result.groups),
+            providerResultUrl: result.resultUrl,
           });
         } catch (error) {
           console.error("Japanese transliteration failed:", error);

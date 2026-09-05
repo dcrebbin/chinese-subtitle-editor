@@ -10,9 +10,9 @@
 
 import { Route as rootRouteImport } from './app/routes/__root'
 import { Route as IndexRouteImport } from './app/routes/index'
-import { Route as ApiSubtitlesRouteImport } from './app/routes/api/subtitles'
-import { Route as ApiJapaneseTransliterationRouteImport } from './app/routes/api/japanese-transliteration'
 import { Route as ApiDownloadRouteImport } from './app/routes/api/download'
+import { Route as ApiJapaneseTransliterationRouteImport } from './app/routes/api/japanese-transliteration'
+import { Route as ApiSubtitlesRouteImport } from './app/routes/api/subtitles'
 import { Route as ApiSubtitlesSearchRouteImport } from './app/routes/api/subtitles/search'
 
 const IndexRoute = IndexRouteImport.update({
@@ -20,9 +20,9 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiSubtitlesRoute = ApiSubtitlesRouteImport.update({
-  id: '/api/subtitles',
-  path: '/api/subtitles',
+const ApiDownloadRoute = ApiDownloadRouteImport.update({
+  id: '/api/download',
+  path: '/api/download',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiJapaneseTransliterationRoute =
@@ -31,9 +31,9 @@ const ApiJapaneseTransliterationRoute =
     path: '/api/japanese-transliteration',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiDownloadRoute = ApiDownloadRouteImport.update({
-  id: '/api/download',
-  path: '/api/download',
+const ApiSubtitlesRoute = ApiSubtitlesRouteImport.update({
+  id: '/api/subtitles',
+  path: '/api/subtitles',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSubtitlesSearchRoute = ApiSubtitlesSearchRouteImport.update({
@@ -104,11 +104,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/subtitles': {
-      id: '/api/subtitles'
-      path: '/api/subtitles'
-      fullPath: '/api/subtitles'
-      preLoaderRoute: typeof ApiSubtitlesRouteImport
+    '/api/download': {
+      id: '/api/download'
+      path: '/api/download'
+      fullPath: '/api/download'
+      preLoaderRoute: typeof ApiDownloadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/japanese-transliteration': {
@@ -118,11 +118,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiJapaneseTransliterationRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/download': {
-      id: '/api/download'
-      path: '/api/download'
-      fullPath: '/api/download'
-      preLoaderRoute: typeof ApiDownloadRouteImport
+    '/api/subtitles': {
+      id: '/api/subtitles'
+      path: '/api/subtitles'
+      fullPath: '/api/subtitles'
+      preLoaderRoute: typeof ApiSubtitlesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/subtitles/search': {

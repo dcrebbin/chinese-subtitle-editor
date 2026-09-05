@@ -12,6 +12,8 @@ type OverlayStore = {
     setVerticalPosition: (verticalPosition: number) => void;
     sizeMultiplier: number;
     setSizeMultiplier: (sizeMultiplier: number) => void;
+    transliterationEnabled: boolean;
+    setTransliterationEnabled: (transliterationEnabled: boolean) => void;
     lyricOffset: number;
     setLyricOffset: (lyricOffset: number) => void;
     startTime: number;
@@ -30,6 +32,10 @@ type OverlayStore = {
     setJsonData: (jsonData: Record<string, unknown>) => void;
     videoDimensions: { width: number; height: number };
     setVideoDimensions: (videoDimensions: { width: number; height: number }) => void;
+    videoCropTop: number;
+    setVideoCropTop: (videoCropTop: number) => void;
+    videoCropBottom: number;
+    setVideoCropBottom: (videoCropBottom: number) => void;
     file: File | null;
     videoLength: number;
     setVideoLength: (videoLength: number) => void;
@@ -69,6 +75,7 @@ type PersistableOverlaySettings = Pick<
   OverlayStore["overlay"],
   | "verticalPosition"
   | "sizeMultiplier"
+  | "transliterationEnabled"
   | "lyricOffset"
   | "selectedTab"
   | "isLandscapeMode"
@@ -79,6 +86,8 @@ type PersistableOverlaySettings = Pick<
   | "doubleBackgroundImageOffsetY"
   | "colour"
   | "videoPosition"
+  | "videoCropTop"
+  | "videoCropBottom"
   | "downloadVideoId"
   | "loadedVideoId"
 >;
@@ -86,6 +95,7 @@ type PersistableOverlaySettings = Pick<
 const defaultPersistableOverlaySettings: PersistableOverlaySettings = {
   verticalPosition: 200,
   sizeMultiplier: 1,
+  transliterationEnabled: true,
   lyricOffset: 0,
   selectedTab: "editor",
   isLandscapeMode: true,
@@ -96,6 +106,8 @@ const defaultPersistableOverlaySettings: PersistableOverlaySettings = {
   doubleBackgroundImageOffsetY: { image1: 0, image2: 0 },
   colour: null,
   videoPosition: "center",
+  videoCropTop: 0,
+  videoCropBottom: 0,
   downloadVideoId: null,
   loadedVideoId: null,
 };
@@ -162,6 +174,7 @@ function persistOverlaySettings(overlay: OverlayStore["overlay"]) {
   const settingsToSave = sanitizePersistableOverlaySettings({
     verticalPosition: overlay.verticalPosition,
     sizeMultiplier: overlay.sizeMultiplier,
+    transliterationEnabled: overlay.transliterationEnabled,
     lyricOffset: overlay.lyricOffset,
     selectedTab: overlay.selectedTab,
     isLandscapeMode: overlay.isLandscapeMode,
@@ -172,15 +185,14 @@ function persistOverlaySettings(overlay: OverlayStore["overlay"]) {
     doubleBackgroundImageOffsetY: overlay.doubleBackgroundImageOffsetY,
     colour: overlay.colour,
     videoPosition: overlay.videoPosition,
+    videoCropTop: overlay.videoCropTop,
+    videoCropBottom: overlay.videoCropBottom,
     downloadVideoId: overlay.downloadVideoId,
     loadedVideoId: overlay.loadedVideoId,
   });
 
   try {
-    localStorage.setItem(
-      OVERLAY_SETTINGS_STORAGE_KEY,
-      JSON.stringify(settingsToSave),
-    );
+    localStorage.setItem(OVERLAY_SETTINGS_STORAGE_KEY, JSON.stringify(settingsToSave));
   } catch (error) {
     console.error("Failed to save overlay settings to localStorage:", error);
   }

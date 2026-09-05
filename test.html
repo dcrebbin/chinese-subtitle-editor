@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-197581-13"></script>
+    <script>
+        var nnisp = false;
+        window.dataLayer = window.dataLayer || [];
+
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+
+        gtag('js', new Date());
+
+        gtag('config', 'UA-197581-13');
+    </script>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- CSRF Token -->
+    <meta name="csrf-token" content="sPvQAeTf5sgfbb0CoDaFFcEpJmKe4IkiGYzjhq5o">
+
+            <title>Kanji Romaji Hiragana Convert</title>
+    
+<!-- Styles -->
+    <link href="https://j-talk.com/css/app.css?v=5ee08235" rel="stylesheet">
+
+    
+        
+    <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+    <script>
+
+        (adsbygoogle = window.adsbygoogle || []).push({
+            google_ad_client: "ca-pub-5738676868539318",
+            enable_page_level_ads: true
+        });
+    </script>
+
+
+    
+</head>
+<body>
+<div id="app_">
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="https://j-talk.com/convert">J-TALK</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+                aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="https://j-talk.com/convert">Convert <span
+                                class="sr-only">(current)</span></a>
+                </li>
+                <li class="nav-item active">
+                    <a class="nav-link" href="https://j-talk.com/page/contact">Contact</a>
+                </li>
+                                    <li class="nav-item active">
+                        <a class="nav-link" href="https://j-talk.com/login">Login</a>
+                    </li>
+                    <li class="nav-item active">
+                        <a class="nav-link" href="https://j-talk.com/register">Register</a>
+                    </li>
+                
+
+            </ul>
+
+
+        </div>
+            </nav>
+
+
+            <div class="container">
+        <style>
+            .sale-on{
+
+            }
+
+            .alert-warning.sale-on {
+                color: #ccc;
+                background-color: #000;
+                border-color: #ffeeba;
+            }
+
+            .sale-on a, .sale-on a:link, .sale-on a:visited {
+                color: white;
+                text-decoration: underline;
+            }
+
+            .sale-on a:active, .sale-on a:hover  {
+                color: #999;
+                text-decoration: underline;
+            }
+        </style>
+        <div class="row">
+            <div class="col">
+
+                                    <div class="alert alert-info alert-dismissable" role="alert">
+                        Convert Kanji (漢字) and Websites to Romaji or Hiragana (and translate Japanese to
+                        English, too).
+                        A resource for studying Japanese and kanji, improving vocabulary or reading manga &
+                        anime.
+                        With most nihongo (日本語), the translator has an accuracy rate of over 99%.
+
+                    </div>
+                    <div class="alert alert-warning" role="alert">
+                        <h2>Now <a href="https://j-talk.com/subscribe/paypal">subscribe</a> with <a href="https://j-talk.com/subscribe/paypal">Paypal <i class="fa fa-paypal"></i></a></h2>
+                        <p>For the price of a couple of coffees <i class="fa fa-coffee"></i>  please support the site and get full length (30,000+ characters) translations + no ads by
+                            donating to the site  by using <a href="https://j-talk.com/subscribe/paypal">Paypal <i class="fa fa-paypal"></i> </a></p>
+                        <p></p>
+                    </div>
+
+                
+                
+
+                
+
+
+                <form method="POST" action="https://j-talk.com/convert" accept-charset="UTF-8"><input name="_token" type="hidden" value="sPvQAeTf5sgfbb0CoDaFFcEpJmKe4IkiGYzjhq5o">
+
+
+                <div class="form-group">
+                    <label for="content">Add your Japanese text:</label>
+                    <textarea class="form-control" name="content" cols="50" rows="10" id="content"></textarea>
+
+                </div>
+
+                <div class="form-row" id="convert-submit">
+                    <div class="form-group col-md-3">
+                        <input type="submit" class="btn btn-primary" value="Convert"> or
+                        <a href="/mcbdnyh">Demo (Norwegian Wood)</a> &nbsp;&nbsp;
+
+
+                        <a class="alert-link" href="#" data-toggle="modal" data-target="#optionsHelp"
+                           aria-label="Learn about the submit options"><i class="fa fa-question-circle"
+                                                                          aria-hidden="true"></i></a>
+
+                    </div>
+
+                    <div class="form-group col-md-3">
+                        <select id="convertOption" name="convertOption" class="form-control">
+                            <option  value="main">Main</option>
+                            <option  value="rollpop">Simple
+                                (roll +
+                                pop)
+                            </option>
+                            <option  value="roll">Simpler (roll)
+                            </option>
+                            <option  value="pop">Simpler (pop)
+                            </option>
+                            <option  value="nothing">Simplest
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
+
+                <div class="form-row" id="convert-adb" style="display:none;">
+                    <div class="form-group col-md-12">
+                        <div class="btn btn-danger">Please turn off your AdBlocker and refresh the page.</div>
+
+                    </div>
+
+
+                </div>
+
+                <div id="charCount" data-max="75" class="alert alert-danger"
+                     style="margin-top: 20px;display:none;">
+                    <p class="message"></p>
+                                            <p>You have hit the 75 character limit for those not logged
+                            in. The
+                            input will be chopped. But is
+                            raised to
+                            around 30,000 for those who join and donate (around $10/year). <a
+                                    class="alert-link" href="#" data-toggle="modal"
+                                    data-target="#loginExplain">Why?</a>.
+                        </p>
+                                    </div>
+                <div class="alert alert-dismissable" style="margin-top: 20px;">
+                    <p style="font-size: larger; margin-bottom: 30px;"><span class="badge badge-pill badge-success">
+                            NEW SERVER </span> A nice new server in prep for transitioning to lots of new stuff. Phew! <a href="https://www.instagram.com/p/CyDdhpbNPc1/">Life gets in the way sometimes</a>! 😶‍🌫
+                        <br>If you have problems, or just want to say hello 😁 please <a href="mailto:corrals_retry0i@icloud.com?subject=[J-Talk]%20Stuff">just email me</a>
+                        . And while you're at it, please follow me on <a href="https://www.instagram.com/macgroover/">Instagram</a> where I post lots of pics of <a href="https://www.instagram.com/p/CzGiFBGpMmN/">beautiful Japan</a>. <a href="https://www.instagram.com/macgroover/">@macgroover</a>
+                    </p>
+                    <p style="font-size: larger; margin-bottom: 30px;"><span class="badge badge-pill badge-info">
+                            お願い </span> Please join the
+                        <a href="https://discord.gg/BsXZ6ARCAv">Discord Channel</a>. It's a chance to suggest features etc. to the biggest coming update since J-Talk.com began. (Some features listed <a href="https://alpha.j-talk.com/page/beta">here</a>). Suggestions/requests made before the update are much more likely to be implemented.
+                    </p>
+
+                    <p style="font-size: larger; margin-bottom: 30px;"><span class="badge badge-pill badge-danger">
+                            EARLY PREVIEW NOW OPEN </span> Try out a <a href="https://alpha.j-talk.com/">very early preview of new site (Not working on new server. Beta soon</a>
+                    </p>
+
+
+                    <p><span class="badge badge-pill badge-warning">New Feature</span> Click on the star <i
+                                class="fa fa-star"></i> on the popup to <strong>favorite</strong> words. (See image
+                        below).</p>
+
+                    <p><span class="badge badge-pill badge-info">Did you know?</span> You can now share your
+                        translations. Just copy paste the URL like
+                        this: <a href="https://j-talk.com/dbhpvxk">https://j-talk.com/dbhpvxk</a></p>
+
+
+                </div>
+                <div>
+                    <h2><strong>Click</strong> the word to get more translations:</h2>
+                    <img src="/images/translations.png?v=2" alt="Translations" style="width: 100%; display:block;">
+                </div>
+                <hr>
+                <div>
+                    <h2>And the Romaji, Kana, Original options for the quick rollover:</h2>
+                    <img src="/images/rollover.png" alt="Rollover" style="width: 100%; display:block;">
+                </div>
+                </form>
+
+
+            </div>
+        </div>
+    </div>
+
+
+    <div class="modal fade" id="loginExplain" tabindex="-1" role="dialog" aria-labelledby="loginExplain"
+         aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="modal-lex">The future of the site</h4>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <h5>New Features</h5>
+                    <p>I've added (or will shortly add) new features such as history, starring vocabulary items, writing
+                        notes, substituting translations etc. and these will need a login. Additionally, the parser is
+                        more accurate, some words have usage notes, and I'll be adding Japanese lessons etc. </p>
+                    <h5>Costs</h5>
+                    <p>In short, with the majority of users using adBlockers (which I understand) the running costs,
+                        which are substantial, are no longer covered by the ads. Also, there are issues with robots
+                        sending huge numbers of translation requests which a login system will prevent. In simple terms,
+                        it meant last year I was paying out of pocket to keep the site running!</p>
+                    <h5>No more ads for most users</h5>
+                    <p>Ads aren't a good experience anyway, so they are permanently removed for
+                        users who donate.</p>
+                    <h5>Mobile App?</h5>
+                    <p>As the site is now mobile friendly, there is no need to have an app (although I may make one in
+                        the future). So essentially, it works like an app.</p>
+                    <h5>Future Updates</h5>
+                    <p>I'm committed to continually improving the site, and will continue to add new features such as
+                        speaking practice, example sentences, flash cards, grammar lessons, etc.</p>
+                    <p>Thank you for your understanding,</p>
+                    <p><em>Gary</em></p>
+                    <p>PS: The old parser is now permanently closed. </p>
+                </div>
+                <div class="modal-footer">
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="optionsHelp" tabindex="-1" role="dialog" aria-labelledby="optionsHelp"
+         aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="modal-lex">Options</h4>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <h5>Roll</h5>
+                    <p>This shows the yellow rollover with the short definition and reading.</p>
+                    <h5>Pop</h5>
+                    <p>When you click the word, the longer definition appears.</p>
+                    <h5>Mobile Users</h5>
+                    <p>You may prefer to choose one or the other.</p>
+                    <h5>Blind Users</h5>
+                    <p>You may prefer to turn off the pop option.</p>
+                    <h5>Main Option & Simple (roll + pop)</h5>
+                    <p>These are essentially the same. The main option outputs the words with the reading and meanings
+                        above and below, while the simple reading just shows the romaji (or kana). You can toggle these
+                        options anyway, but this saves a click or two if you regularly use one or the other.</p>
+                </div>
+                <div class="modal-footer">
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="adb-explain" tabindex="-1" role="dialog" aria-labelledby="optionsHelp"
+         aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="modal-lex">We're glad you stopped by!</h4>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>But please understand that without advertising this website wouldn't be here.</p>
+                    <p>We ask you to disable your adblocker or make a <a href="https://j-talk.com/subscribe/paypal">small
+                            donation</a>.</p>
+                    <p>Then refresh the page.</p>
+                    <p>
+
+                                                    Error? Please <a href="https://j-talk.com/login">log in</a> first, then <a
+                                    href="https://j-talk.com/page/contact">contact me</a>. I can whitelist users who register.
+                                                <br><strong>Hardship?</strong> If you are suffering economic hardship, please
+                        <a href="https://j-talk.com/page/contact">contact me</a> for a free option.
+                    </p>
+
+
+                </div>
+                <div class="modal-footer">
+                    <p>J-Talk Team (of one!)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+</div>
+
+<!-- Scripts -->
+<script src="https://j-talk.com/js/app.js?v=1.3.0-beta"></script>
+
+
+    <script>
+        $(function () {
+            var $cc = $('#charCount');
+            var max = $cc.data('max');
+            $cc.hide();
+            $('textarea').on('input propertychange', function () {
+
+                // var max_len = 250;
+                var len = $(this).val().trim().length;
+
+                if (len > max) {
+                    $cc.show();
+                    $cc.find('.message').text(len + ' character' + (len === 1 ? '' : 's')).show();
+                } else {
+                    $cc.hide();
+                }
+
+            });
+        });
+    </script>
+
+</body>
+</html>

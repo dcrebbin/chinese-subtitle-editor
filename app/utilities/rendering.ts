@@ -10,11 +10,14 @@ import {
   retrieveChineseRomanizationMap,
   retrieveJapaneseRomanizationMap,
 } from "./transliteration/transliteration";
+import { getClampedVideoCrop } from "./video-crop";
 
 const INLINE_ENGLISH_FONT_SCALE = 0.5;
 const INLINE_ENGLISH_CELL_MAX_WIDTH_MULTIPLIER = 3;
 const INLINE_ENGLISH_CELL_PADDING = 2;
 const INLINE_ENGLISH_MIN_FONT_PX = 4;
+const JAPANESE_GROUP_WIDTH_PER_CHARACTER = 0.65;
+const JAPANESE_MIN_FONT_PX = 8;
 
 const TRANSLITERATION_ROWS_PER_LINE = 7;
 
@@ -220,7 +223,16 @@ export async function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any,
         if (caption.chinese === " " || caption.chinese === "") {
           return acc + cellSize / 3;
         }
-        return acc + computeTransliterationCellWidth(ctx, caption, rendererSizeMultiplier);
+        return (
+          acc +
+          computeTransliterationCellWidth(
+            ctx,
+            caption,
+            rendererSizeMultiplier,
+            languageCode,
+            overlay.transliterationEnabled,
+          )
+        );
       }, 0);
       const startX = (canvas.width - totalWidth) / 2;
       let currentX = startX;
@@ -228,11 +240,21 @@ export async function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any,
         if (caption.chinese === " " || caption.chinese === "") {
           currentX += cellSize / 3;
         } else {
-          drawCharacterCell(ctx, caption, currentX, rowY, rendererSizeMultiplier);
+          drawCharacterCell(
+            ctx,
+            caption,
+            currentX,
+            rowY,
+            rendererSizeMultiplier,
+            languageCode,
+            overlay.transliterationEnabled,
+          );
           const captionWidth = computeTransliterationCellWidth(
             ctx,
             caption,
             rendererSizeMultiplier,
+            languageCode,
+            overlay.transliterationEnabled,
           );
           currentX += captionWidth;
         }
@@ -347,14 +369,48 @@ export function computeTransliterationCellWidth(
   ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
   caption: { jyutping: string; chinese: string },
   sizeMultiplier: number,
+  languageCode = "zh",
+  transliterationEnabled = true,
 ) {
   if (caption.jyutping === "EN") {
     return computeEnglishCellWidth(ctx, caption.chinese, sizeMultiplier);
   }
   const sourceUnits = Math.max(1, Array.from(caption.chinese).length);
-  const readingUnits = Math.max(1, Math.ceil(caption.jyutping.length / 6));
+  const readingUnits = transliterationEnabled
+    ? Math.max(1, Math.ceil(caption.jyutping.length / 6))
+    : 1;
+  if (languageCode === "jp") {
+    return (
+      defaultCellSize *
+      sizeMultiplier *
+      Math.max(
+        1,
+        sourceUnits * JAPANESE_GROUP_WIDTH_PER_CHARACTER,
+        readingUnits * JAPANESE_GROUP_WIDTH_PER_CHARACTER,
+      )
+    );
+  }
   return defaultCellSize * sizeMultiplier * Math.max(sourceUnits, readingUnits);
 }
+
+const fitFontSizeToWidth = (
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  text: string,
+  fontFamily: string,
+  preferredFontPx: number,
+  minFontPx: number,
+  maxWidth: number,
+) => {
+  const savedFont = ctx.font;
+  let fontPx = preferredFontPx;
+  while (fontPx > minFontPx) {
+    ctx.font = `${fontPx}px ${fontFamily}`;
+    if (ctx.measureText(text).width <= maxWidth) break;
+    fontPx -= 1;
+  }
+  ctx.font = savedFont;
+  return Math.max(fontPx, minFontPx);
+};
 
 const fitEnglishTextToWidth = (
   ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
@@ -399,10 +455,18 @@ export const drawCharacterCell = (
   x: number,
   y: number,
   sizeMultiplier: number,
+  languageCode = "zh",
+  transliterationEnabled = true,
 ) => {
   if (!ctx) return;
   const cellSize = defaultCellSize * sizeMultiplier;
-  const cellWidth = computeTransliterationCellWidth(ctx, caption, sizeMultiplier);
+  const cellWidth = computeTransliterationCellWidth(
+    ctx,
+    caption,
+    sizeMultiplier,
+    languageCode,
+    transliterationEnabled,
+  );
 
   if (caption.jyutping === "EN") {
     const cellWidth = computeEnglishCellWidth(ctx, caption.chinese, sizeMultiplier);
@@ -438,18 +502,46 @@ export const drawCharacterCell = (
   ctx.fillRect(x, y, cellWidth, cellSize);
 
   ctx.fillStyle = "black";
-  ctx.font = `${jyutpingFontSize * sizeMultiplier}px Arial`;
+  const jyutpingText = caption.jyutping.replace(tone, segment);
+  const horizontalPadding = 6 * sizeMultiplier;
+  const maxTextWidth = Math.max(0, cellWidth - horizontalPadding * 2);
+  const romajiFontSize =
+    languageCode === "jp"
+      ? fitFontSizeToWidth(
+          ctx,
+          jyutpingText,
+          "Arial",
+          jyutpingFontSize * sizeMultiplier,
+          JAPANESE_MIN_FONT_PX * sizeMultiplier,
+          maxTextWidth,
+        )
+      : jyutpingFontSize * sizeMultiplier;
+  ctx.font = `${romajiFontSize}px Arial`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const paddingY = 15 * sizeMultiplier;
 
-  const jyutpingText = caption.jyutping.replace(tone, segment);
-  if (jyutpingText) {
+  if (transliterationEnabled && jyutpingText) {
     ctx.fillText(jyutpingText, x + cellWidth / 2, y + cellSize / 2 - paddingY);
   }
 
-  ctx.font = `${defaultChineseFontSize * sizeMultiplier}px Times New Roman`;
-  ctx.fillText(caption.chinese, x + cellWidth / 2, y + cellSize / 2 + paddingY);
+  const sourceFontSize =
+    languageCode === "jp"
+      ? fitFontSizeToWidth(
+          ctx,
+          caption.chinese,
+          "Times New Roman",
+          defaultChineseFontSize * sizeMultiplier,
+          JAPANESE_MIN_FONT_PX * sizeMultiplier,
+          maxTextWidth,
+        )
+      : defaultChineseFontSize * sizeMultiplier;
+  ctx.font = `${sourceFontSize}px Times New Roman`;
+  ctx.fillText(
+    caption.chinese,
+    x + cellWidth / 2,
+    y + cellSize / 2 + (transliterationEnabled ? paddingY : 0),
+  );
 };
 
 function addBackground(
@@ -561,6 +653,13 @@ export async function convertCanvas(
         const videoScale = Math.min(width / sample.displayWidth, height / sample.displayHeight);
         const drawWidth = sample.displayWidth * videoScale;
         const drawHeight = sample.displayHeight * videoScale;
+        const videoCrop = getClampedVideoCrop(
+          overlay.videoCropTop,
+          overlay.videoCropBottom,
+          sample.displayHeight,
+        );
+        const croppedSourceHeight = sample.displayHeight - videoCrop.top - videoCrop.bottom;
+        const croppedDrawHeight = croppedSourceHeight * videoScale;
         let drawY = overlay.videoPosition === "center" ? (height - drawHeight) / 2 : 0;
         let drawX = (width - drawWidth) / 2;
 
@@ -568,14 +667,24 @@ export async function convertCanvas(
         drawX = Math.round(drawX);
         drawY = Math.round(drawY);
 
-        // Draw the sample correctly scaled and positioned
-        sample.draw(ctx, drawX, drawY, drawWidth, drawHeight);
+        // Keep the video's original placement while removing the cropped source rows.
+        sample.draw(
+          ctx,
+          0,
+          videoCrop.top,
+          sample.displayWidth,
+          croppedSourceHeight,
+          drawX,
+          drawY + videoCrop.top * videoScale,
+          drawWidth,
+          croppedDrawHeight,
+        );
 
         if (subtitle) {
           const cantonese = subtitle.text.split("(yue)")[1]?.split("(en)")[0]?.trim() || "";
           const mandarin = subtitle.text.split("(zh)")[1]?.split("(en)")[0]?.trim() || "";
           const japanese = subtitle.text.split("(jp)")[1]?.split("(en)")[0]?.trim() || "";
-          const english = subtitle.text.split("(en)")[1]?.trim() || "";
+          const english = subtitle.text.split("(en)")[1]?.trim().split("(")[0] || "";
 
           const languageCode = determineNonEnglishLanguage(subtitle.text);
           const sourceText = cantonese || mandarin || japanese;
@@ -665,7 +774,16 @@ export async function convertCanvas(
                 if (caption.chinese === " " || caption.chinese === "") {
                   return acc + cellSize / 3;
                 }
-                return acc + computeTransliterationCellWidth(ctx!, caption, rendererSizeMultiplier);
+                return (
+                  acc +
+                  computeTransliterationCellWidth(
+                    ctx!,
+                    caption,
+                    rendererSizeMultiplier,
+                    languageCode,
+                    overlay.transliterationEnabled,
+                  )
+                );
               }, 0);
               const startX = ((ctx?.canvas?.width || 0) - totalWidth) / 2;
 
@@ -674,11 +792,21 @@ export async function convertCanvas(
                 if (caption.chinese === " " || caption.chinese === "") {
                   currentX += cellSize / 3;
                 } else {
-                  drawCharacterCell(ctx, caption, currentX, rowY, rendererSizeMultiplier);
+                  drawCharacterCell(
+                    ctx,
+                    caption,
+                    currentX,
+                    rowY,
+                    rendererSizeMultiplier,
+                    languageCode,
+                    overlay.transliterationEnabled,
+                  );
                   const captionWidth = computeTransliterationCellWidth(
                     ctx!,
                     caption,
                     rendererSizeMultiplier,
+                    languageCode,
+                    overlay.transliterationEnabled,
                   );
                   currentX += captionWidth;
                 }

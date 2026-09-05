@@ -22,6 +22,7 @@ import {
 } from "../../utilities/rendering";
 import { getSubtitleAtTime, parseSrt, transliterateCaptions } from "../../utilities/srt";
 import { retrieveChineseRomanizationMap } from "../../utilities/transliteration/transliteration";
+import { getClampedVideoCrop } from "../../utilities/video-crop";
 import { loadSrtFromLocalStorage } from "../../utilities/video-storage";
 import Loading from "../common/loading";
 import VideoTabs from "./video-tabs";
@@ -230,10 +231,22 @@ export default function OverlayPage() {
         // Wait until metadata is loaded, then play to fix potential load timing issues
         previewVideoRef.current.onloadedmetadata = () => {
           previewVideoRef.current?.play();
+          const videoHeight = previewVideoRef.current?.videoHeight || 1;
+          const videoCrop = getClampedVideoCrop(
+            overlay.videoCropTop,
+            overlay.videoCropBottom,
+            videoHeight,
+          );
           setOverlayState({
             videoLength: previewVideoRef.current?.duration || 0,
             startTime: 0,
             endTime: previewVideoRef.current?.duration || 0,
+            videoDimensions: {
+              width: previewVideoRef.current?.videoWidth || 1,
+              height: videoHeight,
+            },
+            videoCropTop: videoCrop.top,
+            videoCropBottom: videoCrop.bottom,
           });
         };
         previewVideoRef.current.load();
@@ -245,7 +258,7 @@ export default function OverlayPage() {
     } finally {
       setOverlayState({ videoIsDownloading: false });
     }
-  }, [overlay.downloadVideoId]);
+  }, [overlay.downloadVideoId, overlay.videoCropBottom, overlay.videoCropTop]);
 
   useEffect(() => {
     if (!youtubeDownloadsEnabled) {
@@ -291,6 +304,7 @@ export default function OverlayPage() {
     overlay.currentTime,
     overlay.verticalPosition,
     overlay.sizeMultiplier,
+    overlay.transliterationEnabled,
     overlay.isPlaying,
     overlay.lyricOffset,
     session.parsedSubtitles,
@@ -366,6 +380,14 @@ export default function OverlayPage() {
     previewHeight,
     overlay.isLandscapeMode,
   );
+  const sourceVideoHeight = Math.max(1, overlay.videoDimensions.height);
+  const videoCrop = getClampedVideoCrop(
+    overlay.videoCropTop,
+    overlay.videoCropBottom,
+    sourceVideoHeight,
+  );
+  const videoCropTopPercent = (videoCrop.top / sourceVideoHeight) * 100;
+  const videoCropBottomPercent = (videoCrop.bottom / sourceVideoHeight) * 100;
 
   const videoOverlayContent = (
     <div className="flex h-full w-full flex-col gap-4">
@@ -539,6 +561,48 @@ export default function OverlayPage() {
           }}
         />
       </div>
+      <div className="grid w-full gap-2 sm:grid-cols-2">
+        <label className="flex flex-col gap-1 text-sm">
+          Crop video top: {videoCrop.top}px
+          <input
+            className="w-full disabled:cursor-not-allowed disabled:opacity-50"
+            type="range"
+            min={0}
+            max={Math.max(0, sourceVideoHeight - videoCrop.bottom - 1)}
+            step={1}
+            value={videoCrop.top}
+            disabled={!overlay.previewUrl}
+            onChange={(e) => {
+              setOverlayState({ videoCropTop: Number.parseInt(e.target.value) });
+            }}
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          Crop video bottom: {videoCrop.bottom}px
+          <input
+            className="w-full disabled:cursor-not-allowed disabled:opacity-50"
+            type="range"
+            min={0}
+            max={Math.max(0, sourceVideoHeight - videoCrop.top - 1)}
+            step={1}
+            value={videoCrop.bottom}
+            disabled={!overlay.previewUrl}
+            onChange={(e) => {
+              setOverlayState({ videoCropBottom: Number.parseInt(e.target.value) });
+            }}
+          />
+        </label>
+      </div>
+      <label className="flex w-full cursor-pointer items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={overlay.transliterationEnabled}
+          onChange={(e) => {
+            setOverlayState({ transliterationEnabled: e.target.checked });
+          }}
+        />
+        Include transliteration in output
+      </label>
       <div
         className="relative mx-0 flex w-full max-w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-white drop-shadow-md sm:mx-4"
         style={{
@@ -597,6 +661,7 @@ export default function OverlayPage() {
                 width: "100%",
                 maxWidth: "100%",
                 marginTop: overlay.videoPosition === "top" ? "0" : "50%",
+                clipPath: `inset(${videoCropTopPercent}% 0 ${videoCropBottomPercent}% 0)`,
               }}
               preload="auto"
               className="absolute top-0 left-0 h-auto w-auto self-center justify-self-center"
@@ -822,7 +887,11 @@ export default function OverlayPage() {
           </button>
         </div>
         {overlay.outputUrl && (
-          <video className="relative z-0 h-140 w-full max-w-full rounded-2xl" ref={videoRef} controls>
+          <video
+            className="relative z-0 h-140 w-full max-w-full rounded-2xl"
+            ref={videoRef}
+            controls
+          >
             <track kind="captions" src={undefined} />
           </video>
         )}
@@ -858,6 +927,11 @@ export default function OverlayPage() {
             videoElement.src = url;
 
             videoElement.onloadedmetadata = () => {
+              const videoCrop = getClampedVideoCrop(
+                overlay.videoCropTop,
+                overlay.videoCropBottom,
+                videoElement.videoHeight,
+              );
               setOverlayState({
                 videoLength: videoElement.duration,
                 startTime: 0,
@@ -866,6 +940,8 @@ export default function OverlayPage() {
                   width: videoElement.videoWidth,
                   height: videoElement.videoHeight,
                 },
+                videoCropTop: videoCrop.top,
+                videoCropBottom: videoCrop.bottom,
               });
               setSession({
                 ...session,

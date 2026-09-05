@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowPathIcon, PencilIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/solid";
+import {
+  ArrowDownTrayIcon,
+  ArrowPathIcon,
+  ArrowUpTrayIcon,
+  LanguageIcon,
+  PlusIcon,
+  TrashIcon,
+} from "@heroicons/react/24/solid";
 
 import { useOverlayStore } from "../../store/overlay.store";
 import {
@@ -62,6 +69,7 @@ export default function SubtitleEditor() {
   const editorRef = useRef<HTMLDivElement>(null);
   const offsetInput = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const japaneseImportInputRef = useRef<HTMLInputElement>(null);
   const captionElementRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const originalCaptionsInitialized = useRef<boolean>(false);
   const lastCommittedSubtitleOffsetRef = useRef(0);
@@ -71,6 +79,8 @@ export default function SubtitleEditor() {
   const [selectedLanguage, setSelectedLanguage] = useState<string[]>([]);
   const [japaneseLoading, setJapaneseLoading] = useState<Record<number, boolean>>({});
   const [japaneseErrors, setJapaneseErrors] = useState<Record<number, string>>({});
+  const [japaneseTransferMessage, setJapaneseTransferMessage] = useState("");
+  const [japaneseBatchRunning, setJapaneseBatchRunning] = useState(false);
 
   useEffect(() => {
     setSessionState({
@@ -250,6 +260,158 @@ export default function SubtitleEditor() {
     }
   }
 
+  // Collects every (jp) line that has no romaji yet and converts them together,
+  // which j-talk serves in far fewer requests than one call per subtitle line.
+  function pendingJapaneseLines() {
+    const existing = getSessionState().session.japaneseTransliterations;
+    const pending = new Set<string>();
+
+    for (const caption of getSessionState().session.localCaptions) {
+      const sourceText = caption.text.jp?.trim() || "";
+      if (!sourceText) continue;
+      const saved = existing[sourceText];
+      if (saved?.groups.some((group) => group.romaji)) continue;
+      pending.add(sourceText);
+    }
+
+    return [...pending];
+  }
+
+  async function handleGenerateAllJapaneseRomanizations() {
+    if (japaneseBatchRunning) return;
+
+    const lines = pendingJapaneseLines();
+    if (lines.length === 0) {
+      setJapaneseTransferMessage("Every Japanese line already has romaji.");
+      return;
+    }
+
+    setJapaneseBatchRunning(true);
+    setJapaneseTransferMessage(`Romanizing ${lines.length} Japanese line(s)…`);
+    try {
+      const response = await fetch("/api/japanese-transliteration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lines }),
+      });
+      const result = (await response.json()) as {
+        transliterations?: Record<string, SavedJapaneseTransliteration>;
+        convertedCount?: number;
+        requestCount?: number;
+        failures?: string[];
+        error?: string;
+      };
+      if (!response.ok) throw new Error(result.error || "Japanese transliteration failed");
+
+      const updated = {
+        ...getSessionState().session.japaneseTransliterations,
+        ...(result.transliterations ?? {}),
+      };
+      setSessionState({ japaneseTransliterations: updated });
+      saveJapaneseTransliterationsToLocalStorage(session.videoId, updated);
+
+      const converted = result.convertedCount ?? 0;
+      const missed = lines.length - converted;
+      setJapaneseTransferMessage(
+        `Romanized ${converted} of ${lines.length} line(s) in ${result.requestCount ?? 1} request(s).` +
+          (missed > 0 ? ` ${missed} line(s) failed — try again to retry them.` : ""),
+      );
+    } catch (error) {
+      setJapaneseTransferMessage(
+        error instanceof Error ? `Generate all failed: ${error.message}` : "Generate all failed.",
+      );
+    } finally {
+      setJapaneseBatchRunning(false);
+    }
+  }
+
+  function saveJapaneseTransliterations(
+    transliterations: Record<string, SavedJapaneseTransliteration>,
+  ) {
+    setSessionState({ japaneseTransliterations: transliterations });
+    saveJapaneseTransliterationsToLocalStorage(session.videoId, transliterations);
+  }
+
+  function handleJapaneseRomajiChange(sourceText: string, groupIndex: number, romaji: string) {
+    const saved = getSessionState().session.japaneseTransliterations[sourceText];
+    if (!saved?.groups[groupIndex]) return;
+
+    const groups = saved.groups.map((group, index) =>
+      index === groupIndex ? { ...group, romaji } : group,
+    );
+    saveJapaneseTransliterations({
+      ...getSessionState().session.japaneseTransliterations,
+      [sourceText]: { ...saved, groups, convertedAt: new Date().toISOString() },
+    });
+  }
+
+  function handleExportJapaneseRomanizations() {
+    const transliterations = getSessionState().session.japaneseTransliterations;
+    if (Object.keys(transliterations).length === 0) {
+      setJapaneseTransferMessage("There are no Japanese romanizations to export.");
+      return;
+    }
+
+    const blob = new Blob(
+      [JSON.stringify({ version: 1, videoId: session.videoId, transliterations }, null, 2)],
+      { type: "application/json" },
+    );
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${session.videoId || "draft"}-japanese-romanization.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setJapaneseTransferMessage(
+      `Exported ${Object.keys(transliterations).length} romanized Japanese line(s).`,
+    );
+  }
+
+  async function handleImportJapaneseRomanizations(file: File) {
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      const candidate =
+        typeof parsed === "object" && parsed !== null && "transliterations" in parsed
+          ? (parsed as { transliterations: unknown }).transliterations
+          : parsed;
+      if (typeof candidate !== "object" || candidate === null || Array.isArray(candidate)) {
+        throw new Error("The file does not contain a romanization collection.");
+      }
+
+      const imported: Record<string, SavedJapaneseTransliteration> = {};
+      for (const [key, value] of Object.entries(candidate)) {
+        if (typeof value !== "object" || value === null) continue;
+        const entry = value as Partial<SavedJapaneseTransliteration>;
+        if (typeof entry.sourceText !== "string" || !Array.isArray(entry.groups)) continue;
+        const groups = entry.groups.filter(
+          (group) =>
+            typeof group === "object" &&
+            group !== null &&
+            typeof group.surface === "string" &&
+            typeof group.romaji === "string",
+        );
+        if (groups.length !== entry.groups.length) continue;
+        imported[key] = entry as SavedJapaneseTransliteration;
+      }
+
+      const importedCount = Object.keys(imported).length;
+      if (importedCount === 0) {
+        throw new Error("No valid Japanese romanizations were found in the file.");
+      }
+      saveJapaneseTransliterations({
+        ...getSessionState().session.japaneseTransliterations,
+        ...imported,
+      });
+      setJapaneseTransferMessage(`Imported ${importedCount} romanized Japanese line(s).`);
+    } catch (error) {
+      setJapaneseTransferMessage(
+        error instanceof Error ? `Import failed: ${error.message}` : "Import failed.",
+      );
+    } finally {
+      if (japaneseImportInputRef.current) japaneseImportInputRef.current.value = "";
+    }
+  }
+
   const languageContent = (language: CaptionLanguage, caption: CaptionSegment, index: number) => {
     const sourceText = caption.text[language.code]?.trim() || "";
     const savedJapanese =
@@ -313,16 +475,25 @@ export default function SubtitleEditor() {
               {language.code === "jp" && savedJapanese && (
                 <div className="flex flex-wrap gap-1.5 rounded-lg bg-black/30 p-2">
                   {savedJapanese.groups.map((group, groupIndex) => (
-                    <span
-                      key={`${groupIndex}-${group.surface}-${group.romaji}`}
+                    <label
+                      key={`${groupIndex}-${group.surface}`}
                       title={[group.gloss, group.lemma, group.partOfSpeech]
                         .filter(Boolean)
                         .join(" · ")}
                       className="flex min-w-10 flex-col items-center rounded bg-white px-2 py-1 text-black"
                     >
-                      <span className="text-xs text-blue-700">{group.romaji}</span>
+                      <input
+                        aria-label={`Romanization for ${group.surface}`}
+                        value={group.romaji}
+                        onChange={(event) =>
+                          handleJapaneseRomajiChange(sourceText, groupIndex, event.target.value)
+                        }
+                        onKeyDown={(event) => event.stopPropagation()}
+                        onKeyUp={(event) => event.stopPropagation()}
+                        className="w-full min-w-10 rounded border border-blue-200 bg-blue-50 px-1 text-center text-xs text-blue-700 outline-none focus:border-blue-500"
+                      />
                       <span className="text-lg">{group.surface}</span>
-                    </span>
+                    </label>
                   ))}
                 </div>
               )}
@@ -489,6 +660,57 @@ export default function SubtitleEditor() {
         Delete All
         <TrashIcon className="h-6 w-6 xl:h-8 xl:w-8" />
       </button>
+      <div className="flex gap-2 sm:col-span-2 xl:col-span-1">
+        <input
+          ref={japaneseImportInputRef}
+          type="file"
+          accept=".json,application/json"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void handleImportJapaneseRomanizations(file);
+          }}
+        />
+        <button
+          type="button"
+          aria-label="Generate romaji for all Japanese lines"
+          data-tooltip-id="global-tooltip"
+          data-tooltip-content="Romanize every (jp) line that has no romaji yet"
+          disabled={japaneseBatchRunning}
+          onClick={() => void handleGenerateAllJapaneseRomanizations()}
+          className="flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <LanguageIcon className="h-5 w-5 xl:h-7 xl:w-7" />
+          {japaneseBatchRunning ? "Generating…" : "Generate All"}
+        </button>
+        <button
+          type="button"
+          aria-label="Import Japanese romanizations"
+          data-tooltip-id="global-tooltip"
+          data-tooltip-content="Import Japanese romanizations from JSON"
+          onClick={() => japaneseImportInputRef.current?.click()}
+          className="flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20"
+        >
+          <ArrowUpTrayIcon className="h-5 w-5 xl:h-7 xl:w-7" />
+          Import
+        </button>
+        <button
+          type="button"
+          aria-label="Export Japanese romanizations"
+          data-tooltip-id="global-tooltip"
+          data-tooltip-content="Export Japanese romanizations as JSON"
+          onClick={handleExportJapaneseRomanizations}
+          className="flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20"
+        >
+          <ArrowDownTrayIcon className="h-5 w-5 xl:h-7 xl:w-7" />
+          Export
+        </button>
+      </div>
+      {japaneseTransferMessage && (
+        <p className="text-center text-sm text-white/80 sm:col-span-2 xl:col-span-4">
+          {japaneseTransferMessage}
+        </p>
+      )}
     </div>
   );
 
