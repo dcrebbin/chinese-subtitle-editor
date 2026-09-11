@@ -28,6 +28,7 @@
     "@types/swagger-jsdoc": "^6.0.4",
     "@vitejs/plugin-react": "^6.0.2",
     "cheerio": "^1.2.0",
+    "koroman": "^1.0.16",
     "mediabunny": "^1.25.1",
     "next-intl": "^4.5.5",
     "nitro": "^3.0.260610-beta",

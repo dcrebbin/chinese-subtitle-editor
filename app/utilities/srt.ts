@@ -1,6 +1,7 @@
 import {
   convertToCustomTransliterations,
   convertToJyutping,
+  convertToKorean,
   convertToPinyin,
 } from "./transliteration/transliteration";
 
@@ -74,6 +75,35 @@ export function getSubtitleAtTime(
   return foundSubtitle || null;
 }
 
+function formatSrtTime(time: number): string {
+  const milliseconds = Math.max(0, Math.round(time * 1000));
+  const hours = Math.floor(milliseconds / 3_600_000);
+  const minutes = Math.floor((milliseconds % 3_600_000) / 60_000);
+  const seconds = Math.floor((milliseconds % 60_000) / 1000);
+  const remainder = milliseconds % 1000;
+  return `${hours.toString().padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")},${remainder
+    .toString()
+    .padStart(3, "0")}`;
+}
+
+/** Keep and re-time captions that overlap a cropped video range. */
+export function cropSrtContent(srtContent: string, start: number, end: number): string {
+  return parseSrt(srtContent)
+    .filter((subtitle) => {
+      const subtitleStart = subtitle.startTime ?? 0;
+      const subtitleEnd = subtitle.endTime ?? 0;
+      return subtitleEnd > start && subtitleStart < end;
+    })
+    .map((subtitle, index) => {
+      const subtitleStart = Math.max(subtitle.startTime ?? 0, start) - start;
+      const subtitleEnd = Math.min(subtitle.endTime ?? end, end) - start;
+      return `${index + 1}\n${formatSrtTime(subtitleStart)} --> ${formatSrtTime(subtitleEnd)}\n${subtitle.text.trim()}`;
+    })
+    .join("\n\n");
+}
+
 export function transliterateCaptions(
   inputText: string,
   languageCode: string,
@@ -90,6 +120,8 @@ export function transliterateCaptions(
       // Japanese readings are generated explicitly per line and loaded from
       // the saved structured groups, never generated automatically here.
       return "";
+    case "ko":
+      return convertToKorean(inputText);
     default:
       return convertToPinyin(inputText);
   }

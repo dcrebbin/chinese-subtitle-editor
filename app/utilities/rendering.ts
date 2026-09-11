@@ -89,6 +89,9 @@ function determineNonEnglishLanguage(text: string): string {
   if (text.includes("(yue)")) {
     return "yue";
   }
+  if (text.includes("(ko)")) {
+    return "ko";
+  }
   return "zh";
 }
 
@@ -133,9 +136,10 @@ export async function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any,
     const cantonese = subtitle.text.split("(yue)")[1]?.split("(en)")[0]?.trim() || "";
     const mandarin = subtitle.text.split("(zh)")[1]?.split("(en)")[0]?.trim() || "";
     const japanese = subtitle.text.split("(jp)")[1]?.split("(en)")[0]?.trim() || "";
+    const korean = subtitle.text.split("(ko)")[1]?.split("(en)")[0]?.trim() || "";
 
     const languageCode = determineNonEnglishLanguage(subtitle.text);
-    const sourceText = cantonese || mandarin || japanese;
+    const sourceText = cantonese || mandarin || japanese || korean;
     const transliterationMap =
       languageCode === "jp"
         ? retrieveJapaneseRomanizationMap(
@@ -684,10 +688,11 @@ export async function convertCanvas(
           const cantonese = subtitle.text.split("(yue)")[1]?.split("(en)")[0]?.trim() || "";
           const mandarin = subtitle.text.split("(zh)")[1]?.split("(en)")[0]?.trim() || "";
           const japanese = subtitle.text.split("(jp)")[1]?.split("(en)")[0]?.trim() || "";
+          const korean = subtitle.text.split("(ko)")[1]?.split("(en)")[0]?.trim() || "";
           const english = subtitle.text.split("(en)")[1]?.trim().split("(")[0] || "";
 
           const languageCode = determineNonEnglishLanguage(subtitle.text);
-          const sourceText = cantonese || mandarin || japanese;
+          const sourceText = cantonese || mandarin || japanese || korean;
           const transliterationMap =
             languageCode === "jp"
               ? retrieveJapaneseRomanizationMap(

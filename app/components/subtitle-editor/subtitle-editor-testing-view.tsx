@@ -139,6 +139,7 @@ export default function SubtitleEditorTestingView() {
           <option value="yue">Cantonese</option>
           <option value="zh">Mandarin</option>
           <option value="jp">Japanese</option>
+          <option value="ko">Korean</option>
         </select>
         <div className="flex items-center justify-between gap-2.5">
           <p className="font-sans text-lg">Upload SRT</p>

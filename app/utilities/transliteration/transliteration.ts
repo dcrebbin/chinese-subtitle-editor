@@ -1,3 +1,4 @@
+import { romanize } from "koroman";
 import ToJyutping from "to-jyutping";
 
 import type {
@@ -12,6 +13,7 @@ export const CaptionLanguages: CaptionLanguage[] = [
   { name: "Mandarin", code: "zh" },
   { name: "English", code: "en" },
   { name: "Japanese", code: "jp" },
+  { name: "Korean", code: "ko" },
 ];
 
 function parseMultilingualText(fullText: string): Record<string, string | null> {
@@ -144,6 +146,18 @@ export function convertToJyutping(captionText: string) {
     }
   }
   return jyutping.join(",");
+}
+
+/** Convert Hangul to Korea's Revised Romanization, preserving source alignment. */
+export function convertToKorean(captionText: string) {
+  return Array.from(captionText)
+    .map((character) => {
+      if (/^[\uac00-\ud7a3]$/.test(character)) {
+        return romanize(character);
+      }
+      return "EN";
+    })
+    .join(",");
 }
 
 export function retrieveChineseRomanizationMap(transliteratedText: string, inputText: string) {

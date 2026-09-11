@@ -20,9 +20,14 @@ import {
   scaleBackgroundImageOffsetY,
   updateTransliterationRows,
 } from "../../utilities/rendering";
-import { getSubtitleAtTime, parseSrt, transliterateCaptions } from "../../utilities/srt";
+import {
+  cropSrtContent,
+  getSubtitleAtTime,
+  parseSrt,
+  transliterateCaptions,
+} from "../../utilities/srt";
 import { retrieveChineseRomanizationMap } from "../../utilities/transliteration/transliteration";
-import { getClampedVideoCrop } from "../../utilities/video-crop";
+import { cropVideoFile, getClampedVideoCrop } from "../../utilities/video-crop";
 import { loadSrtFromLocalStorage } from "../../utilities/video-storage";
 import Loading from "../common/loading";
 import VideoTabs from "./video-tabs";
@@ -159,6 +164,71 @@ export default function OverlayPage() {
     setOverlayState({ selectedTab: "render", outputUrl: url, isLoading: false });
   }
 
+  async function handleCropVideo() {
+    if (!overlay.file) {
+      alert("Upload or download a video first.");
+      return;
+    }
+
+    const start = Math.max(0, Math.min(overlay.startTime, overlay.videoLength));
+    const end = Math.min(overlay.videoLength, overlay.endTime);
+    if (end <= start) {
+      alert("Set an end time after the start time before cropping.");
+      return;
+    }
+
+    setOverlayState({ isLoading: true, isPlaying: false });
+    try {
+      previewVideoRef.current?.pause();
+      const croppedFile = await cropVideoFile(overlay.file, start, end);
+      const croppedUrl = URL.createObjectURL(croppedFile);
+      const oldUrl = overlay.previewUrl;
+
+      const metadata = await new Promise<{
+        duration: number;
+        width: number;
+        height: number;
+      }>((resolve, reject) => {
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.onloadedmetadata = () => {
+          resolve({ duration: video.duration, width: video.videoWidth, height: video.videoHeight });
+          video.remove();
+        };
+        video.onerror = () => {
+          reject(new Error("The cropped video could not be loaded."));
+          video.remove();
+        };
+        video.src = croppedUrl;
+      });
+
+      setOverlayState({
+        file: croppedFile,
+        previewUrl: croppedUrl,
+        videoLength: metadata.duration,
+        startTime: 0,
+        endTime: metadata.duration,
+        currentTime: 0,
+        videoDimensions: { width: metadata.width, height: metadata.height },
+        videoCropTop: 0,
+        videoCropBottom: 0,
+        outputUrl: null,
+      });
+      setSessionState({
+        srtContent: cropSrtContent(session.srtContent, start, end),
+        originalSrtContent: cropSrtContent(session.srtContent, start, end),
+      });
+      if (oldUrl && oldUrl !== croppedUrl) {
+        URL.revokeObjectURL(oldUrl);
+      }
+    } catch (error) {
+      console.error("Error cropping video:", error);
+      alert(error instanceof Error ? error.message : "Failed to crop video.");
+    } finally {
+      setOverlayState({ isLoading: false });
+    }
+  }
+
   useEffect(() => {
     if (videoRef.current) {
       console.log("Setting video source");
@@ -228,9 +298,7 @@ export default function OverlayPage() {
 
       if (previewVideoRef.current) {
         previewVideoRef.current.src = url;
-        // Wait until metadata is loaded, then play to fix potential load timing issues
         previewVideoRef.current.onloadedmetadata = () => {
-          previewVideoRef.current?.play();
           const videoHeight = previewVideoRef.current?.videoHeight || 1;
           const videoCrop = getClampedVideoCrop(
             overlay.videoCropTop,
@@ -986,6 +1054,14 @@ export default function OverlayPage() {
             disabled={overlay.isLoading || !overlay.file}
           >
             {overlay.isLoading ? "Processing..." : "Process Full Video"}
+          </button>
+          <button
+            className="cursor-pointer rounded-2xl bg-blue-600 p-2 font-semibold hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-600"
+            type="button"
+            onClick={handleCropVideo}
+            disabled={overlay.isLoading || !overlay.file || overlay.endTime <= overlay.startTime}
+          >
+            {overlay.isLoading ? "Cropping..." : "Crop Current Range"}
           </button>
           <button
             type="button"
