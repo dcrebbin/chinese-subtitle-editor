@@ -16,7 +16,7 @@ export const CaptionLanguages: CaptionLanguage[] = [
   { name: "Korean", code: "ko" },
 ];
 
-function parseMultilingualText(fullText: string): Record<string, string | null> {
+export function parseMultilingualText(fullText: string): Record<string, string | null> {
   const result: Record<string, string | null> = {};
 
   for (const language of CaptionLanguages) {

@@ -7,6 +7,7 @@ import { getSessionState } from "../store/session.store";
 import { defaultCellSize, defaultChineseFontSize, jyutpingFontSize } from "./constants";
 import { getSubtitleAtTime, parseSrt, transliterateCaptions } from "./srt";
 import {
+  parseMultilingualText,
   retrieveChineseRomanizationMap,
   retrieveJapaneseRomanizationMap,
 } from "./transliteration/transliteration";
@@ -133,10 +134,11 @@ export async function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any,
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (subtitle) {
-    const cantonese = subtitle.text.split("(yue)")[1]?.split("(en)")[0]?.trim() || "";
-    const mandarin = subtitle.text.split("(zh)")[1]?.split("(en)")[0]?.trim() || "";
-    const japanese = subtitle.text.split("(jp)")[1]?.split("(en)")[0]?.trim() || "";
-    const korean = subtitle.text.split("(ko)")[1]?.split("(en)")[0]?.trim() || "";
+    const captionText = parseMultilingualText(subtitle.text);
+    const cantonese = captionText.yue || "";
+    const mandarin = captionText.zh || "";
+    const japanese = captionText.jp || "";
+    const korean = captionText.ko || "";
 
     const languageCode = determineNonEnglishLanguage(subtitle.text);
     const sourceText = cantonese || mandarin || japanese || korean;
@@ -152,7 +154,7 @@ export async function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any,
           );
     setOverlayState({ jsonData: { transliterationMap } });
 
-    const english = subtitle.text.split("(en)")[1]?.trim().split("(")[0].trim();
+    const english = captionText.en;
     const rows = updateTransliterationRows(
       mergeConsecutiveEnglishWords(transliterationMap, ctx, rendererSizeMultiplier),
     );
@@ -685,11 +687,12 @@ export async function convertCanvas(
         );
 
         if (subtitle) {
-          const cantonese = subtitle.text.split("(yue)")[1]?.split("(en)")[0]?.trim() || "";
-          const mandarin = subtitle.text.split("(zh)")[1]?.split("(en)")[0]?.trim() || "";
-          const japanese = subtitle.text.split("(jp)")[1]?.split("(en)")[0]?.trim() || "";
-          const korean = subtitle.text.split("(ko)")[1]?.split("(en)")[0]?.trim() || "";
-          const english = subtitle.text.split("(en)")[1]?.trim().split("(")[0] || "";
+          const captionText = parseMultilingualText(subtitle.text);
+          const cantonese = captionText.yue || "";
+          const mandarin = captionText.zh || "";
+          const japanese = captionText.jp || "";
+          const korean = captionText.ko || "";
+          const english = captionText.en || "";
 
           const languageCode = determineNonEnglishLanguage(subtitle.text);
           const sourceText = cantonese || mandarin || japanese || korean;
