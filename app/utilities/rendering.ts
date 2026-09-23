@@ -20,7 +20,28 @@ const INLINE_ENGLISH_MIN_FONT_PX = 4;
 const JAPANESE_GROUP_WIDTH_PER_CHARACTER = 0.65;
 const JAPANESE_MIN_FONT_PX = 8;
 
-const TRANSLITERATION_ROWS_PER_LINE = 7;
+export const PREFERRED_TRANSLITERATION_SEGMENTS_PER_LINE = 7;
+export const MAX_TRANSLITERATION_SEGMENTS_PER_LINE = 9;
+
+const CHINESE_LINE_ENDING_CHARACTERS = new Set([
+  "了",
+  "啦",
+  "吧",
+  "呢",
+  "嗎",
+  "吗",
+  "啊",
+  "呀",
+  "嘛",
+  "囉",
+  "啰",
+  "咯",
+  "喎",
+  "哦",
+  "哩",
+  "咧",
+]);
+const CLOSING_PUNCTUATION = /^[，。！？；：、,.!?;:）】》」』”’…—]+$/u;
 
 type PreloadedBackgroundImages = {
   fullImage: HTMLImageElement | null;
@@ -323,18 +344,59 @@ export const updateTransliterationRows = (
   transliterationMap: { jyutping: string; chinese: string }[],
 ) => {
   const rows: { jyutping: string; chinese: string }[][] = [];
-  for (let i = 0; i < Math.ceil(transliterationMap.length / TRANSLITERATION_ROWS_PER_LINE); i++) {
-    const newRow: { jyutping: string; chinese: string }[] = [];
-    for (let j = 0; j < TRANSLITERATION_ROWS_PER_LINE; j++) {
-      const item = transliterationMap[i * TRANSLITERATION_ROWS_PER_LINE + j];
-      if (item) {
-        newRow.push(item);
-      } else {
-        break;
+  let rowStart = 0;
+
+  const isWhitespace = (index: number) =>
+    /^\s+$/u.test(transliterationMap[index]?.chinese ?? "");
+  const shouldStayOnPreviousLine = (index: number) => {
+    const text = transliterationMap[index]?.chinese ?? "";
+    return CHINESE_LINE_ENDING_CHARACTERS.has(text) || CLOSING_PUNCTUATION.test(text);
+  };
+
+  while (rowStart < transliterationMap.length) {
+    const remaining = transliterationMap.length - rowStart;
+    if (remaining <= MAX_TRANSLITERATION_SEGMENTS_PER_LINE) {
+      rows.push(transliterationMap.slice(rowStart));
+      break;
+    }
+
+    const preferredEnd = rowStart + PREFERRED_TRANSLITERATION_SEGMENTS_PER_LINE;
+    const maximumEnd = rowStart + MAX_TRANSLITERATION_SEGMENTS_PER_LINE;
+    let rowEnd = preferredEnd;
+
+    // A visible space is the clearest phrase boundary. Use the closest one on
+    // either side of the preferred length, without making the row too short.
+    const minimumNaturalEnd = Math.max(rowStart + 1, preferredEnd - 2);
+    let naturalEnd: number | undefined;
+    for (let index = rowStart; index < maximumEnd; index++) {
+      const candidateEnd = index + 1;
+      if (
+        isWhitespace(index) &&
+        candidateEnd >= minimumNaturalEnd &&
+        (naturalEnd === undefined ||
+          Math.abs(candidateEnd - preferredEnd) < Math.abs(naturalEnd - preferredEnd))
+      ) {
+        naturalEnd = candidateEnd;
       }
     }
-    rows.push(newRow);
+    rowEnd = naturalEnd ?? rowEnd;
+
+    // Sentence particles and closing punctuation belong to the phrase before
+    // them. Let them extend a preferred-length row instead of orphaning them.
+    while (rowEnd < maximumEnd && shouldStayOnPreviousLine(rowEnd)) {
+      rowEnd++;
+    }
+
+    // Do not start a row with whitespace. It remains in the previous row so the
+    // original segment map stays intact and internal spacing is preserved.
+    while (rowEnd < maximumEnd && isWhitespace(rowEnd)) {
+      rowEnd++;
+    }
+
+    rows.push(transliterationMap.slice(rowStart, rowEnd));
+    rowStart = rowEnd;
   }
+
   return rows;
 };
 
