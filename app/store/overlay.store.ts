@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 const OVERLAY_SETTINGS_STORAGE_KEY = "langpal-overlay-settings";
+export type SubtitleStyle = "learning-cards" | "retro-karaoke";
 
 type OverlayStore = {
   overlay: {
@@ -14,6 +15,8 @@ type OverlayStore = {
     setSizeMultiplier: (sizeMultiplier: number) => void;
     transliterationEnabled: boolean;
     setTransliterationEnabled: (transliterationEnabled: boolean) => void;
+    subtitleStyle: SubtitleStyle;
+    setSubtitleStyle: (subtitleStyle: SubtitleStyle) => void;
     lyricOffset: number;
     setLyricOffset: (lyricOffset: number) => void;
     startTime: number;
@@ -76,6 +79,7 @@ type PersistableOverlaySettings = Pick<
   | "verticalPosition"
   | "sizeMultiplier"
   | "transliterationEnabled"
+  | "subtitleStyle"
   | "lyricOffset"
   | "selectedTab"
   | "isLandscapeMode"
@@ -96,6 +100,7 @@ const defaultPersistableOverlaySettings: PersistableOverlaySettings = {
   verticalPosition: 200,
   sizeMultiplier: 1,
   transliterationEnabled: true,
+  subtitleStyle: "learning-cards",
   lyricOffset: 0,
   selectedTab: "editor",
   isLandscapeMode: true,
@@ -175,6 +180,7 @@ function persistOverlaySettings(overlay: OverlayStore["overlay"]) {
     verticalPosition: overlay.verticalPosition,
     sizeMultiplier: overlay.sizeMultiplier,
     transliterationEnabled: overlay.transliterationEnabled,
+    subtitleStyle: overlay.subtitleStyle,
     lyricOffset: overlay.lyricOffset,
     selectedTab: overlay.selectedTab,
     isLandscapeMode: overlay.isLandscapeMode,

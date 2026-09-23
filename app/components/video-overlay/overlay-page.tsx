@@ -10,7 +10,7 @@ import {
 } from "@heroicons/react/24/solid";
 import { ALL_FORMATS, BlobSource, BufferTarget, Input, Mp4OutputFormat, Output } from "mediabunny";
 
-import { setOverlayState, useOverlayStore } from "@/app/store/overlay.store";
+import { setOverlayState, useOverlayStore, type SubtitleStyle } from "@/app/store/overlay.store";
 import { setSessionState, useSessionStore } from "@/app/store/session.store";
 import { defaultCellSize } from "../../utilities/constants";
 import {
@@ -373,6 +373,7 @@ export default function OverlayPage() {
     overlay.verticalPosition,
     overlay.sizeMultiplier,
     overlay.transliterationEnabled,
+    overlay.subtitleStyle,
     overlay.isPlaying,
     overlay.lyricOffset,
     session.parsedSubtitles,
@@ -613,6 +614,19 @@ export default function OverlayPage() {
           </select>
         )}
       </div>
+      <label className="flex w-full flex-col gap-1 text-sm">
+        Subtitle style
+        <select
+          className="w-fit rounded-2xl bg-white p-2 text-black"
+          value={overlay.subtitleStyle}
+          onChange={(e) => {
+            setOverlayState({ subtitleStyle: e.target.value as SubtitleStyle });
+          }}
+        >
+          <option value="learning-cards">Learning cards</option>
+          <option value="retro-karaoke">Retro karaoke (80s/90s)</option>
+        </select>
+      </label>
       <div className="flex w-full flex-col gap-2">
         <p className="text-sm">Size Multiplier: {overlay.sizeMultiplier}x</p>
         <input
@@ -665,6 +679,7 @@ export default function OverlayPage() {
         <input
           type="checkbox"
           checked={overlay.transliterationEnabled}
+          disabled={overlay.subtitleStyle === "retro-karaoke"}
           onChange={(e) => {
             setOverlayState({ transliterationEnabled: e.target.checked });
           }}

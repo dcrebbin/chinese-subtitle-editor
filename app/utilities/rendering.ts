@@ -19,6 +19,8 @@ const INLINE_ENGLISH_CELL_PADDING = 2;
 const INLINE_ENGLISH_MIN_FONT_PX = 4;
 const JAPANESE_GROUP_WIDTH_PER_CHARACTER = 0.65;
 const JAPANESE_MIN_FONT_PX = 8;
+const RETRO_KARAOKE_BLUE = "#0021FB";
+const RETRO_CHINESE_FONT = '"Songti SC", STSong, SimSun, "Noto Serif CJK TC", serif';
 
 export const PREFERRED_TRANSLITERATION_SEGMENTS_PER_LINE = 7;
 export const MAX_TRANSLITERATION_SEGMENTS_PER_LINE = 9;
@@ -117,6 +119,169 @@ function determineNonEnglishLanguage(text: string): string {
   return "zh";
 }
 
+function drawRetroKaraokeLine(
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+  progress: number,
+) {
+  const metrics = ctx.measureText(text);
+  const renderedWidth = Math.min(metrics.width, maxWidth);
+
+  ctx.strokeStyle = "#000000";
+  ctx.fillStyle = "#ffffff";
+  ctx.strokeText(text, x, y, maxWidth);
+  ctx.fillText(text, x, y, maxWidth);
+
+  if (progress <= 0) return;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(
+    x - renderedWidth / 2 - ctx.lineWidth,
+    y - ctx.lineWidth,
+    renderedWidth * Math.min(1, progress) + ctx.lineWidth,
+    lineHeight + ctx.lineWidth * 2,
+  );
+  ctx.clip();
+  ctx.strokeStyle = "#ffffff";
+  ctx.fillStyle = RETRO_KARAOKE_BLUE;
+  ctx.strokeText(text, x, y, maxWidth);
+  ctx.fillText(text, x, y, maxWidth);
+  ctx.restore();
+}
+
+function wrapCanvasText(
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+) {
+  const words = text.trim().split(/\s+/u);
+  const lines: string[] = [];
+  let line = "";
+
+  for (const word of words) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (line && ctx.measureText(candidate).width > maxWidth) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function drawRetroKaraokeSubtitle(
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  captions: { jyutping: string; chinese: string }[],
+  english: string,
+  canvasWidth: number,
+  topY: number,
+  sizeMultiplier: number,
+  progress: number,
+) {
+  const lyricCaptions = captions.filter(
+    (caption) => caption.jyutping !== "EN" && caption.chinese.trim(),
+  );
+  if (lyricCaptions.length === 0) return;
+
+  const fontSize = 58 * sizeMultiplier;
+  const romanizationFontSize = Math.max(13, fontSize * 0.4);
+  const romanizationHeight = fontSize * 0.52;
+  const rowHeight = romanizationHeight + fontSize * 1.18;
+  const cellGap = Math.max(7, 15 * sizeMultiplier);
+  const maxWidth = canvasWidth * 0.86;
+
+  ctx.save();
+  const clampedProgress = Math.min(1, Math.max(0, progress));
+
+  let currentY = topY;
+  if (english) {
+    ctx.font = `700 ${Math.max(14, fontSize * 0.48)}px Arial, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = Math.max(3, 4 * sizeMultiplier);
+    ctx.strokeStyle = "#000000";
+    ctx.fillStyle = "#ffffff";
+    const englishLineHeight = fontSize * 0.62;
+    const strokeSafeWidth = Math.max(1, maxWidth - ctx.lineWidth * 4);
+    const englishLines = wrapCanvasText(ctx, english, strokeSafeWidth);
+    for (const [lineIndex, line] of englishLines.entries()) {
+      const y = currentY + lineIndex * englishLineHeight;
+      ctx.strokeText(line, canvasWidth / 2, y, strokeSafeWidth);
+      ctx.fillText(line, canvasWidth / 2, y, strokeSafeWidth);
+    }
+    currentY += englishLines.length * englishLineHeight;
+  }
+
+  const getCellWidth = (caption: { jyutping: string; chinese: string }) => {
+    ctx.font = `700 ${romanizationFontSize}px Arial, sans-serif`;
+    const romanizationWidth = ctx.measureText(caption.jyutping).width;
+    ctx.font = `700 ${fontSize}px ${RETRO_CHINESE_FONT}`;
+    return Math.max(romanizationWidth, ctx.measureText(caption.chinese).width) + cellGap;
+  };
+
+  const rows: (typeof lyricCaptions)[] = [];
+  let row: typeof lyricCaptions = [];
+  let rowWidth = 0;
+  for (const caption of lyricCaptions) {
+    const cellWidth = getCellWidth(caption);
+    if (row.length > 0 && rowWidth + cellWidth > maxWidth) {
+      rows.push(row);
+      row = [];
+      rowWidth = 0;
+    }
+    row.push(caption);
+    rowWidth += cellWidth;
+  }
+  if (row.length > 0) rows.push(row);
+
+  let completedCells = clampedProgress * lyricCaptions.length;
+  for (const [rowIndex, captionRow] of rows.entries()) {
+    const widths = captionRow.map(getCellWidth);
+    const totalWidth = widths.reduce((sum, width) => sum + width, 0);
+    let x = (canvasWidth - totalWidth) / 2;
+
+    for (const [captionIndex, caption] of captionRow.entries()) {
+      const cellWidth = widths[captionIndex];
+      const centerX = x + cellWidth / 2;
+      const y = currentY + rowIndex * rowHeight;
+
+      ctx.font = `700 ${romanizationFontSize}px Arial, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = Math.max(2, 3 * sizeMultiplier);
+      ctx.strokeStyle = "#000000";
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeText(caption.jyutping, centerX, y, cellWidth);
+      ctx.fillText(caption.jyutping, centerX, y, cellWidth);
+
+      ctx.font = `700 ${fontSize}px ${RETRO_CHINESE_FONT}`;
+      ctx.lineWidth = Math.max(4, 7 * sizeMultiplier);
+      drawRetroKaraokeLine(
+        ctx,
+        caption.chinese,
+        centerX,
+        y + romanizationHeight,
+        cellWidth,
+        fontSize * 1.18,
+        Math.min(1, Math.max(0, completedCells)),
+      );
+
+      completedCells -= 1;
+      x += cellWidth;
+    }
+  }
+  ctx.restore();
+}
+
 export function scaleBackgroundImageOffsetY(
   offsetY: number,
   previewHeight: number,
@@ -176,6 +341,19 @@ export async function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any,
     setOverlayState({ jsonData: { transliterationMap } });
 
     const english = captionText.en;
+    if (overlay.subtitleStyle === "retro-karaoke") {
+      const duration = Math.max(0.001, subtitle.endTime - subtitle.startTime);
+      drawRetroKaraokeSubtitle(
+        ctx,
+        transliterationMap,
+        english || "",
+        canvas.width,
+        overlay.verticalPosition,
+        rendererSizeMultiplier,
+        (time - subtitle.startTime) / duration,
+      );
+      return;
+    }
     const rows = updateTransliterationRows(
       mergeConsecutiveEnglishWords(transliterationMap, ctx, rendererSizeMultiplier),
     );
@@ -346,8 +524,7 @@ export const updateTransliterationRows = (
   const rows: { jyutping: string; chinese: string }[][] = [];
   let rowStart = 0;
 
-  const isWhitespace = (index: number) =>
-    /^\s+$/u.test(transliterationMap[index]?.chinese ?? "");
+  const isWhitespace = (index: number) => /^\s+$/u.test(transliterationMap[index]?.chinese ?? "");
   const shouldStayOnPreviousLine = (index: number) => {
     const text = transliterationMap[index]?.chinese ?? "";
     return CHINESE_LINE_ENDING_CHARACTERS.has(text) || CLOSING_PUNCTUATION.test(text);
@@ -768,6 +945,21 @@ export async function convertCanvas(
                   transliterateCaptions(sourceText, languageCode, {}),
                   sourceText,
                 );
+          if (overlay.subtitleStyle === "retro-karaoke") {
+            const subtitleStart = subtitle.startTime ?? adjustedTimestamp;
+            const subtitleEnd = subtitle.endTime ?? subtitleStart;
+            const duration = Math.max(0.001, subtitleEnd - subtitleStart);
+            drawRetroKaraokeSubtitle(
+              ctx,
+              transliterationMap,
+              english,
+              width,
+              verticalPosition,
+              rendererSizeMultiplier,
+              (adjustedTimestamp + lyricsOffset - subtitleStart) / duration,
+            );
+            return ctx.canvas;
+          }
           const rows = updateTransliterationRows(
             mergeConsecutiveEnglishWords(transliterationMap, ctx!, rendererSizeMultiplier),
           );
