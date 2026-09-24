@@ -31,6 +31,7 @@ import {
   saveJapaneseTransliterationsToLocalStorage,
 } from "../../utilities/video-storage";
 import Loading from "../common/loading";
+import RetroKaraokeTimingEditor from "./retro-karaoke-timing-editor";
 import SubtitleEditorBottomControls from "./subtitle-editor-bottom-controls";
 import SubtitleEditorSearchView from "./subtitle-editor-search-view";
 
@@ -854,6 +855,10 @@ export default function SubtitleEditor() {
                 </div>
               ))}
             </div>
+
+            {overlay.subtitleStyle === "retro-karaoke" && (
+              <RetroKaraokeTimingEditor caption={caption} />
+            )}
 
             <div className="flex items-center justify-between gap-1.5">
               <select

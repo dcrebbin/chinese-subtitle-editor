@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 const OVERLAY_SETTINGS_STORAGE_KEY = "langpal-overlay-settings";
 export type SubtitleStyle = "learning-cards" | "retro-karaoke";
+export type RetroKaraokeTimingOverrides = Record<string, Record<number, number>>;
 
 type OverlayStore = {
   overlay: {
@@ -17,6 +18,8 @@ type OverlayStore = {
     setTransliterationEnabled: (transliterationEnabled: boolean) => void;
     subtitleStyle: SubtitleStyle;
     setSubtitleStyle: (subtitleStyle: SubtitleStyle) => void;
+    retroKaraokeLengthInfluence: number;
+    retroKaraokeTimingOverrides: RetroKaraokeTimingOverrides;
     lyricOffset: number;
     setLyricOffset: (lyricOffset: number) => void;
     startTime: number;
@@ -80,6 +83,8 @@ type PersistableOverlaySettings = Pick<
   | "sizeMultiplier"
   | "transliterationEnabled"
   | "subtitleStyle"
+  | "retroKaraokeLengthInfluence"
+  | "retroKaraokeTimingOverrides"
   | "lyricOffset"
   | "selectedTab"
   | "isLandscapeMode"
@@ -101,6 +106,8 @@ const defaultPersistableOverlaySettings: PersistableOverlaySettings = {
   sizeMultiplier: 1,
   transliterationEnabled: true,
   subtitleStyle: "learning-cards",
+  retroKaraokeLengthInfluence: 0.5,
+  retroKaraokeTimingOverrides: {},
   lyricOffset: 0,
   selectedTab: "editor",
   isLandscapeMode: true,
@@ -181,6 +188,8 @@ function persistOverlaySettings(overlay: OverlayStore["overlay"]) {
     sizeMultiplier: overlay.sizeMultiplier,
     transliterationEnabled: overlay.transliterationEnabled,
     subtitleStyle: overlay.subtitleStyle,
+    retroKaraokeLengthInfluence: overlay.retroKaraokeLengthInfluence,
+    retroKaraokeTimingOverrides: overlay.retroKaraokeTimingOverrides,
     lyricOffset: overlay.lyricOffset,
     selectedTab: overlay.selectedTab,
     isLandscapeMode: overlay.isLandscapeMode,

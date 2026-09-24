@@ -5,6 +5,7 @@ import { Conversion, type Input, type Output } from "mediabunny";
 import { getOverlayState, setOverlayState } from "../store/overlay.store";
 import { getSessionState } from "../store/session.store";
 import { defaultCellSize, defaultChineseFontSize, jyutpingFontSize } from "./constants";
+import { getRetroKaraokeCellProgresses, getRetroKaraokeCueKey } from "./retro-karaoke-timing";
 import { getSubtitleAtTime, parseSrt, transliterateCaptions } from "./srt";
 import {
   parseMultilingualText,
@@ -184,6 +185,8 @@ function drawRetroKaraokeSubtitle(
   topY: number,
   sizeMultiplier: number,
   progress: number,
+  lengthInfluence: number,
+  timingMultipliers: Record<number, number>,
 ) {
   const lyricCaptions = captions.filter(
     (caption) => caption.jyutping !== "EN" && caption.chinese.trim(),
@@ -242,7 +245,13 @@ function drawRetroKaraokeSubtitle(
   }
   if (row.length > 0) rows.push(row);
 
-  let completedCells = clampedProgress * lyricCaptions.length;
+  const cellProgresses = getRetroKaraokeCellProgresses(
+    lyricCaptions,
+    clampedProgress,
+    lengthInfluence,
+    timingMultipliers,
+  );
+  let lyricCaptionIndex = 0;
   for (const [rowIndex, captionRow] of rows.entries()) {
     const widths = captionRow.map(getCellWidth);
     const totalWidth = widths.reduce((sum, width) => sum + width, 0);
@@ -272,10 +281,10 @@ function drawRetroKaraokeSubtitle(
         y + romanizationHeight,
         cellWidth,
         fontSize * 1.18,
-        Math.min(1, Math.max(0, completedCells)),
+        cellProgresses[lyricCaptionIndex] ?? 0,
       );
 
-      completedCells -= 1;
+      lyricCaptionIndex += 1;
       x += cellWidth;
     }
   }
@@ -303,10 +312,10 @@ export async function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any,
   const targetHeight = overlay.isLandscapeMode ? 1080 : 1920;
 
   if (canvas.width !== targetWidth) {
-    canvas.width = overlay.isLandscapeMode ? Math.floor(canvas.clientWidth) : targetWidth;
+    canvas.width = targetWidth;
   }
   if (canvas.height !== targetHeight) {
-    canvas.height = overlay.isLandscapeMode ? Math.floor(canvas.clientHeight) : targetHeight;
+    canvas.height = targetHeight;
   }
 
   const ctx = canvas.getContext("2d") as
@@ -351,6 +360,10 @@ export async function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any,
         overlay.verticalPosition,
         rendererSizeMultiplier,
         (time - subtitle.startTime) / duration,
+        overlay.retroKaraokeLengthInfluence,
+        overlay.retroKaraokeTimingOverrides[
+          getRetroKaraokeCueKey(subtitle.startTime, subtitle.endTime)
+        ] ?? {},
       );
       return;
     }
@@ -957,6 +970,10 @@ export async function convertCanvas(
               verticalPosition,
               rendererSizeMultiplier,
               (adjustedTimestamp + lyricsOffset - subtitleStart) / duration,
+              overlay.retroKaraokeLengthInfluence,
+              overlay.retroKaraokeTimingOverrides[
+                getRetroKaraokeCueKey(subtitleStart, subtitleEnd)
+              ] ?? {},
             );
             return ctx.canvas;
           }

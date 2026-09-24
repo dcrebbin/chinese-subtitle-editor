@@ -24,9 +24,7 @@ import {
   cropSrtContent,
   getSubtitleAtTime,
   parseSrt,
-  transliterateCaptions,
 } from "../../utilities/srt";
-import { retrieveChineseRomanizationMap } from "../../utilities/transliteration/transliteration";
 import { cropVideoFile, getClampedVideoCrop } from "../../utilities/video-crop";
 import { loadSrtFromLocalStorage } from "../../utilities/video-storage";
 import Loading from "../common/loading";
@@ -374,6 +372,8 @@ export default function OverlayPage() {
     overlay.sizeMultiplier,
     overlay.transliterationEnabled,
     overlay.subtitleStyle,
+    overlay.retroKaraokeLengthInfluence,
+    overlay.retroKaraokeTimingOverrides,
     overlay.isPlaying,
     overlay.lyricOffset,
     session.parsedSubtitles,
@@ -457,6 +457,17 @@ export default function OverlayPage() {
   );
   const videoCropTopPercent = (videoCrop.top / sourceVideoHeight) * 100;
   const videoCropBottomPercent = (videoCrop.bottom / sourceVideoHeight) * 100;
+  const outputWidth = overlay.isLandscapeMode ? 1920 : 1080;
+  const outputHeight = overlay.isLandscapeMode ? 1080 : 1920;
+  const sourceVideoWidth = Math.max(1, overlay.videoDimensions.width);
+  const previewVideoScale = Math.min(
+    outputWidth / sourceVideoWidth,
+    outputHeight / sourceVideoHeight,
+  );
+  const previewVideoWidthPercent = ((sourceVideoWidth * previewVideoScale) / outputWidth) * 100;
+  const previewVideoHeightPercent = ((sourceVideoHeight * previewVideoScale) / outputHeight) * 100;
+  const previewVideoTopPercent =
+    overlay.videoPosition === "center" ? (100 - previewVideoHeightPercent) / 2 : 0;
 
   const videoOverlayContent = (
     <div className="flex h-full w-full flex-col gap-4">
@@ -627,6 +638,36 @@ export default function OverlayPage() {
           <option value="retro-karaoke">Retro karaoke (80s/90s)</option>
         </select>
       </label>
+      {overlay.subtitleStyle === "retro-karaoke" && (
+        <section className="flex w-full flex-col gap-3 rounded-2xl border border-white/30 bg-black/20 p-3">
+          <div>
+            <p className="text-sm font-semibold">Karaoke timing</p>
+            <p className="text-xs text-white/70">
+              Timing is automatic, with per-line adjustments in the subtitle editor.
+            </p>
+          </div>
+          <label className="flex flex-col gap-1 text-sm">
+            Longer groups get {overlay.retroKaraokeLengthInfluence.toFixed(1)}× extra time
+            <input
+              className="w-full"
+              type="range"
+              min={0}
+              max={2}
+              step={0.1}
+              value={overlay.retroKaraokeLengthInfluence}
+              onChange={(event) => {
+                setOverlayState({
+                  retroKaraokeLengthInfluence: Number.parseFloat(event.target.value),
+                });
+              }}
+            />
+            <span className="text-xs text-white/60">0 = equal · 1 = proportional to length</span>
+          </label>
+          <p className="text-xs text-white/60">
+            Fine-tune individual syllables on each row in the subtitle editor.
+          </p>
+        </section>
+      )}
       <div className="flex w-full flex-col gap-2">
         <p className="text-sm">Size Multiplier: {overlay.sizeMultiplier}x</p>
         <input
@@ -687,13 +728,13 @@ export default function OverlayPage() {
         Include transliteration in output
       </label>
       <div
-        className="relative mx-0 flex w-full max-w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-white drop-shadow-md sm:mx-4"
+        className="relative mx-0 flex w-full max-w-full shrink-0 flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-white drop-shadow-md sm:mx-4"
         style={{
           display: overlay.selectedTab === "editor" ? "flex" : "none",
         }}
       >
         <div
-          className={`relative w-full overflow-hidden rounded-2xl border-2 border-white ${
+          className={`relative w-full shrink-0 overflow-hidden rounded-2xl border-2 border-white ${
             overlay.isLandscapeMode
               ? "aspect-video max-w-full xl:max-w-[56rem]"
               : "aspect-[9/16] max-w-[min(100%,22rem)] xl:max-w-[22rem]"
@@ -740,14 +781,16 @@ export default function OverlayPage() {
               ref={previewVideoRef}
               style={{
                 display: overlay.previewUrl ? "block" : "none",
-                placeSelf: overlay.videoPosition === "center" ? "anchor-center" : "auto",
-                width: "100%",
-                maxWidth: "100%",
-                marginTop: overlay.videoPosition === "top" ? "0" : "50%",
+                top: `${previewVideoTopPercent}%`,
+                left: "50%",
+                width: `${previewVideoWidthPercent}%`,
+                height: "auto",
+                maxWidth: "none",
+                transform: "translateX(-50%)",
                 clipPath: `inset(${videoCropTopPercent}% 0 ${videoCropBottomPercent}% 0)`,
               }}
               preload="auto"
-              className="absolute top-0 left-0 h-auto w-auto self-center justify-self-center"
+              className="absolute"
               src={overlay.previewUrl || undefined}
               crossOrigin="anonymous"
               onPause={() => {
