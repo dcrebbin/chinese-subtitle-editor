@@ -5,6 +5,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 
+import "../utilities/reload-diagnostics";
 import appCss from "../globals.css?url";
 import { Providers } from "../providers";
 import messages from "../../locales/en.json";

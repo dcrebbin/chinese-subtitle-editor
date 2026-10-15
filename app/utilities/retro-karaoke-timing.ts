@@ -1,4 +1,60 @@
-export type RetroKaraokeCaption = { chinese: string };
+export type RetroKaraokeCaption = { chinese: string; jyutping?: string };
+
+const OPENING_BRACKETS = /^[([{（［【「『《〈]+$/u;
+const CLOSING_BRACKETS = /^[)\]}）］】」』》〉]+$/u;
+const STARTS_WITH_OPENING_BRACKET = /^[([{（［【「『《〈]/u;
+const ENDS_WITH_CLOSING_BRACKET = /[)\]}）］】」』》〉]$/u;
+
+export function startsRetroKaraokeBackingVocals(text: string) {
+  return STARTS_WITH_OPENING_BRACKET.test(text.trim());
+}
+
+export function endsRetroKaraokeBackingVocals(text: string) {
+  return ENDS_WITH_CLOSING_BRACKET.test(text.trim());
+}
+
+export function getEnglishKaraokeCaptions(text: string): { chinese: string; jyutping: string }[] {
+  return text.match(/\S+|\s+/gu)?.map((part) => ({ chinese: part, jyutping: "EN" })) ?? [];
+}
+
+/**
+ * Keep every visible lyric (including English embedded in a Cantonese line), while
+ * attaching backing-vocal brackets to neighbouring timed cells. Whitespace is dropped
+ * (cells are spaced by the renderer) so it can't offset the text from its romanization.
+ */
+export function getRetroKaraokeLyricCaptions<T extends RetroKaraokeCaption>(captions: T[]): T[] {
+  const lyricCaptions: T[] = [];
+  let openingBrackets = "";
+
+  for (const caption of captions) {
+    const text = caption.chinese.trim();
+    if (!text) continue;
+
+    if (caption.jyutping !== "EN") {
+      lyricCaptions.push({
+        ...caption,
+        chinese: `${openingBrackets}${text}`,
+      });
+      openingBrackets = "";
+    } else if (OPENING_BRACKETS.test(text)) {
+      openingBrackets += text;
+    } else if (CLOSING_BRACKETS.test(text) && lyricCaptions.length > 0) {
+      const lastCaption = lyricCaptions[lyricCaptions.length - 1]!;
+      lyricCaptions[lyricCaptions.length - 1] = {
+        ...lastCaption,
+        chinese: `${lastCaption.chinese}${text}`,
+      };
+    } else {
+      lyricCaptions.push({
+        ...caption,
+        chinese: `${openingBrackets}${text}`,
+      });
+      openingBrackets = "";
+    }
+  }
+
+  return lyricCaptions;
+}
 
 export function getRetroKaraokeCueKey(startTime: number, endTime: number) {
   return `${startTime.toFixed(3)}-${endTime.toFixed(3)}`;

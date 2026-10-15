@@ -3,7 +3,9 @@ import { useState } from "react";
 import { setOverlayState, useOverlayStore } from "../../store/overlay.store";
 import { useSessionStore, type CaptionSegment } from "../../store/session.store";
 import {
+  getEnglishKaraokeCaptions,
   getRetroKaraokeCueKey,
+  getRetroKaraokeLyricCaptions,
   getRetroKaraokeWeights,
 } from "../../utilities/retro-karaoke-timing";
 import { transliterateCaptions } from "../../utilities/srt";
@@ -39,15 +41,28 @@ export default function RetroKaraokeTimingEditor({ caption }: { caption: Caption
         ? "ko"
         : "zh";
   const sourceText =
-    caption.text.yue || caption.text.zh || caption.text.jp || caption.text.ko || "";
-  const captions = (
-    sourceLanguage === "jp"
-      ? retrieveJapaneseRomanizationMap(sourceText, session.japaneseTransliterations[sourceText])
-      : retrieveChineseRomanizationMap(
-          transliterateCaptions(sourceText, sourceLanguage, {}),
-          sourceText,
-        )
-  ).filter((item) => item.jyutping !== "EN" && item.chinese.trim());
+    caption.text.yue ||
+    caption.text.zh ||
+    caption.text.jp ||
+    caption.text.ko ||
+    caption.text.en ||
+    "";
+  const isEnglishOnly = !(
+    caption.text.yue ||
+    caption.text.zh ||
+    caption.text.jp ||
+    caption.text.ko
+  );
+  const captions = getRetroKaraokeLyricCaptions(
+    isEnglishOnly
+      ? getEnglishKaraokeCaptions(sourceText)
+      : sourceLanguage === "jp"
+        ? retrieveJapaneseRomanizationMap(sourceText, session.japaneseTransliterations[sourceText])
+        : retrieveChineseRomanizationMap(
+            transliterateCaptions(sourceText, sourceLanguage, {}),
+            sourceText,
+          ),
+  );
 
   if (captions.length === 0 || endTime <= startTime) return null;
 
@@ -97,7 +112,9 @@ export default function RetroKaraokeTimingEditor({ caption }: { caption: Caption
                 onClick={() => setSelectedCell(index)}
               >
                 <span className="block truncate text-lg font-bold">{item.chinese}</span>
-                <span className="block truncate text-[10px] text-white/70">{item.jyutping}</span>
+                <span className="block truncate text-[10px] text-white/70">
+                  {item.jyutping === "EN" ? "" : item.jyutping}
+                </span>
               </button>
             ))}
           </div>
@@ -128,7 +145,7 @@ export default function RetroKaraokeTimingEditor({ caption }: { caption: Caption
         <input
           type="range"
           min={0.5}
-          max={6}
+          max={15}
           step={0.1}
           value={selectedMultiplier}
           onChange={(event) => {

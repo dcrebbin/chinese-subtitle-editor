@@ -38,6 +38,7 @@ type OverlayStore = {
     setJsonData: (jsonData: Record<string, unknown>) => void;
     videoDimensions: { width: number; height: number };
     setVideoDimensions: (videoDimensions: { width: number; height: number }) => void;
+    videoScale: number;
     videoCropTop: number;
     setVideoCropTop: (videoCropTop: number) => void;
     videoCropBottom: number;
@@ -61,6 +62,8 @@ type OverlayStore = {
       image1: string | null;
       image2: string | null;
     }) => void;
+    backgroundImageBlur: number;
+    doubleBackgroundImageBlur: { image1: number; image2: number };
     doubleBackgroundImageOffsetY: { image1: number; image2: number };
     setDoubleBackgroundImageOffsetY: (doubleBackgroundImageOffsetY: {
       image1: number;
@@ -93,8 +96,11 @@ type PersistableOverlaySettings = Pick<
   | "backgroundImageOffsetY"
   | "doubleBackgroundImage"
   | "doubleBackgroundImageOffsetY"
+  | "backgroundImageBlur"
+  | "doubleBackgroundImageBlur"
   | "colour"
   | "videoPosition"
+  | "videoScale"
   | "videoCropTop"
   | "videoCropBottom"
   | "downloadVideoId"
@@ -116,8 +122,11 @@ const defaultPersistableOverlaySettings: PersistableOverlaySettings = {
   backgroundImageOffsetY: 0,
   doubleBackgroundImage: { image1: null, image2: null },
   doubleBackgroundImageOffsetY: { image1: 0, image2: 0 },
+  backgroundImageBlur: 0,
+  doubleBackgroundImageBlur: { image1: 0, image2: 0 },
   colour: null,
   videoPosition: "center",
+  videoScale: 1,
   videoCropTop: 0,
   videoCropBottom: 0,
   downloadVideoId: null,
@@ -141,6 +150,10 @@ function sanitizePersistableOverlaySettings(
     doubleBackgroundImageOffsetY: {
       ...defaultPersistableOverlaySettings.doubleBackgroundImageOffsetY,
       ...settings.doubleBackgroundImageOffsetY,
+    },
+    doubleBackgroundImageBlur: {
+      ...defaultPersistableOverlaySettings.doubleBackgroundImageBlur,
+      ...settings.doubleBackgroundImageBlur,
     },
   };
 
@@ -198,8 +211,11 @@ function persistOverlaySettings(overlay: OverlayStore["overlay"]) {
     backgroundImageOffsetY: overlay.backgroundImageOffsetY,
     doubleBackgroundImage: overlay.doubleBackgroundImage,
     doubleBackgroundImageOffsetY: overlay.doubleBackgroundImageOffsetY,
+    backgroundImageBlur: overlay.backgroundImageBlur,
+    doubleBackgroundImageBlur: overlay.doubleBackgroundImageBlur,
     colour: overlay.colour,
     videoPosition: overlay.videoPosition,
+    videoScale: overlay.videoScale,
     videoCropTop: overlay.videoCropTop,
     videoCropBottom: overlay.videoCropBottom,
     downloadVideoId: overlay.downloadVideoId,

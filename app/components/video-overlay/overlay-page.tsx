@@ -208,6 +208,7 @@ export default function OverlayPage() {
         endTime: metadata.duration,
         currentTime: 0,
         videoDimensions: { width: metadata.width, height: metadata.height },
+        videoScale: 1,
         videoCropTop: 0,
         videoCropBottom: 0,
         outputUrl: null,
@@ -436,9 +437,26 @@ export default function OverlayPage() {
     previewHeight,
     overlay.isLandscapeMode,
   );
+  const scaledBackgroundBlur = scaleBackgroundImageOffsetY(
+    overlay.backgroundImageBlur,
+    previewHeight,
+    overlay.isLandscapeMode,
+  );
+  // Matches the oversized draw used by the canvas renderer so blurred edges stay covered
+  const backgroundBlurBleed = scaledBackgroundBlur * 2;
   const backgroundPosition = overlay.isLandscapeMode
     ? `center calc(50% + ${scaledBackgroundOffsetY}px)`
-    : `center ${scaledBackgroundOffsetY}px`;
+    : `center ${scaledBackgroundOffsetY + backgroundBlurBleed}px`;
+  const scaledTopBackgroundBlur = scaleBackgroundImageOffsetY(
+    overlay.doubleBackgroundImageBlur.image1,
+    previewHeight,
+    overlay.isLandscapeMode,
+  );
+  const scaledBottomBackgroundBlur = scaleBackgroundImageOffsetY(
+    overlay.doubleBackgroundImageBlur.image2,
+    previewHeight,
+    overlay.isLandscapeMode,
+  );
   const scaledTopBackgroundOffsetY = scaleBackgroundImageOffsetY(
     overlay.doubleBackgroundImageOffsetY.image1,
     previewHeight,
@@ -464,10 +482,14 @@ export default function OverlayPage() {
     outputWidth / sourceVideoWidth,
     outputHeight / sourceVideoHeight,
   );
-  const previewVideoWidthPercent = ((sourceVideoWidth * previewVideoScale) / outputWidth) * 100;
-  const previewVideoHeightPercent = ((sourceVideoHeight * previewVideoScale) / outputHeight) * 100;
+  const userVideoScale = overlay.videoScale || 1;
+  const previewVideoWidthPercent =
+    ((sourceVideoWidth * previewVideoScale) / outputWidth) * 100 * userVideoScale;
+  const fitVideoHeightPercent = ((sourceVideoHeight * previewVideoScale) / outputHeight) * 100;
+  const previewVideoHeightPercent = fitVideoHeightPercent * userVideoScale;
   const previewVideoTopPercent =
-    overlay.videoPosition === "center" ? (100 - previewVideoHeightPercent) / 2 : 0;
+    (overlay.videoPosition === "center" ? (100 - fitVideoHeightPercent) / 2 : 0) -
+    (previewVideoHeightPercent - fitVideoHeightPercent) / 2;
 
   const videoOverlayContent = (
     <div className="flex h-full w-full flex-col gap-4">
@@ -558,6 +580,21 @@ export default function OverlayPage() {
               }
             }}
           />
+        )}
+        {overlay.backgroundMode === "full-image" && (
+          <label className="flex items-center gap-2 text-sm">
+            Blur: {overlay.backgroundImageBlur}px
+            <input
+              type="range"
+              min={0}
+              max={50}
+              step={1}
+              value={overlay.backgroundImageBlur}
+              onChange={(e) =>
+                setOverlayState({ backgroundImageBlur: Number.parseInt(e.target.value) })
+              }
+            />
+          </label>
         )}
         {overlay.backgroundMode === "double-image" && (
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -684,6 +721,20 @@ export default function OverlayPage() {
           }}
         />
       </div>
+      <label className="flex w-full flex-col gap-1 text-sm">
+        Video scale: {userVideoScale.toFixed(2)}x
+        <input
+          className="w-full"
+          type="range"
+          min={0.25}
+          max={3}
+          step={0.01}
+          value={userVideoScale}
+          onChange={(e) => {
+            setOverlayState({ videoScale: Number.parseFloat(e.target.value) });
+          }}
+        />
+      </label>
       <div className="grid w-full gap-2 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
           Crop video top: {videoCrop.top}px
@@ -744,37 +795,55 @@ export default function OverlayPage() {
             ref={backgroundPreviewRef}
             className="absolute h-full w-full"
             style={{
-              backgroundSize: "cover",
-              backgroundPosition,
-              backgroundRepeat: "no-repeat",
-              backgroundImage:
-                overlay.backgroundMode === "full-image"
-                  ? `url(${overlay.backgroundImage})`
-                  : "none",
               backgroundColor:
                 overlay.backgroundMode === "colour" ? overlay.colour || "#000000" : "transparent",
             }}
           >
+            {overlay.backgroundMode === "full-image" && (
+              <div className="absolute inset-0 overflow-hidden">
+                <div
+                  className="absolute"
+                  style={{
+                    inset: `-${backgroundBlurBleed}px`,
+                    backgroundSize: "cover",
+                    backgroundPosition,
+                    backgroundRepeat: "no-repeat",
+                    backgroundImage: overlay.backgroundImage
+                      ? `url(${overlay.backgroundImage})`
+                      : "none",
+                    filter: scaledBackgroundBlur > 0 ? `blur(${scaledBackgroundBlur}px)` : "none",
+                  }}
+                />
+              </div>
+            )}
             {overlay.backgroundMode === "double-image" && (
               <>
-                <div
-                  className="absolute top-0 left-0 h-1/2 w-full bg-cover bg-center bg-no-repeat"
-                  style={{
-                    backgroundImage: overlay.doubleBackgroundImage.image1
-                      ? `url(${overlay.doubleBackgroundImage.image1})`
-                      : "none",
-                    backgroundPosition: `center calc(50% + ${scaledTopBackgroundOffsetY}px)`,
-                  }}
-                />
-                <div
-                  className="absolute bottom-0 left-0 h-1/2 w-full bg-cover bg-center bg-no-repeat"
-                  style={{
-                    backgroundImage: overlay.doubleBackgroundImage.image2
-                      ? `url(${overlay.doubleBackgroundImage.image2})`
-                      : "none",
-                    backgroundPosition: `center calc(50% + ${scaledBottomBackgroundOffsetY}px)`,
-                  }}
-                />
+                <div className="absolute top-0 left-0 h-1/2 w-full overflow-hidden">
+                  <div
+                    className="absolute bg-cover bg-center bg-no-repeat"
+                    style={{
+                      inset: `-${scaledTopBackgroundBlur * 2}px`,
+                      backgroundImage: overlay.doubleBackgroundImage.image1
+                        ? `url(${overlay.doubleBackgroundImage.image1})`
+                        : "none",
+                      backgroundPosition: `center calc(50% + ${scaledTopBackgroundOffsetY}px)`,
+                      filter: scaledTopBackgroundBlur > 0 ? `blur(${scaledTopBackgroundBlur}px)` : "none",
+                    }}
+                  />
+                </div>
+                <div className="absolute bottom-0 left-0 h-1/2 w-full overflow-hidden">
+                  <div
+                    className="absolute bg-cover bg-center bg-no-repeat"
+                    style={{
+                      inset: `-${scaledBottomBackgroundBlur * 2}px`,
+                      backgroundImage: overlay.doubleBackgroundImage.image2
+                        ? `url(${overlay.doubleBackgroundImage.image2})`
+                        : "none",
+                      backgroundPosition: `center calc(50% + ${scaledBottomBackgroundOffsetY}px)`,
+                      filter: scaledBottomBackgroundBlur > 0 ? `blur(${scaledBottomBackgroundBlur}px)` : "none",
+                    }}
+                  />
+                </div>
               </>
             )}
             <video
@@ -937,6 +1006,24 @@ export default function OverlayPage() {
               />
             </label>
             <label className="flex flex-col gap-1">
+              Top image blur: {overlay.doubleBackgroundImageBlur.image1}px
+              <input
+                type="range"
+                min={0}
+                max={50}
+                step={1}
+                value={overlay.doubleBackgroundImageBlur.image1}
+                onChange={(e) =>
+                  setOverlayState({
+                    doubleBackgroundImageBlur: {
+                      ...overlay.doubleBackgroundImageBlur,
+                      image1: Number.parseInt(e.target.value),
+                    },
+                  })
+                }
+              />
+            </label>
+            <label className="flex flex-col gap-1">
               Bottom image Y: {overlay.doubleBackgroundImageOffsetY.image2}px
               <input
                 type="range"
@@ -948,6 +1035,24 @@ export default function OverlayPage() {
                   setOverlayState({
                     doubleBackgroundImageOffsetY: {
                       ...overlay.doubleBackgroundImageOffsetY,
+                      image2: Number.parseInt(e.target.value),
+                    },
+                  })
+                }
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              Bottom image blur: {overlay.doubleBackgroundImageBlur.image2}px
+              <input
+                type="range"
+                min={0}
+                max={50}
+                step={1}
+                value={overlay.doubleBackgroundImageBlur.image2}
+                onChange={(e) =>
+                  setOverlayState({
+                    doubleBackgroundImageBlur: {
+                      ...overlay.doubleBackgroundImageBlur,
                       image2: Number.parseInt(e.target.value),
                     },
                   })

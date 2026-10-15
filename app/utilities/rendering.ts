@@ -5,7 +5,14 @@ import { Conversion, type Input, type Output } from "mediabunny";
 import { getOverlayState, setOverlayState } from "../store/overlay.store";
 import { getSessionState } from "../store/session.store";
 import { defaultCellSize, defaultChineseFontSize, jyutpingFontSize } from "./constants";
-import { getRetroKaraokeCellProgresses, getRetroKaraokeCueKey } from "./retro-karaoke-timing";
+import {
+  endsRetroKaraokeBackingVocals,
+  getEnglishKaraokeCaptions,
+  getRetroKaraokeCellProgresses,
+  getRetroKaraokeCueKey,
+  getRetroKaraokeLyricCaptions,
+  startsRetroKaraokeBackingVocals,
+} from "./retro-karaoke-timing";
 import { getSubtitleAtTime, parseSrt, transliterateCaptions } from "./srt";
 import {
   parseMultilingualText,
@@ -188,9 +195,7 @@ function drawRetroKaraokeSubtitle(
   lengthInfluence: number,
   timingMultipliers: Record<number, number>,
 ) {
-  const lyricCaptions = captions.filter(
-    (caption) => caption.jyutping !== "EN" && caption.chinese.trim(),
-  );
+  const lyricCaptions = getRetroKaraokeLyricCaptions(captions);
   if (lyricCaptions.length === 0) return;
 
   const fontSize = 58 * sizeMultiplier;
@@ -224,8 +229,9 @@ function drawRetroKaraokeSubtitle(
   }
 
   const getCellWidth = (caption: { jyutping: string; chinese: string }) => {
+    const romanization = caption.jyutping === "EN" ? "" : caption.jyutping;
     ctx.font = `700 ${romanizationFontSize}px Arial, sans-serif`;
-    const romanizationWidth = ctx.measureText(caption.jyutping).width;
+    const romanizationWidth = ctx.measureText(romanization).width;
     ctx.font = `700 ${fontSize}px ${RETRO_CHINESE_FONT}`;
     return Math.max(romanizationWidth, ctx.measureText(caption.chinese).width) + cellGap;
   };
@@ -235,13 +241,21 @@ function drawRetroKaraokeSubtitle(
   let rowWidth = 0;
   for (const caption of lyricCaptions) {
     const cellWidth = getCellWidth(caption);
-    if (row.length > 0 && rowWidth + cellWidth > maxWidth) {
+    if (
+      row.length > 0 &&
+      (startsRetroKaraokeBackingVocals(caption.chinese) || rowWidth + cellWidth > maxWidth)
+    ) {
       rows.push(row);
       row = [];
       rowWidth = 0;
     }
     row.push(caption);
     rowWidth += cellWidth;
+    if (endsRetroKaraokeBackingVocals(caption.chinese)) {
+      rows.push(row);
+      row = [];
+      rowWidth = 0;
+    }
   }
   if (row.length > 0) rows.push(row);
 
@@ -269,8 +283,10 @@ function drawRetroKaraokeSubtitle(
       ctx.lineWidth = Math.max(2, 3 * sizeMultiplier);
       ctx.strokeStyle = "#000000";
       ctx.fillStyle = "#ffffff";
-      ctx.strokeText(caption.jyutping, centerX, y, cellWidth);
-      ctx.fillText(caption.jyutping, centerX, y, cellWidth);
+      if (caption.jyutping !== "EN") {
+        ctx.strokeText(caption.jyutping, centerX, y, cellWidth);
+        ctx.fillText(caption.jyutping, centerX, y, cellWidth);
+      }
 
       ctx.font = `700 ${fontSize}px ${RETRO_CHINESE_FONT}`;
       ctx.lineWidth = Math.max(4, 7 * sizeMultiplier);
@@ -336,9 +352,12 @@ export async function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any,
     const korean = captionText.ko || "";
 
     const languageCode = determineNonEnglishLanguage(subtitle.text);
-    const sourceText = cantonese || mandarin || japanese || korean;
-    const transliterationMap =
-      languageCode === "jp"
+    const nonEnglishSourceText = cantonese || mandarin || japanese || korean;
+    const english = captionText.en || "";
+    const sourceText = nonEnglishSourceText || english;
+    const transliterationMap = !nonEnglishSourceText
+      ? getEnglishKaraokeCaptions(english)
+      : languageCode === "jp"
         ? retrieveJapaneseRomanizationMap(
             sourceText,
             getSessionState().session.japaneseTransliterations[sourceText],
@@ -349,13 +368,12 @@ export async function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any,
           );
     setOverlayState({ jsonData: { transliterationMap } });
 
-    const english = captionText.en;
     if (overlay.subtitleStyle === "retro-karaoke") {
       const duration = Math.max(0.001, subtitle.endTime - subtitle.startTime);
       drawRetroKaraokeSubtitle(
         ctx,
         transliterationMap,
-        english || "",
+        nonEnglishSourceText ? english : "",
         canvas.width,
         overlay.verticalPosition,
         rendererSizeMultiplier,
@@ -802,6 +820,29 @@ export const drawCharacterCell = (
   );
 };
 
+// Blurring fades the image edges to transparent, so the image is drawn
+// slightly oversized to keep the visible area fully covered.
+function drawBlurredImage(
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  image: HTMLImageElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  blur: number,
+) {
+  if (blur <= 0) {
+    ctx.drawImage(image, x, y, width, height);
+    return;
+  }
+
+  const bleed = blur * 2;
+  ctx.save();
+  ctx.filter = `blur(${blur}px)`;
+  ctx.drawImage(image, x - bleed, y - bleed, width + bleed * 2, height + bleed * 2);
+  ctx.restore();
+}
+
 function addBackground(
   ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null,
   width: number,
@@ -839,12 +880,25 @@ function addBackground(
         overlay.backgroundImageOffsetY,
       );
 
-      ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+      drawBlurredImage(
+        ctx,
+        image,
+        offsetX,
+        offsetY,
+        drawWidth,
+        drawHeight,
+        overlay.backgroundImageBlur,
+      );
     }
   }
   if (overlay.backgroundMode === "double-image") {
     const halfHeight = height / 2;
-    const drawHalfImage = (image: HTMLImageElement | null, top: number, offsetY: number) => {
+    const drawHalfImage = (
+      image: HTMLImageElement | null,
+      top: number,
+      offsetY: number,
+      blur: number,
+    ) => {
       if (!image) return;
 
       const canvasAspect = width / halfHeight;
@@ -858,15 +912,21 @@ function addBackground(
       ctx.beginPath();
       ctx.rect(0, top, width, halfHeight);
       ctx.clip();
-      ctx.drawImage(image, offsetX, baseOffsetY + offsetY, drawWidth, drawHeight);
+      drawBlurredImage(ctx, image, offsetX, baseOffsetY + offsetY, drawWidth, drawHeight, blur);
       ctx.restore();
     };
 
-    drawHalfImage(preloadedImages.doubleImage1, 0, overlay.doubleBackgroundImageOffsetY.image1);
+    drawHalfImage(
+      preloadedImages.doubleImage1,
+      0,
+      overlay.doubleBackgroundImageOffsetY.image1,
+      overlay.doubleBackgroundImageBlur.image1,
+    );
     drawHalfImage(
       preloadedImages.doubleImage2,
       halfHeight,
       overlay.doubleBackgroundImageOffsetY.image2,
+      overlay.doubleBackgroundImageBlur.image2,
     );
   }
 }
@@ -908,7 +968,8 @@ export async function convertCanvas(
         const adjustedTimestamp = sample.timestamp + overlay.startTime;
         const subtitle = getSubtitleAtTime(parsedSubtitles, adjustedTimestamp + lyricsOffset);
 
-        const videoScale = Math.min(width / sample.displayWidth, height / sample.displayHeight);
+        const fitScale = Math.min(width / sample.displayWidth, height / sample.displayHeight);
+        const videoScale = fitScale * (overlay.videoScale || 1);
         const drawWidth = sample.displayWidth * videoScale;
         const drawHeight = sample.displayHeight * videoScale;
         const videoCrop = getClampedVideoCrop(
@@ -918,7 +979,11 @@ export async function convertCanvas(
         );
         const croppedSourceHeight = sample.displayHeight - videoCrop.top - videoCrop.bottom;
         const croppedDrawHeight = croppedSourceHeight * videoScale;
-        let drawY = overlay.videoPosition === "center" ? (height - drawHeight) / 2 : 0;
+        const fitDrawHeight = sample.displayHeight * fitScale;
+        // Scale around the centre of the video's unscaled placement.
+        let drawY =
+          (overlay.videoPosition === "center" ? (height - fitDrawHeight) / 2 : 0) -
+          (drawHeight - fitDrawHeight) / 2;
         let drawX = (width - drawWidth) / 2;
 
         // Ensure drawX/drawY are rounded for subpixel rendering accuracy
@@ -947,9 +1012,11 @@ export async function convertCanvas(
           const english = captionText.en || "";
 
           const languageCode = determineNonEnglishLanguage(subtitle.text);
-          const sourceText = cantonese || mandarin || japanese || korean;
-          const transliterationMap =
-            languageCode === "jp"
+          const nonEnglishSourceText = cantonese || mandarin || japanese || korean;
+          const sourceText = nonEnglishSourceText || english;
+          const transliterationMap = !nonEnglishSourceText
+            ? getEnglishKaraokeCaptions(english)
+            : languageCode === "jp"
               ? retrieveJapaneseRomanizationMap(
                   sourceText,
                   getSessionState().session.japaneseTransliterations[sourceText],
@@ -965,7 +1032,7 @@ export async function convertCanvas(
             drawRetroKaraokeSubtitle(
               ctx,
               transliterationMap,
-              english,
+              nonEnglishSourceText ? english : "",
               width,
               verticalPosition,
               rendererSizeMultiplier,
