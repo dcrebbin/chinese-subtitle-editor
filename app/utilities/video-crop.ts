@@ -11,18 +11,31 @@ import {
 export type VideoCrop = {
   top: number;
   bottom: number;
+  left: number;
+  right: number;
 };
 
 function normalizeCropValue(value: number) {
   return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
 }
 
-export function getClampedVideoCrop(top: number, bottom: number, videoHeight: number): VideoCrop {
+export function getClampedVideoCrop(
+  top: number,
+  bottom: number,
+  videoHeight: number,
+  left = 0,
+  right = 0,
+  videoWidth = 1,
+): VideoCrop {
   const normalizedHeight = Math.max(1, Math.floor(videoHeight));
   const clampedTop = Math.min(normalizeCropValue(top), normalizedHeight - 1);
   const clampedBottom = Math.min(normalizeCropValue(bottom), normalizedHeight - clampedTop - 1);
 
-  return { top: clampedTop, bottom: clampedBottom };
+  const normalizedWidth = Math.max(1, Math.floor(videoWidth));
+  const clampedLeft = Math.min(normalizeCropValue(left), normalizedWidth - 1);
+  const clampedRight = Math.min(normalizeCropValue(right), normalizedWidth - clampedLeft - 1);
+
+  return { top: clampedTop, bottom: clampedBottom, left: clampedLeft, right: clampedRight };
 }
 
 /** Create a new video containing only the selected time range, including its audio tracks. */

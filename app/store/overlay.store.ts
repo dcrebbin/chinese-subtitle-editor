@@ -13,6 +13,11 @@ type OverlayStore = {
     verticalPosition: number;
     setVerticalPosition: (verticalPosition: number) => void;
     sizeMultiplier: number;
+    flipSubtitleRows: boolean;
+    separateTextSizes: boolean;
+    sourceTextSize: number;
+    romanizationTextSize: number;
+    translationTextSize: number;
     setSizeMultiplier: (sizeMultiplier: number) => void;
     transliterationEnabled: boolean;
     setTransliterationEnabled: (transliterationEnabled: boolean) => void;
@@ -39,6 +44,10 @@ type OverlayStore = {
     videoDimensions: { width: number; height: number };
     setVideoDimensions: (videoDimensions: { width: number; height: number }) => void;
     videoScale: number;
+    videoOffsetX: number;
+    videoOffsetY: number;
+    videoCropLeft: number;
+    videoCropRight: number;
     videoCropTop: number;
     setVideoCropTop: (videoCropTop: number) => void;
     videoCropBottom: number;
@@ -57,6 +66,7 @@ type OverlayStore = {
     setBackgroundImage: (backgroundImage: string | null) => void;
     backgroundImageOffsetY: number;
     setBackgroundImageOffsetY: (backgroundImageOffsetY: number) => void;
+    doubleImageLayer: "under" | "over";
     doubleBackgroundImage: { image1: string | null; image2: string | null };
     setDoubleBackgroundImage: (doubleBackgroundImage: {
       image1: string | null;
@@ -84,6 +94,11 @@ type PersistableOverlaySettings = Pick<
   OverlayStore["overlay"],
   | "verticalPosition"
   | "sizeMultiplier"
+  | "flipSubtitleRows"
+  | "separateTextSizes"
+  | "sourceTextSize"
+  | "romanizationTextSize"
+  | "translationTextSize"
   | "transliterationEnabled"
   | "subtitleStyle"
   | "retroKaraokeLengthInfluence"
@@ -94,6 +109,7 @@ type PersistableOverlaySettings = Pick<
   | "backgroundMode"
   | "backgroundImage"
   | "backgroundImageOffsetY"
+  | "doubleImageLayer"
   | "doubleBackgroundImage"
   | "doubleBackgroundImageOffsetY"
   | "backgroundImageBlur"
@@ -101,6 +117,10 @@ type PersistableOverlaySettings = Pick<
   | "colour"
   | "videoPosition"
   | "videoScale"
+  | "videoOffsetX"
+  | "videoOffsetY"
+  | "videoCropLeft"
+  | "videoCropRight"
   | "videoCropTop"
   | "videoCropBottom"
   | "downloadVideoId"
@@ -110,6 +130,11 @@ type PersistableOverlaySettings = Pick<
 const defaultPersistableOverlaySettings: PersistableOverlaySettings = {
   verticalPosition: 200,
   sizeMultiplier: 1,
+  flipSubtitleRows: false,
+  separateTextSizes: false,
+  sourceTextSize: 1,
+  romanizationTextSize: 1,
+  translationTextSize: 1,
   transliterationEnabled: true,
   subtitleStyle: "learning-cards",
   retroKaraokeLengthInfluence: 0.5,
@@ -120,6 +145,7 @@ const defaultPersistableOverlaySettings: PersistableOverlaySettings = {
   backgroundMode: "colour",
   backgroundImage: null,
   backgroundImageOffsetY: 0,
+  doubleImageLayer: "under",
   doubleBackgroundImage: { image1: null, image2: null },
   doubleBackgroundImageOffsetY: { image1: 0, image2: 0 },
   backgroundImageBlur: 0,
@@ -127,6 +153,10 @@ const defaultPersistableOverlaySettings: PersistableOverlaySettings = {
   colour: null,
   videoPosition: "center",
   videoScale: 1,
+  videoOffsetX: 0,
+  videoOffsetY: 0,
+  videoCropLeft: 0,
+  videoCropRight: 0,
   videoCropTop: 0,
   videoCropBottom: 0,
   downloadVideoId: null,
@@ -199,6 +229,11 @@ function persistOverlaySettings(overlay: OverlayStore["overlay"]) {
   const settingsToSave = sanitizePersistableOverlaySettings({
     verticalPosition: overlay.verticalPosition,
     sizeMultiplier: overlay.sizeMultiplier,
+    flipSubtitleRows: overlay.flipSubtitleRows,
+    separateTextSizes: overlay.separateTextSizes,
+    sourceTextSize: overlay.sourceTextSize,
+    romanizationTextSize: overlay.romanizationTextSize,
+    translationTextSize: overlay.translationTextSize,
     transliterationEnabled: overlay.transliterationEnabled,
     subtitleStyle: overlay.subtitleStyle,
     retroKaraokeLengthInfluence: overlay.retroKaraokeLengthInfluence,
@@ -209,6 +244,7 @@ function persistOverlaySettings(overlay: OverlayStore["overlay"]) {
     backgroundMode: overlay.backgroundMode,
     backgroundImage: overlay.backgroundImage,
     backgroundImageOffsetY: overlay.backgroundImageOffsetY,
+    doubleImageLayer: overlay.doubleImageLayer,
     doubleBackgroundImage: overlay.doubleBackgroundImage,
     doubleBackgroundImageOffsetY: overlay.doubleBackgroundImageOffsetY,
     backgroundImageBlur: overlay.backgroundImageBlur,
@@ -216,6 +252,10 @@ function persistOverlaySettings(overlay: OverlayStore["overlay"]) {
     colour: overlay.colour,
     videoPosition: overlay.videoPosition,
     videoScale: overlay.videoScale,
+    videoOffsetX: overlay.videoOffsetX,
+    videoOffsetY: overlay.videoOffsetY,
+    videoCropLeft: overlay.videoCropLeft,
+    videoCropRight: overlay.videoCropRight,
     videoCropTop: overlay.videoCropTop,
     videoCropBottom: overlay.videoCropBottom,
     downloadVideoId: overlay.downloadVideoId,

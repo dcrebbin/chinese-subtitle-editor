@@ -205,6 +205,8 @@ export default function OverlayPage() {
         currentTime: 0,
         videoDimensions: { width: metadata.width, height: metadata.height },
         videoScale: 1,
+        videoCropLeft: 0,
+        videoCropRight: 0,
         videoCropTop: 0,
         videoCropBottom: 0,
         outputUrl: null,
@@ -299,6 +301,9 @@ export default function OverlayPage() {
             overlay.videoCropTop,
             overlay.videoCropBottom,
             videoHeight,
+            overlay.videoCropLeft,
+            overlay.videoCropRight,
+            previewVideoRef.current?.videoWidth || 1,
           );
           setOverlayState({
             videoLength: previewVideoRef.current?.duration || 0,
@@ -310,6 +315,8 @@ export default function OverlayPage() {
             },
             videoCropTop: videoCrop.top,
             videoCropBottom: videoCrop.bottom,
+            videoCropLeft: videoCrop.left,
+            videoCropRight: videoCrop.right,
           });
         };
         previewVideoRef.current.load();
@@ -321,7 +328,13 @@ export default function OverlayPage() {
     } finally {
       setOverlayState({ videoIsDownloading: false });
     }
-  }, [overlay.downloadVideoId, overlay.videoCropBottom, overlay.videoCropTop]);
+  }, [
+    overlay.downloadVideoId,
+    overlay.videoCropBottom,
+    overlay.videoCropTop,
+    overlay.videoCropLeft,
+    overlay.videoCropRight,
+  ]);
 
   useEffect(() => {
     if (!youtubeDownloadsEnabled) {
@@ -367,6 +380,11 @@ export default function OverlayPage() {
     overlay.currentTime,
     overlay.verticalPosition,
     overlay.sizeMultiplier,
+    overlay.flipSubtitleRows,
+    overlay.separateTextSizes,
+    overlay.sourceTextSize,
+    overlay.romanizationTextSize,
+    overlay.translationTextSize,
     overlay.transliterationEnabled,
     overlay.subtitleStyle,
     overlay.retroKaraokeLengthInfluence,
@@ -468,6 +486,9 @@ export default function OverlayPage() {
     overlay.videoCropTop,
     overlay.videoCropBottom,
     sourceVideoHeight,
+    overlay.videoCropLeft,
+    overlay.videoCropRight,
+    overlay.videoDimensions.width,
   );
   const videoCropTopPercent = (videoCrop.top / sourceVideoHeight) * 100;
   const videoCropBottomPercent = (videoCrop.bottom / sourceVideoHeight) * 100;
@@ -485,7 +506,8 @@ export default function OverlayPage() {
   const previewVideoHeightPercent = fitVideoHeightPercent * userVideoScale;
   const previewVideoTopPercent =
     (overlay.videoPosition === "center" ? (100 - fitVideoHeightPercent) / 2 : 0) -
-    (previewVideoHeightPercent - fitVideoHeightPercent) / 2;
+    (previewVideoHeightPercent - fitVideoHeightPercent) / 2 +
+    (overlay.videoOffsetY / outputHeight) * 100;
 
   const videoOverlayContent = (
     <div className="flex h-full w-full flex-col gap-4">
@@ -590,6 +612,21 @@ export default function OverlayPage() {
                 setOverlayState({ backgroundImageBlur: Number.parseInt(e.target.value) })
               }
             />
+          </label>
+        )}
+        {overlay.backgroundMode === "double-image" && (
+          <label className="flex flex-col gap-1 text-sm">
+            Dual image layer
+            <select
+              className="rounded-2xl bg-white p-2 text-black"
+              value={overlay.doubleImageLayer}
+              onChange={(event) =>
+                setOverlayState({ doubleImageLayer: event.target.value as "under" | "over" })
+              }
+            >
+              <option value="under">Under video</option>
+              <option value="over">Over video</option>
+            </select>
           </label>
         )}
         {overlay.backgroundMode === "double-image" && (
@@ -724,6 +761,51 @@ export default function OverlayPage() {
           }}
         />
       </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={overlay.flipSubtitleRows}
+          onChange={(event) => setOverlayState({ flipSubtitleRows: event.target.checked })}
+        />
+        Flip subtitle rows
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={overlay.separateTextSizes}
+          onChange={(event) => setOverlayState({ separateTextSizes: event.target.checked })}
+        />
+        Separate text sizes (optional)
+      </label>
+      {overlay.separateTextSizes && (
+        <div className="grid w-full gap-3 sm:grid-cols-3">
+          {(
+            [
+              ["sourceTextSize", "Subtitle text"],
+              ["romanizationTextSize", "Romanization"],
+              ["translationTextSize", "English translation"],
+            ] as const
+          ).map(([key, label]) => (
+            <label key={key} className="flex flex-col gap-1 text-sm">
+              {label}: {overlay[key].toFixed(1)}x
+              <input
+                type="range"
+                min={0.1}
+                max={3}
+                step={0.1}
+                value={overlay[key]}
+                disabled={key === "romanizationTextSize" && overlay.subtitleStyle === "brain-rot"}
+                onChange={(event) =>
+                  setOverlayState({ [key]: Number.parseFloat(event.target.value) })
+                }
+              />
+            </label>
+          ))}
+          <p className="text-xs text-white/60 sm:col-span-3">
+            These sizes multiply the main size multiplier. Turn off to use the original proportions.
+          </p>
+        </div>
+      )}
       <label className="flex w-full flex-col gap-1 text-sm">
         Video scale: {userVideoScale.toFixed(2)}x
         <input
@@ -738,6 +820,39 @@ export default function OverlayPage() {
           }}
         />
       </label>
+      <details className="w-full">
+        <summary className="cursor-pointer text-sm">Video position (optional)</summary>
+        <p className="my-2 text-sm text-gray-400">
+          Offset in output pixels. Positive X moves right; positive Y moves down.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(["X", "Y"] as const).map((axis) => {
+            const key = axis === "X" ? "videoOffsetX" : "videoOffsetY";
+            return (
+              <label key={axis} className="flex flex-col gap-1 text-sm">
+                {axis} position (px)
+                <input
+                  className="rounded-2xl bg-white p-2 text-black"
+                  type="number"
+                  step={1}
+                  value={overlay[key]}
+                  onChange={(e) => {
+                    const value = e.target.valueAsNumber;
+                    setOverlayState({ [key]: Number.isFinite(value) ? value : 0 });
+                  }}
+                />
+              </label>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          className="mt-2 rounded-2xl bg-white p-2 text-sm text-black"
+          onClick={() => setOverlayState({ videoOffsetX: 0, videoOffsetY: 0 })}
+        >
+          Reset position
+        </button>
+      </details>
       <div className="grid w-full gap-2 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
           Crop video top: {videoCrop.top}px
@@ -769,6 +884,36 @@ export default function OverlayPage() {
             }}
           />
         </label>
+        <label className="flex flex-col gap-1 text-sm">
+          Crop video left: {videoCrop.left}px
+          <input
+            className="w-full disabled:cursor-not-allowed disabled:opacity-50"
+            type="range"
+            min={0}
+            max={Math.max(0, sourceVideoWidth - videoCrop.right - 1)}
+            step={1}
+            value={videoCrop.left}
+            disabled={!overlay.previewUrl}
+            onChange={(e) => {
+              setOverlayState({ videoCropLeft: Number.parseInt(e.target.value) });
+            }}
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          Crop video right: {videoCrop.right}px
+          <input
+            className="w-full disabled:cursor-not-allowed disabled:opacity-50"
+            type="range"
+            min={0}
+            max={Math.max(0, sourceVideoWidth - videoCrop.left - 1)}
+            step={1}
+            value={videoCrop.right}
+            disabled={!overlay.previewUrl}
+            onChange={(e) => {
+              setOverlayState({ videoCropRight: Number.parseInt(e.target.value) });
+            }}
+          />
+        </label>
       </div>
       <label className="flex w-full cursor-pointer items-center gap-2 text-sm">
         <input
@@ -796,7 +941,7 @@ export default function OverlayPage() {
         >
           <div
             ref={backgroundPreviewRef}
-            className="absolute h-full w-full"
+            className="absolute isolate h-full w-full"
             style={{
               backgroundColor:
                 overlay.backgroundMode === "colour" ? overlay.colour || "#000000" : "transparent",
@@ -821,7 +966,10 @@ export default function OverlayPage() {
             )}
             {overlay.backgroundMode === "double-image" && (
               <>
-                <div className="absolute top-0 left-0 h-1/2 w-full overflow-hidden">
+                <div
+                  className="pointer-events-none absolute top-0 left-0 h-1/2 w-full overflow-hidden"
+                  style={{ zIndex: overlay.doubleImageLayer === "over" ? 1 : undefined }}
+                >
                   <div
                     className="absolute bg-cover bg-center bg-no-repeat"
                     style={{
@@ -835,7 +983,10 @@ export default function OverlayPage() {
                     }}
                   />
                 </div>
-                <div className="absolute bottom-0 left-0 h-1/2 w-full overflow-hidden">
+                <div
+                  className="pointer-events-none absolute bottom-0 left-0 h-1/2 w-full overflow-hidden"
+                  style={{ zIndex: overlay.doubleImageLayer === "over" ? 1 : undefined }}
+                >
                   <div
                     className="absolute bg-cover bg-center bg-no-repeat"
                     style={{
@@ -858,12 +1009,12 @@ export default function OverlayPage() {
               style={{
                 display: overlay.previewUrl ? "block" : "none",
                 top: `${previewVideoTopPercent}%`,
-                left: "50%",
+                left: `${50 + (overlay.videoOffsetX / outputWidth) * 100}%`,
                 width: `${previewVideoWidthPercent}%`,
                 height: "auto",
                 maxWidth: "none",
                 transform: "translateX(-50%)",
-                clipPath: `inset(${videoCropTopPercent}% 0 ${videoCropBottomPercent}% 0)`,
+                clipPath: `inset(${videoCropTopPercent}% ${(videoCrop.right / sourceVideoWidth) * 100}% ${videoCropBottomPercent}% ${(videoCrop.left / sourceVideoWidth) * 100}%)`,
               }}
               preload="auto"
               className="absolute"
@@ -1169,6 +1320,9 @@ export default function OverlayPage() {
                 overlay.videoCropTop,
                 overlay.videoCropBottom,
                 videoElement.videoHeight,
+                overlay.videoCropLeft,
+                overlay.videoCropRight,
+                videoElement.videoWidth,
               );
               setOverlayState({
                 videoLength: videoElement.duration,
@@ -1180,6 +1334,8 @@ export default function OverlayPage() {
                 },
                 videoCropTop: videoCrop.top,
                 videoCropBottom: videoCrop.bottom,
+                videoCropLeft: videoCrop.left,
+                videoCropRight: videoCrop.right,
               });
               setSession({
                 ...session,

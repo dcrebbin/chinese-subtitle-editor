@@ -30,6 +30,22 @@ const JAPANESE_MIN_FONT_PX = 8;
 const RETRO_KARAOKE_BLUE = "#0021FB";
 const RETRO_CHINESE_FONT = '"Songti SC", STSong, SimSun, "Noto Serif CJK TC", serif';
 
+function getTextSizes() {
+  const overlay = getOverlayState().overlay;
+  return overlay.separateTextSizes
+    ? {
+        source: overlay.sourceTextSize,
+        romanization: overlay.romanizationTextSize,
+        translation: overlay.translationTextSize,
+      }
+    : { source: 1, romanization: 1, translation: 1 };
+}
+
+function getCardSizeFactor() {
+  const sizes = getTextSizes();
+  return Math.max(sizes.source, sizes.romanization, sizes.translation);
+}
+
 // Shared by preview and export; the full cue stays visible for its duration.
 function drawBrainRotSubtitle(
   ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
@@ -77,14 +93,29 @@ function drawBrainRotSubtitle(
     }
     if (line.trim()) drawLine();
   };
-  drawText(
-    sourceText.trim(),
-    Math.max(12, 104 * size),
-    'Impact, "Arial Black", "Noto Sans CJK TC", sans-serif',
-  );
-  if (translation.trim()) {
+  const drawSource = () =>
+    drawText(
+      sourceText.trim(),
+      Math.max(12, 104 * size * getTextSizes().source),
+      'Impact, "Arial Black", "Noto Sans CJK TC", sans-serif',
+    );
+  const drawTranslation = () =>
+    drawText(
+      translation.trim(),
+      Math.max(12, 44 * size * getTextSizes().translation),
+      '"Arial Black", sans-serif',
+    );
+  // This style traditionally places the translation below the main text.
+  if (!getOverlayState().overlay.flipSubtitleRows || !translation.trim()) {
+    drawSource();
+    if (translation.trim()) {
+      y += 16 * size;
+      drawTranslation();
+    }
+  } else {
+    drawTranslation();
     y += 16 * size;
-    drawText(translation.trim(), Math.max(12, 44 * size), '"Arial Black", sans-serif');
+    drawSource();
   }
   ctx.restore();
 }
@@ -257,9 +288,14 @@ function drawRetroKaraokeSubtitle(
   const lyricCaptions = getRetroKaraokeLyricCaptions(captions);
   if (lyricCaptions.length === 0) return;
 
-  const fontSize = 58 * sizeMultiplier;
-  const romanizationFontSize = Math.max(13, fontSize * 0.4);
-  const romanizationHeight = fontSize * 0.52;
+  const sizes = getTextSizes();
+  const baseFontSize = 58 * sizeMultiplier;
+  const fontSize = baseFontSize * sizes.source;
+  const romanizationFontSize = Math.max(13, baseFontSize * 0.4 * sizes.romanization);
+  const romanizationHeight = Math.max(
+    baseFontSize * 0.52 * sizes.romanization,
+    romanizationFontSize * 1.2,
+  );
   const rowHeight = romanizationHeight + fontSize * 1.18;
   const cellGap = Math.max(7, 15 * sizeMultiplier);
   const maxWidth = canvasWidth * 0.86;
@@ -268,15 +304,17 @@ function drawRetroKaraokeSubtitle(
   const clampedProgress = Math.min(1, Math.max(0, progress));
 
   let currentY = topY;
-  if (english) {
-    ctx.font = `700 ${Math.max(14, fontSize * 0.48)}px Arial, sans-serif`;
+  const flipRows = getOverlayState().overlay.flipSubtitleRows;
+  const drawTranslation = () => {
+    if (!english) return;
+    ctx.font = `700 ${Math.max(14, baseFontSize * 0.48 * sizes.translation)}px Arial, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.lineJoin = "round";
     ctx.lineWidth = Math.max(3, 4 * sizeMultiplier);
     ctx.strokeStyle = "#000000";
     ctx.fillStyle = "#ffffff";
-    const englishLineHeight = fontSize * 0.62;
+    const englishLineHeight = Math.max(14 * 1.2, baseFontSize * 0.62 * sizes.translation);
     const strokeSafeWidth = Math.max(1, maxWidth - ctx.lineWidth * 4);
     const englishLines = wrapCanvasText(ctx, english, strokeSafeWidth);
     for (const [lineIndex, line] of englishLines.entries()) {
@@ -285,7 +323,8 @@ function drawRetroKaraokeSubtitle(
       ctx.fillText(line, canvasWidth / 2, y, strokeSafeWidth);
     }
     currentY += englishLines.length * englishLineHeight;
-  }
+  };
+  if (!flipRows) drawTranslation();
 
   const getCellWidth = (caption: { jyutping: string; chinese: string }) => {
     const romanization = caption.jyutping === "EN" ? "" : caption.jyutping;
@@ -362,6 +401,10 @@ function drawRetroKaraokeSubtitle(
       lyricCaptionIndex += 1;
       x += cellWidth;
     }
+  }
+  if (flipRows) {
+    currentY += rows.length * rowHeight;
+    drawTranslation();
   }
   ctx.restore();
 }
@@ -463,22 +506,27 @@ export async function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any,
     const topMargin = overlay.verticalPosition;
     const spacingBetweenTextAndChars = 20;
 
-    const cellSize = (defaultCellSize * overlay.sizeMultiplier) / 2 - 5;
+    const cellSize = ((defaultCellSize * overlay.sizeMultiplier) / 2 - 5) * getCardSizeFactor();
     let currentTopY = topMargin;
 
     if (english) {
       ctx.save();
       ctx.fillStyle = "black";
-      ctx.font = `${24 * rendererSizeMultiplier}px Arial`;
+      ctx.font = `${24 * rendererSizeMultiplier * getTextSizes().translation}px Arial`;
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
-      const englishY = currentTopY;
+      const englishY = overlay.flipSubtitleRows
+        ? topMargin +
+          rows.length * (cellSize + rowSpacing) +
+          5 * getCardSizeFactor() +
+          spacingBetweenTextAndChars
+        : currentTopY;
 
       const text = english;
       const paddingX = 0;
       const paddingY = 8;
       const maxWidth = canvas.width * 0.8;
-      const lineHeight = 28 * rendererSizeMultiplier;
+      const lineHeight = 28 * rendererSizeMultiplier * getTextSizes().translation;
 
       const words = text.split(" ");
       const lines: string[] = [];
@@ -521,7 +569,7 @@ export async function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any,
       currentTopY = englishY + totalTextHeight + paddingY * 2 + spacingBetweenTextAndChars;
     }
 
-    const chineseStartY = currentTopY;
+    const chineseStartY = overlay.flipSubtitleRows ? topMargin : currentTopY;
     for (const [rowIndex, row] of rows.entries()) {
       const rowY = chineseStartY + rowIndex * (cellSize + rowSpacing);
 
@@ -577,8 +625,16 @@ export const mergeConsecutiveEnglishWords = (
   const result: { jyutping: string; chinese: string }[] = [];
   let i = 0;
   const savedFont = ctx.font;
-  const englishFontSize = defaultChineseFontSize * sizeMultiplier * INLINE_ENGLISH_FONT_SCALE;
-  const maxCellWidth = defaultCellSize * sizeMultiplier * INLINE_ENGLISH_CELL_MAX_WIDTH_MULTIPLIER;
+  const englishFontSize =
+    defaultChineseFontSize *
+    sizeMultiplier *
+    getTextSizes().translation *
+    INLINE_ENGLISH_FONT_SCALE;
+  const maxCellWidth =
+    defaultCellSize *
+    sizeMultiplier *
+    getTextSizes().translation *
+    INLINE_ENGLISH_CELL_MAX_WIDTH_MULTIPLIER;
   ctx.font = `${englishFontSize}px Arial`;
 
   while (i < map.length) {
@@ -703,8 +759,16 @@ export const computeEnglishCellWidth = (
   sizeMultiplier: number,
 ): number => {
   const savedFont = ctx.font;
-  const englishFontSize = defaultChineseFontSize * sizeMultiplier * INLINE_ENGLISH_FONT_SCALE;
-  const maxCellWidth = defaultCellSize * sizeMultiplier * INLINE_ENGLISH_CELL_MAX_WIDTH_MULTIPLIER;
+  const englishFontSize =
+    defaultChineseFontSize *
+    sizeMultiplier *
+    getTextSizes().translation *
+    INLINE_ENGLISH_FONT_SCALE;
+  const maxCellWidth =
+    defaultCellSize *
+    sizeMultiplier *
+    getTextSizes().translation *
+    INLINE_ENGLISH_CELL_MAX_WIDTH_MULTIPLIER;
   ctx.font = `${englishFontSize}px Arial`;
   const measured = ctx.measureText(text).width;
   ctx.font = savedFont;
@@ -729,6 +793,7 @@ export function computeTransliterationCellWidth(
     return (
       defaultCellSize *
       sizeMultiplier *
+      getCardSizeFactor() *
       Math.max(
         1,
         sourceUnits * JAPANESE_GROUP_WIDTH_PER_CHARACTER,
@@ -736,7 +801,9 @@ export function computeTransliterationCellWidth(
       )
     );
   }
-  return defaultCellSize * sizeMultiplier * Math.max(sourceUnits, readingUnits);
+  return (
+    defaultCellSize * sizeMultiplier * getCardSizeFactor() * Math.max(sourceUnits, readingUnits)
+  );
 }
 
 const fitFontSizeToWidth = (
@@ -805,7 +872,7 @@ export const drawCharacterCell = (
   transliterationEnabled = true,
 ) => {
   if (!ctx) return;
-  const cellSize = defaultCellSize * sizeMultiplier;
+  const cellSize = defaultCellSize * sizeMultiplier * getCardSizeFactor();
   const cellWidth = computeTransliterationCellWidth(
     ctx,
     caption,
@@ -820,7 +887,10 @@ export const drawCharacterCell = (
     ctx.fillRect(x, y, cellWidth, cellSize);
     ctx.fillStyle = "black";
     const preferredInlineEnglishFontSize =
-      defaultChineseFontSize * sizeMultiplier * INLINE_ENGLISH_FONT_SCALE;
+      defaultChineseFontSize *
+      sizeMultiplier *
+      getTextSizes().translation *
+      INLINE_ENGLISH_FONT_SCALE;
     const maxTextWidth = Math.max(0, cellWidth - INLINE_ENGLISH_CELL_PADDING * sizeMultiplier);
     const fitted = fitEnglishTextToWidth(
       ctx,
@@ -857,15 +927,15 @@ export const drawCharacterCell = (
           ctx,
           jyutpingText,
           "Arial",
-          jyutpingFontSize * sizeMultiplier,
+          jyutpingFontSize * sizeMultiplier * getTextSizes().romanization,
           JAPANESE_MIN_FONT_PX * sizeMultiplier,
           maxTextWidth,
         )
-      : jyutpingFontSize * sizeMultiplier;
+      : jyutpingFontSize * sizeMultiplier * getTextSizes().romanization;
   ctx.font = `${romajiFontSize}px Arial`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const paddingY = 15 * sizeMultiplier;
+  const paddingY = 15 * sizeMultiplier * getCardSizeFactor();
 
   if (transliterationEnabled && jyutpingText) {
     ctx.fillText(jyutpingText, x + cellWidth / 2, y + cellSize / 2 - paddingY);
@@ -877,11 +947,11 @@ export const drawCharacterCell = (
           ctx,
           caption.chinese,
           "Times New Roman",
-          defaultChineseFontSize * sizeMultiplier,
+          defaultChineseFontSize * sizeMultiplier * getTextSizes().source,
           JAPANESE_MIN_FONT_PX * sizeMultiplier,
           maxTextWidth,
         )
-      : defaultChineseFontSize * sizeMultiplier;
+      : defaultChineseFontSize * sizeMultiplier * getTextSizes().source;
   ctx.font = `${sourceFontSize}px Times New Roman`;
   ctx.fillText(
     caption.chinese,
@@ -1031,10 +1101,15 @@ export async function convertCanvas(
             | OffscreenCanvasRenderingContext2D;
         }
 
-        addBackground(ctx, width, height, overlay.colour as string, preloadedImages);
+        ctx.clearRect(0, 0, width, height);
+        const doubleImagesOverVideo =
+          overlay.backgroundMode === "double-image" && overlay.doubleImageLayer === "over";
+        if (!doubleImagesOverVideo) {
+          addBackground(ctx, width, height, overlay.colour as string, preloadedImages);
+        }
 
         const rendererSizeMultiplier = sizeMultiplier / 2;
-        const cellSize = (defaultCellSize * sizeMultiplier) / 2 - 5;
+        const cellSize = ((defaultCellSize * sizeMultiplier) / 2 - 5) * getCardSizeFactor();
         const adjustedTimestamp = sample.timestamp + overlay.startTime;
         const subtitle = getSubtitleAtTime(parsedSubtitles, adjustedTimestamp + lyricsOffset);
 
@@ -1046,15 +1121,20 @@ export async function convertCanvas(
           overlay.videoCropTop,
           overlay.videoCropBottom,
           sample.displayHeight,
+          overlay.videoCropLeft,
+          overlay.videoCropRight,
+          sample.displayWidth,
         );
+        const croppedSourceWidth = sample.displayWidth - videoCrop.left - videoCrop.right;
         const croppedSourceHeight = sample.displayHeight - videoCrop.top - videoCrop.bottom;
         const croppedDrawHeight = croppedSourceHeight * videoScale;
         const fitDrawHeight = sample.displayHeight * fitScale;
         // Scale around the centre of the video's unscaled placement.
         let drawY =
           (overlay.videoPosition === "center" ? (height - fitDrawHeight) / 2 : 0) -
-          (drawHeight - fitDrawHeight) / 2;
-        let drawX = (width - drawWidth) / 2;
+          (drawHeight - fitDrawHeight) / 2 +
+          overlay.videoOffsetY;
+        let drawX = (width - drawWidth) / 2 + overlay.videoOffsetX;
 
         // Ensure drawX/drawY are rounded for subpixel rendering accuracy
         drawX = Math.round(drawX);
@@ -1063,15 +1143,19 @@ export async function convertCanvas(
         // Keep the video's original placement while removing the cropped source rows.
         sample.draw(
           ctx,
-          0,
+          videoCrop.left,
           videoCrop.top,
-          sample.displayWidth,
+          croppedSourceWidth,
           croppedSourceHeight,
-          drawX,
+          drawX + videoCrop.left * videoScale,
           drawY + videoCrop.top * videoScale,
-          drawWidth,
+          croppedSourceWidth * videoScale,
           croppedDrawHeight,
         );
+
+        if (doubleImagesOverVideo) {
+          addBackground(ctx, width, height, overlay.colour as string, preloadedImages);
+        }
 
         if (subtitle) {
           const captionText = parseMultilingualText(subtitle.text);
@@ -1137,16 +1221,21 @@ export async function convertCanvas(
 
           if (english) {
             ctx.save();
-            ctx.font = `${24 * rendererSizeMultiplier}px Arial`;
+            ctx.font = `${24 * rendererSizeMultiplier * getTextSizes().translation}px Arial`;
             ctx.textAlign = "center";
             ctx.textBaseline = "top";
-            const englishY = currentTopY;
+            const englishY = overlay.flipSubtitleRows
+              ? topMargin +
+                rows.length * (cellSize + rowSpacing) +
+                5 * getCardSizeFactor() +
+                spacingBetweenTextAndChars
+              : currentTopY;
 
             const text = english;
             const paddingX = 0;
             const paddingY = 8;
             const maxWidth = width * 0.8;
-            const lineHeight = 28 * rendererSizeMultiplier;
+            const lineHeight = 28 * rendererSizeMultiplier * getTextSizes().translation;
 
             const words = text.split(" ");
             const lines: string[] = [];
@@ -1191,7 +1280,7 @@ export async function convertCanvas(
             currentTopY = englishY + totalTextHeight + paddingY * 2 + spacingBetweenTextAndChars;
           }
 
-          const chineseStartY = currentTopY;
+          const chineseStartY = overlay.flipSubtitleRows ? topMargin : currentTopY;
 
           if (ctx?.canvas) {
             for (const [rowIndex, row] of rows.entries()) {
