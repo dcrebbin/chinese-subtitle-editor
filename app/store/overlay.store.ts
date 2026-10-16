@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 const OVERLAY_SETTINGS_STORAGE_KEY = "langpal-overlay-settings";
-export type SubtitleStyle = "learning-cards" | "retro-karaoke";
+export type SubtitleStyle = "learning-cards" | "retro-karaoke" | "brain-rot";
 export type RetroKaraokeTimingOverrides = Record<string, Record<number, number>>;
 
 type OverlayStore = {

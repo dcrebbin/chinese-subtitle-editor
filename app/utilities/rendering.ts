@@ -30,6 +30,65 @@ const JAPANESE_MIN_FONT_PX = 8;
 const RETRO_KARAOKE_BLUE = "#0021FB";
 const RETRO_CHINESE_FONT = '"Songti SC", STSong, SimSun, "Noto Serif CJK TC", serif';
 
+// Shared by preview and export; the full cue stays visible for its duration.
+function drawBrainRotSubtitle(
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  sourceText: string,
+  translation: string,
+  width: number,
+  top: number,
+  size: number,
+) {
+  if (!sourceText.trim()) return;
+  ctx.save();
+  ctx.textBaseline = "top";
+  ctx.textAlign = "center";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "#000000";
+  ctx.fillStyle = "#ffffff";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 7 * size;
+  let y = top;
+  const drawText = (text: string, fontSize: number, font: string) => {
+    ctx.font = `900 ${fontSize}px ${font}`;
+    ctx.lineWidth = fontSize * 0.14;
+    // Wrap for layout only, keeping every line visible at once.
+    const units =
+      text
+        .toUpperCase()
+        .match(
+          /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]|[^\s\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]+|[^\S\n]+|\n/gu,
+        ) ?? [];
+    let line = "";
+    const drawLine = () => {
+      ctx.strokeText(line.trim(), width / 2, y, width * 0.84);
+      ctx.fillText(line.trim(), width / 2, y, width * 0.84);
+      y += fontSize * 1.2;
+      line = "";
+    };
+    for (const unit of units) {
+      if (unit === "\n") {
+        drawLine();
+        continue;
+      }
+      if (line.trim() && ctx.measureText(line + unit).width > width * 0.84) drawLine();
+      line += unit;
+    }
+    if (line.trim()) drawLine();
+  };
+  drawText(
+    sourceText.trim(),
+    Math.max(12, 104 * size),
+    'Impact, "Arial Black", "Noto Sans CJK TC", sans-serif',
+  );
+  if (translation.trim()) {
+    y += 16 * size;
+    drawText(translation.trim(), Math.max(12, 44 * size), '"Arial Black", sans-serif');
+  }
+  ctx.restore();
+}
+
 export const PREFERRED_TRANSLITERATION_SEGMENTS_PER_LINE = 7;
 export const MAX_TRANSLITERATION_SEGMENTS_PER_LINE = 9;
 
@@ -355,6 +414,17 @@ export async function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any,
     const nonEnglishSourceText = cantonese || mandarin || japanese || korean;
     const english = captionText.en || "";
     const sourceText = nonEnglishSourceText || english;
+    if (overlay.subtitleStyle === "brain-rot") {
+      drawBrainRotSubtitle(
+        ctx,
+        sourceText,
+        nonEnglishSourceText ? english : "",
+        canvas.width,
+        overlay.verticalPosition,
+        rendererSizeMultiplier,
+      );
+      return;
+    }
     const transliterationMap = !nonEnglishSourceText
       ? getEnglishKaraokeCaptions(english)
       : languageCode === "jp"
@@ -1014,6 +1084,17 @@ export async function convertCanvas(
           const languageCode = determineNonEnglishLanguage(subtitle.text);
           const nonEnglishSourceText = cantonese || mandarin || japanese || korean;
           const sourceText = nonEnglishSourceText || english;
+          if (overlay.subtitleStyle === "brain-rot") {
+            drawBrainRotSubtitle(
+              ctx,
+              sourceText,
+              nonEnglishSourceText ? english : "",
+              width,
+              verticalPosition,
+              rendererSizeMultiplier,
+            );
+            return ctx.canvas;
+          }
           const transliterationMap = !nonEnglishSourceText
             ? getEnglishKaraokeCaptions(english)
             : languageCode === "jp"

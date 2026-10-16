@@ -20,11 +20,7 @@ import {
   scaleBackgroundImageOffsetY,
   updateTransliterationRows,
 } from "../../utilities/rendering";
-import {
-  cropSrtContent,
-  getSubtitleAtTime,
-  parseSrt,
-} from "../../utilities/srt";
+import { cropSrtContent, getSubtitleAtTime, parseSrt } from "../../utilities/srt";
 import { cropVideoFile, getClampedVideoCrop } from "../../utilities/video-crop";
 import { loadSrtFromLocalStorage } from "../../utilities/video-storage";
 import Loading from "../common/loading";
@@ -673,8 +669,15 @@ export default function OverlayPage() {
         >
           <option value="learning-cards">Learning cards</option>
           <option value="retro-karaoke">Retro karaoke (80s/90s)</option>
+          <option value="brain-rot">Brain rot (Shorts/TikTok)</option>
         </select>
       </label>
+      {overlay.subtitleStyle === "brain-rot" && (
+        <p className="text-sm text-white/70">
+          Bold white captions with thick black outlines. Full subtitles, no word highlights or
+          transliteration.
+        </p>
+      )}
       {overlay.subtitleStyle === "retro-karaoke" && (
         <section className="flex w-full flex-col gap-3 rounded-2xl border border-white/30 bg-black/20 p-3">
           <div>
@@ -770,8 +773,8 @@ export default function OverlayPage() {
       <label className="flex w-full cursor-pointer items-center gap-2 text-sm">
         <input
           type="checkbox"
-          checked={overlay.transliterationEnabled}
-          disabled={overlay.subtitleStyle === "retro-karaoke"}
+          checked={overlay.subtitleStyle === "brain-rot" ? false : overlay.transliterationEnabled}
+          disabled={overlay.subtitleStyle !== "learning-cards"}
           onChange={(e) => {
             setOverlayState({ transliterationEnabled: e.target.checked });
           }}
@@ -827,7 +830,8 @@ export default function OverlayPage() {
                         ? `url(${overlay.doubleBackgroundImage.image1})`
                         : "none",
                       backgroundPosition: `center calc(50% + ${scaledTopBackgroundOffsetY}px)`,
-                      filter: scaledTopBackgroundBlur > 0 ? `blur(${scaledTopBackgroundBlur}px)` : "none",
+                      filter:
+                        scaledTopBackgroundBlur > 0 ? `blur(${scaledTopBackgroundBlur}px)` : "none",
                     }}
                   />
                 </div>
@@ -840,7 +844,10 @@ export default function OverlayPage() {
                         ? `url(${overlay.doubleBackgroundImage.image2})`
                         : "none",
                       backgroundPosition: `center calc(50% + ${scaledBottomBackgroundOffsetY}px)`,
-                      filter: scaledBottomBackgroundBlur > 0 ? `blur(${scaledBottomBackgroundBlur}px)` : "none",
+                      filter:
+                        scaledBottomBackgroundBlur > 0
+                          ? `blur(${scaledBottomBackgroundBlur}px)`
+                          : "none",
                     }}
                   />
                 </div>
