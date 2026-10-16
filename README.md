@@ -34,3 +34,7 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Uploaded-video subtitle generation
+
+Audio uploads go directly from the app server to Elysia, bypassing the website JSON API. Set `LANGPAL_ASR_API_URL` to the Elysia origin (for example `http://localhost` when the local server runs on port 80). The default is `https://langpal-elysia.fly.dev`. Restart the app after changing environment settings. Elysia must include `/api/subtitles/transcribe-audio` and have `GROQ_API_KEY` configured; dual translations also require `OPENAI_API_KEY`.
