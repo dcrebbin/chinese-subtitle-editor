@@ -4,8 +4,9 @@
   --background: #ffffff;
   --foreground: #171717;
   --font-geist-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-  --font-geist-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
+  --font-geist-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
   --mobile-tab-bar-height: 3.5rem;
 }
 
@@ -59,4 +60,50 @@ body {
 
 .titlebar-no-drag {
   -webkit-app-region: no-drag;
+}
+
+.subtitle-position-slider {
+  appearance: none;
+  background: transparent;
+  border-radius: 999px;
+}
+
+.subtitle-position-slider:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: -2px;
+}
+
+.subtitle-position-slider::-webkit-slider-runnable-track {
+  width: 4px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 35%);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 35%);
+}
+
+.subtitle-position-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-left: -4px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: #3b82f6;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 60%);
+}
+
+.subtitle-position-slider::-moz-range-track {
+  width: 4px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 35%);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 35%);
+}
+
+.subtitle-position-slider::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: #3b82f6;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 60%);
 }

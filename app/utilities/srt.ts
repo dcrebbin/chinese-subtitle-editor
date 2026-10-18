@@ -61,7 +61,7 @@ export function getSubtitleAtTime(
   endTime: number | null;
   text: string;
 } | null {
-  if (!time) {
+  if (!Number.isFinite(time)) {
     return null;
   }
 

@@ -2,29 +2,30 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ArrowDownCircleIcon,
-  ArrowUpCircleIcon,
-  PauseCircleIcon,
-  PencilIcon,
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
+  ArrowUturnLeftIcon,
+  FilmIcon,
+  PauseIcon,
   PlayIcon,
-} from "@heroicons/react/24/solid";
+  ScissorsIcon,
+  XMarkIcon,
+} from "@heroicons/react/20/solid";
 import { ALL_FORMATS, BlobSource, BufferTarget, Input, Mp4OutputFormat, Output } from "mediabunny";
 
-import { setOverlayState, useOverlayStore, type SubtitleStyle } from "@/app/store/overlay.store";
+import { setOverlayState, useOverlayStore } from "@/app/store/overlay.store";
 import { setSessionState, useSessionStore } from "@/app/store/session.store";
-import { defaultCellSize } from "../../utilities/constants";
 import {
   convertCanvas,
-  drawCharacterCell,
   handleDrawCanvas,
   scaleBackgroundImageOffsetY,
-  updateTransliterationRows,
 } from "../../utilities/rendering";
 import { cropSrtContent, getSubtitleAtTime, parseSrt } from "../../utilities/srt";
 import { cropVideoFile, getClampedVideoCrop } from "../../utilities/video-crop";
 import { loadSrtFromLocalStorage } from "../../utilities/video-storage";
 import Loading from "../common/loading";
-import VideoTabs from "./video-tabs";
+import { Segmented } from "./inspector-controls";
+import OverlayInspector from "./overlay-inspector";
 
 const youtubeDownloadsEnabled = import.meta.env.VITE_DOWNLOAD_ENABLED === "true";
 
@@ -390,6 +391,8 @@ export default function OverlayPage() {
     overlay.retroKaraokeLengthInfluence,
     overlay.retroKaraokeTimingOverrides,
     overlay.isPlaying,
+    overlay.isLandscapeMode,
+    overlay.selectedTab,
     overlay.lyricOffset,
     session.parsedSubtitles,
   ]);
@@ -494,6 +497,14 @@ export default function OverlayPage() {
   const videoCropBottomPercent = (videoCrop.bottom / sourceVideoHeight) * 100;
   const outputWidth = overlay.isLandscapeMode ? 1920 : 1080;
   const outputHeight = overlay.isLandscapeMode ? 1080 : 1920;
+  const subtitlePositionY = Math.max(0, Math.min(outputHeight - 1, overlay.verticalPosition));
+
+  useEffect(() => {
+    if (overlay.verticalPosition !== subtitlePositionY) {
+      setOverlayState({ verticalPosition: subtitlePositionY });
+    }
+  }, [overlay.verticalPosition, subtitlePositionY]);
+
   const sourceVideoWidth = Math.max(1, overlay.videoDimensions.width);
   const previewVideoScale = Math.min(
     outputWidth / sourceVideoWidth,
@@ -509,901 +520,480 @@ export default function OverlayPage() {
     (previewVideoHeightPercent - fitVideoHeightPercent) / 2 +
     (overlay.videoOffsetY / outputHeight) * 100;
 
-  const videoOverlayContent = (
-    <div className="flex h-full w-full flex-col gap-4">
-      <div className="my-4 flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap">
+  const hasVideo = Boolean(overlay.previewUrl);
+  const inPercent = (overlay.startTime / Math.max(overlay.videoLength, 0.001)) * 100;
+  const outPercent = (overlay.endTime / Math.max(overlay.videoLength, 0.001)) * 100;
+
+  function setLandscapeMode(isLandscapeMode: boolean) {
+    if (isLandscapeMode === overlay.isLandscapeMode) {
+      return;
+    }
+    setOverlayState({ isLandscapeMode });
+  }
+
+  function togglePlayback() {
+    if (!previewVideoRef.current) {
+      return;
+    }
+    if (overlay.isPlaying) {
+      setOverlayState({ isPlaying: false });
+      previewVideoRef.current.pause();
+    } else {
+      setOverlayState({ isPlaying: true });
+      void previewVideoRef.current.play();
+    }
+  }
+
+  const toolbarButtonClassName =
+    "flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-1.5 text-sm font-medium hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40";
+  const textFieldClassName =
+    "min-w-0 flex-1 rounded-lg bg-white/10 px-2.5 py-1.5 text-sm placeholder:text-white/40 outline-none focus:bg-white/15";
+
+  const sourceBar = (
+    <div className="flex w-full flex-wrap items-center gap-2">
+      <button
+        type="button"
+        className={toolbarButtonClassName}
+        onClick={() => inputFileRef.current?.click()}
+      >
+        <ArrowUpTrayIcon className="h-4 w-4" />
+        Upload
+      </button>
+      {hasVideo && (
+        <button
+          type="button"
+          className={toolbarButtonClassName}
+          title="Remove video"
+          onClick={() => setOverlayState({ previewUrl: null, file: null, videoLength: 100 })}
+        >
+          <XMarkIcon className="h-4 w-4" />
+        </button>
+      )}
+      <div className="flex min-w-48 flex-1 items-center gap-2">
+        <input
+          type="text"
+          className={textFieldClassName}
+          placeholder="YouTube ID or link"
+          value={overlay.loadedVideoId || ""}
+          onChange={(e) => {
+            hasAttemptedAutoDownload.current = true;
+            setOverlayState({
+              loadedVideoId: e.target.value,
+              ...(youtubeDownloadsEnabled ? { downloadVideoId: e.target.value } : {}),
+            });
+          }}
+        />
+        <button
+          type="button"
+          className={toolbarButtonClassName}
+          onClick={handleLoadVideo}
+          disabled={!overlay.loadedVideoId}
+          title="Load saved subtitles for this video"
+        >
+          Subtitles
+        </button>
         {youtubeDownloadsEnabled && (
-          <div className="flex w-full min-w-0 gap-2 sm:flex-1">
-            <input
-              type="text"
-              className="min-w-0 flex-1 rounded-2xl bg-white p-2 text-black"
-              value={overlay.downloadVideoId || ""}
-              onChange={(e) => {
-                setOverlayState({ downloadVideoId: e.target.value });
-              }}
-            />
-            <button
-              type="button"
-              className="shrink-0 cursor-pointer rounded-2xl bg-blue-600 p-2 font-semibold hover:bg-blue-700"
-              onClick={handleDownloadVideo}
-              disabled={overlay.downloadVideoId === ""}
-            >
-              Download
-            </button>
-          </div>
-        )}
-        <div className="flex w-full min-w-0 gap-2 sm:flex-1">
-          <input
-            type="text"
-            className="min-w-0 flex-1 rounded-2xl bg-white p-2 text-black"
-            value={overlay.loadedVideoId || ""}
-            onChange={(e) => {
-              setOverlayState({ loadedVideoId: e.target.value });
-            }}
-          />
           <button
             type="button"
-            className="shrink-0 cursor-pointer rounded-2xl bg-blue-600 p-2 font-semibold hover:bg-blue-700"
-            onClick={handleLoadVideo}
-            disabled={overlay.loadedVideoId === ""}
+            className={toolbarButtonClassName}
+            onClick={handleDownloadVideo}
+            disabled={!overlay.downloadVideoId}
+            title="Download this video from YouTube"
           >
-            Load
+            <ArrowDownTrayIcon className="h-4 w-4" />
+            Video
           </button>
-        </div>
-      </div>
-      <div className="mb-4 flex w-full flex-col flex-wrap gap-2 sm:flex-row sm:gap-4">
-        <button
-          className="cursor-pointer rounded-2xl bg-black p-2 hover:bg-gray-800"
-          type="button"
-          onClick={() => {
-            setOverlayState({ isLandscapeMode: !overlay.isLandscapeMode });
-            if (canvasRef.current && videoRef.current) {
-              if (overlay.isLandscapeMode) {
-                canvasRef.current.width = 1080;
-                canvasRef.current.height = 1920;
-                videoRef.current.style.width = "100%";
-              } else {
-                canvasRef.current.width = 1920;
-                canvasRef.current.height = 1080;
-                videoRef.current.style.width = "100%";
-              }
-            }
-          }}
-        >
-          {overlay.isLandscapeMode ? "Portrait Mode" : "Landscape Mode"}
-        </button>
-        <select
-          className="w-fit rounded-2xl bg-white p-2 text-black"
-          value={overlay.backgroundMode}
-          onChange={(e) => {
-            setOverlayState({
-              backgroundMode: e.target.value as "colour" | "full-image" | "double-image",
-            });
-          }}
-        >
-          <option value="colour">Colour</option>
-          <option value="full-image">Full Image</option>
-          <option value="double-image">Double Image</option>
-        </select>
-        {overlay.backgroundMode === "full-image" && (
-          <input
-            type="file"
-            className="w-fit rounded-2xl bg-white p-2 text-black"
-            accept="image/*"
-            onChange={(e) => {
-              const selectedFile = e.target.files?.[0];
-              if (selectedFile) {
-                const url = URL.createObjectURL(selectedFile);
-                setOverlayState({ backgroundImage: url });
-              }
-            }}
-          />
-        )}
-        {overlay.backgroundMode === "full-image" && (
-          <label className="flex items-center gap-2 text-sm">
-            Blur: {overlay.backgroundImageBlur}px
-            <input
-              type="range"
-              min={0}
-              max={50}
-              step={1}
-              value={overlay.backgroundImageBlur}
-              onChange={(e) =>
-                setOverlayState({ backgroundImageBlur: Number.parseInt(e.target.value) })
-              }
-            />
-          </label>
-        )}
-        {overlay.backgroundMode === "double-image" && (
-          <label className="flex flex-col gap-1 text-sm">
-            Dual image layer
-            <select
-              className="rounded-2xl bg-white p-2 text-black"
-              value={overlay.doubleImageLayer}
-              onChange={(event) =>
-                setOverlayState({ doubleImageLayer: event.target.value as "under" | "over" })
-              }
-            >
-              <option value="under">Under video</option>
-              <option value="over">Over video</option>
-            </select>
-          </label>
-        )}
-        {overlay.backgroundMode === "double-image" && (
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <label className="flex items-center gap-2 text-sm">
-              Top image
-              <input
-                type="file"
-                className="w-fit rounded-2xl bg-white p-2 text-black"
-                accept="image/*"
-                onChange={(e) => {
-                  const selectedFile = e.target.files?.[0];
-                  if (selectedFile) {
-                    setOverlayState({
-                      doubleBackgroundImage: {
-                        ...overlay.doubleBackgroundImage,
-                        image1: URL.createObjectURL(selectedFile),
-                      },
-                    });
-                  }
-                }}
-              />
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              Bottom image
-              <input
-                type="file"
-                className="w-fit rounded-2xl bg-white p-2 text-black"
-                accept="image/*"
-                onChange={(e) => {
-                  const selectedFile = e.target.files?.[0];
-                  if (selectedFile) {
-                    setOverlayState({
-                      doubleBackgroundImage: {
-                        ...overlay.doubleBackgroundImage,
-                        image2: URL.createObjectURL(selectedFile),
-                      },
-                    });
-                  }
-                }}
-              />
-            </label>
-          </div>
-        )}
-
-        {overlay.backgroundMode === "colour" && (
-          <input
-            type="color"
-            className="h-10 w-32 cursor-pointer rounded-2xl bg-white p-1 text-black"
-            value={overlay.colour || "#000000"}
-            onChange={(e) => {
-              setOverlayState({ colour: e.target.value });
-            }}
-          />
-        )}
-        {!overlay.isLandscapeMode && (
-          <select
-            className="w-fit rounded-2xl bg-white p-2 text-black"
-            value={overlay.videoPosition || "center"}
-            onChange={(e) => {
-              setOverlayState({ videoPosition: e.target.value as "top" | "center" | "bottom" });
-            }}
-          >
-            <option value="top">Top</option>
-            <option value="center">Center</option>
-          </select>
         )}
       </div>
-      <label className="flex w-full flex-col gap-1 text-sm">
-        Subtitle style
-        <select
-          className="w-fit rounded-2xl bg-white p-2 text-black"
-          value={overlay.subtitleStyle}
-          onChange={(e) => {
-            setOverlayState({ subtitleStyle: e.target.value as SubtitleStyle });
-          }}
-        >
-          <option value="learning-cards">Learning cards</option>
-          <option value="retro-karaoke">Retro karaoke (80s/90s)</option>
-          <option value="brain-rot">Brain rot (Shorts/TikTok)</option>
-        </select>
-      </label>
-      {overlay.subtitleStyle === "brain-rot" && (
-        <p className="text-sm text-white/70">
-          Bold white captions with thick black outlines. Full subtitles, no word highlights or
-          transliteration.
-        </p>
-      )}
-      {overlay.subtitleStyle === "retro-karaoke" && (
-        <section className="flex w-full flex-col gap-3 rounded-2xl border border-white/30 bg-black/20 p-3">
-          <div>
-            <p className="text-sm font-semibold">Karaoke timing</p>
-            <p className="text-xs text-white/70">
-              Timing is automatic, with per-line adjustments in the subtitle editor.
-            </p>
-          </div>
-          <label className="flex flex-col gap-1 text-sm">
-            Longer groups get {overlay.retroKaraokeLengthInfluence.toFixed(1)}× extra time
-            <input
-              className="w-full"
-              type="range"
-              min={0}
-              max={2}
-              step={0.1}
-              value={overlay.retroKaraokeLengthInfluence}
-              onChange={(event) => {
-                setOverlayState({
-                  retroKaraokeLengthInfluence: Number.parseFloat(event.target.value),
-                });
-              }}
-            />
-            <span className="text-xs text-white/60">0 = equal · 1 = proportional to length</span>
-          </label>
-          <p className="text-xs text-white/60">
-            Fine-tune individual syllables on each row in the subtitle editor.
-          </p>
-        </section>
-      )}
-      <div className="flex w-full flex-col gap-2">
-        <p className="text-sm">Size Multiplier: {overlay.sizeMultiplier}x</p>
-        <input
-          className="w-full"
-          type="range"
-          min={0.1}
-          max={10}
-          step={0.1}
-          value={overlay.sizeMultiplier}
-          onChange={(e) => {
-            setOverlayState({
-              sizeMultiplier: Number.parseFloat(e.target.value),
-            });
-          }}
-        />
-      </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={overlay.flipSubtitleRows}
-          onChange={(event) => setOverlayState({ flipSubtitleRows: event.target.checked })}
-        />
-        Flip subtitle rows
-      </label>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={overlay.separateTextSizes}
-          onChange={(event) => setOverlayState({ separateTextSizes: event.target.checked })}
-        />
-        Separate text sizes (optional)
-      </label>
-      {overlay.separateTextSizes && (
-        <div className="grid w-full gap-3 sm:grid-cols-3">
-          {(
-            [
-              ["sourceTextSize", "Subtitle text"],
-              ["romanizationTextSize", "Romanization"],
-              ["translationTextSize", "English translation"],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key} className="flex flex-col gap-1 text-sm">
-              {label}: {overlay[key].toFixed(1)}x
-              <input
-                type="range"
-                min={0.1}
-                max={3}
-                step={0.1}
-                value={overlay[key]}
-                disabled={key === "romanizationTextSize" && overlay.subtitleStyle === "brain-rot"}
-                onChange={(event) =>
-                  setOverlayState({ [key]: Number.parseFloat(event.target.value) })
-                }
-              />
-            </label>
-          ))}
-          <p className="text-xs text-white/60 sm:col-span-3">
-            These sizes multiply the main size multiplier. Turn off to use the original proportions.
-          </p>
-        </div>
-      )}
-      <label className="flex w-full flex-col gap-1 text-sm">
-        Video scale: {userVideoScale.toFixed(2)}x
-        <input
-          className="w-full"
-          type="range"
-          min={0.25}
-          max={3}
-          step={0.01}
-          value={userVideoScale}
-          onChange={(e) => {
-            setOverlayState({ videoScale: Number.parseFloat(e.target.value) });
-          }}
-        />
-      </label>
-      <details className="w-full">
-        <summary className="cursor-pointer text-sm">Video position (optional)</summary>
-        <p className="my-2 text-sm text-gray-400">
-          Offset in output pixels. Positive X moves right; positive Y moves down.
-        </p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {(["X", "Y"] as const).map((axis) => {
-            const key = axis === "X" ? "videoOffsetX" : "videoOffsetY";
-            return (
-              <label key={axis} className="flex flex-col gap-1 text-sm">
-                {axis} position (px)
-                <input
-                  className="rounded-2xl bg-white p-2 text-black"
-                  type="number"
-                  step={1}
-                  value={overlay[key]}
-                  onChange={(e) => {
-                    const value = e.target.valueAsNumber;
-                    setOverlayState({ [key]: Number.isFinite(value) ? value : 0 });
-                  }}
-                />
-              </label>
-            );
-          })}
-        </div>
-        <button
-          type="button"
-          className="mt-2 rounded-2xl bg-white p-2 text-sm text-black"
-          onClick={() => setOverlayState({ videoOffsetX: 0, videoOffsetY: 0 })}
-        >
-          Reset position
-        </button>
-      </details>
-      <div className="grid w-full gap-2 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm">
-          Crop video top: {videoCrop.top}px
-          <input
-            className="w-full disabled:cursor-not-allowed disabled:opacity-50"
-            type="range"
-            min={0}
-            max={Math.max(0, sourceVideoHeight - videoCrop.bottom - 1)}
-            step={1}
-            value={videoCrop.top}
-            disabled={!overlay.previewUrl}
-            onChange={(e) => {
-              setOverlayState({ videoCropTop: Number.parseInt(e.target.value) });
-            }}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Crop video bottom: {videoCrop.bottom}px
-          <input
-            className="w-full disabled:cursor-not-allowed disabled:opacity-50"
-            type="range"
-            min={0}
-            max={Math.max(0, sourceVideoHeight - videoCrop.top - 1)}
-            step={1}
-            value={videoCrop.bottom}
-            disabled={!overlay.previewUrl}
-            onChange={(e) => {
-              setOverlayState({ videoCropBottom: Number.parseInt(e.target.value) });
-            }}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Crop video left: {videoCrop.left}px
-          <input
-            className="w-full disabled:cursor-not-allowed disabled:opacity-50"
-            type="range"
-            min={0}
-            max={Math.max(0, sourceVideoWidth - videoCrop.right - 1)}
-            step={1}
-            value={videoCrop.left}
-            disabled={!overlay.previewUrl}
-            onChange={(e) => {
-              setOverlayState({ videoCropLeft: Number.parseInt(e.target.value) });
-            }}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Crop video right: {videoCrop.right}px
-          <input
-            className="w-full disabled:cursor-not-allowed disabled:opacity-50"
-            type="range"
-            min={0}
-            max={Math.max(0, sourceVideoWidth - videoCrop.left - 1)}
-            step={1}
-            value={videoCrop.right}
-            disabled={!overlay.previewUrl}
-            onChange={(e) => {
-              setOverlayState({ videoCropRight: Number.parseInt(e.target.value) });
-            }}
-          />
-        </label>
-      </div>
-      <label className="flex w-full cursor-pointer items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={overlay.subtitleStyle === "brain-rot" ? false : overlay.transliterationEnabled}
-          disabled={overlay.subtitleStyle !== "learning-cards"}
-          onChange={(e) => {
-            setOverlayState({ transliterationEnabled: e.target.checked });
-          }}
-        />
-        Include transliteration in output
-      </label>
-      <div
-        className="relative mx-0 flex w-full max-w-full shrink-0 flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-white drop-shadow-md sm:mx-4"
-        style={{
-          display: overlay.selectedTab === "editor" ? "flex" : "none",
-        }}
+      <Segmented
+        value={overlay.isLandscapeMode ? "landscape" : "portrait"}
+        options={[
+          ["landscape", "16:9"],
+          ["portrait", "9:16"],
+        ]}
+        onChange={(mode) => setLandscapeMode(mode === "landscape")}
+      />
+      <button
+        type="button"
+        className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40"
+        onClick={handleUpload}
+        disabled={overlay.isLoading || !overlay.file}
       >
-        <div
-          className={`relative w-full shrink-0 overflow-hidden rounded-2xl border-2 border-white ${
-            overlay.isLandscapeMode
-              ? "aspect-video max-w-full xl:max-w-[56rem]"
-              : "aspect-[9/16] max-w-[min(100%,22rem)] xl:max-w-[22rem]"
-          }`}
+        <FilmIcon className="h-4 w-4" />
+        {overlay.isLoading ? "Rendering…" : "Render"}
+      </button>
+    </div>
+  );
+
+  const transportBar = (
+    <div className="flex w-full flex-col gap-2">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          disabled={!hasVideo}
+          className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white text-black hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={togglePlayback}
+          aria-label={overlay.isPlaying ? "Pause" : "Play"}
         >
+          {overlay.isPlaying ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
+        </button>
+        <span className="shrink-0 text-xs text-white/70 tabular-nums">
+          {formatTime(overlay.currentTime)} / {formatTime(overlay.videoLength)}
+        </span>
+        <div className="relative flex min-w-0 flex-1 items-center">
           <div
-            ref={backgroundPreviewRef}
-            className="absolute isolate h-full w-full"
+            className="pointer-events-none absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-blue-500/40"
             style={{
-              backgroundColor:
-                overlay.backgroundMode === "colour" ? overlay.colour || "#000000" : "transparent",
+              left: `${Math.min(inPercent, outPercent)}%`,
+              width: `${Math.max(0, outPercent - inPercent)}%`,
             }}
-          >
-            {overlay.backgroundMode === "full-image" && (
-              <div className="absolute inset-0 overflow-hidden">
-                <div
-                  className="absolute"
-                  style={{
-                    inset: `-${backgroundBlurBleed}px`,
-                    backgroundSize: "cover",
-                    backgroundPosition,
-                    backgroundRepeat: "no-repeat",
-                    backgroundImage: overlay.backgroundImage
-                      ? `url(${overlay.backgroundImage})`
-                      : "none",
-                    filter: scaledBackgroundBlur > 0 ? `blur(${scaledBackgroundBlur}px)` : "none",
-                  }}
-                />
-              </div>
-            )}
-            {overlay.backgroundMode === "double-image" && (
-              <>
-                <div
-                  className="pointer-events-none absolute top-0 left-0 h-1/2 w-full overflow-hidden"
-                  style={{ zIndex: overlay.doubleImageLayer === "over" ? 1 : undefined }}
-                >
-                  <div
-                    className="absolute bg-cover bg-center bg-no-repeat"
-                    style={{
-                      inset: `-${scaledTopBackgroundBlur * 2}px`,
-                      backgroundImage: overlay.doubleBackgroundImage.image1
-                        ? `url(${overlay.doubleBackgroundImage.image1})`
-                        : "none",
-                      backgroundPosition: `center calc(50% + ${scaledTopBackgroundOffsetY}px)`,
-                      filter:
-                        scaledTopBackgroundBlur > 0 ? `blur(${scaledTopBackgroundBlur}px)` : "none",
-                    }}
-                  />
-                </div>
-                <div
-                  className="pointer-events-none absolute bottom-0 left-0 h-1/2 w-full overflow-hidden"
-                  style={{ zIndex: overlay.doubleImageLayer === "over" ? 1 : undefined }}
-                >
-                  <div
-                    className="absolute bg-cover bg-center bg-no-repeat"
-                    style={{
-                      inset: `-${scaledBottomBackgroundBlur * 2}px`,
-                      backgroundImage: overlay.doubleBackgroundImage.image2
-                        ? `url(${overlay.doubleBackgroundImage.image2})`
-                        : "none",
-                      backgroundPosition: `center calc(50% + ${scaledBottomBackgroundOffsetY}px)`,
-                      filter:
-                        scaledBottomBackgroundBlur > 0
-                          ? `blur(${scaledBottomBackgroundBlur}px)`
-                          : "none",
-                    }}
-                  />
-                </div>
-              </>
-            )}
-            <video
-              ref={previewVideoRef}
-              style={{
-                display: overlay.previewUrl ? "block" : "none",
-                top: `${previewVideoTopPercent}%`,
-                left: `${50 + (overlay.videoOffsetX / outputWidth) * 100}%`,
-                width: `${previewVideoWidthPercent}%`,
-                height: "auto",
-                maxWidth: "none",
-                transform: "translateX(-50%)",
-                clipPath: `inset(${videoCropTopPercent}% ${(videoCrop.right / sourceVideoWidth) * 100}% ${videoCropBottomPercent}% ${(videoCrop.left / sourceVideoWidth) * 100}%)`,
-              }}
-              preload="auto"
-              className="absolute"
-              src={overlay.previewUrl || undefined}
-              crossOrigin="anonymous"
-              onPause={() => {
-                setOverlayState({ isPlaying: false });
-                stopUpdatePreview();
-              }}
-              onPlay={() => {
-                setOverlayState({ isPlaying: true });
-                startUpdatePreview();
-              }}
-              onTimeUpdate={() => {
-                setOverlayState({ currentTime: previewVideoRef.current?.currentTime ?? 0 });
-              }}
-            >
-              <track kind="captions" src={undefined} />
-            </video>
-          </div>
-          <canvas
-            style={{
-              placeSelf: "anchor-center",
+          />
+          <input
+            className="relative w-full cursor-pointer accent-white"
+            type="range"
+            min={0}
+            step={0.1}
+            max={overlay.videoLength}
+            ref={currentTimeRef}
+            value={overlay.currentTime}
+            onChange={(e) => {
+              const newValue = Number.parseFloat(e.target.value);
+              setOverlayState({ currentTime: newValue });
+              if (previewVideoRef.current) {
+                previewVideoRef.current.currentTime = newValue;
+              }
             }}
-            className="anchor-center pointer-events-none absolute top-0 left-0 h-full w-full self-center justify-self-center"
-            ref={canvasRef}
           />
         </div>
-        <div className="pointer-events-none absolute bottom-0 flex w-full flex-row justify-start gap-2">
-          <div className="flex w-full flex-col gap-2 pt-20">
-            <div className="flex flex-row justify-start gap-2">
-              <p className="w-full max-w-xs rounded-2xl bg-black/80 p-2 text-base font-bold sm:w-52 sm:p-4 sm:text-xl">
-                Time: {formatTime(overlay.currentTime)}s{" "}
-              </p>
-              <button
-                disabled={!overlay.previewUrl}
-                className="pointer-events-auto cursor-pointer rounded-2xl bg-blue-600 p-2 font-semibold hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-600"
-                type="button"
-                onClick={() => {
-                  if (previewVideoRef.current) {
-                    if (overlay.isPlaying) {
-                      setOverlayState({ isPlaying: false });
-                      previewVideoRef.current.pause();
-                    } else {
-                      setOverlayState({ isPlaying: true });
-                      previewVideoRef.current.play();
-                    }
-                  }
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <button
+          type="button"
+          className="cursor-pointer rounded-md bg-white/10 px-2 py-1 hover:bg-white/20"
+          onClick={() => setOverlayState({ startTime: overlay.currentTime })}
+          title="Set In point to the playhead"
+        >
+          In <span className="text-white/60 tabular-nums">{formatTime(overlay.startTime)}</span>
+        </button>
+        <button
+          type="button"
+          className="cursor-pointer rounded-md bg-white/10 px-2 py-1 hover:bg-white/20"
+          onClick={() => setOverlayState({ endTime: overlay.currentTime })}
+          title="Set Out point to the playhead"
+        >
+          Out <span className="text-white/60 tabular-nums">{formatTime(overlay.endTime)}</span>
+        </button>
+        <button
+          type="button"
+          className="flex cursor-pointer items-center gap-1 rounded-md bg-white/10 px-2 py-1 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={handleCropVideo}
+          disabled={overlay.isLoading || !overlay.file || overlay.endTime <= overlay.startTime}
+          title="Cut the video and subtitles down to the In–Out range"
+        >
+          <ScissorsIcon className="h-3.5 w-3.5" />
+          Trim to In–Out
+        </button>
+      </div>
+    </div>
+  );
+
+  const videoOverlayContent = (
+    <div className="@container flex h-full w-full flex-col gap-3">
+      {sourceBar}
+      <div className="flex w-full flex-col gap-3 @5xl:flex-row @5xl:items-start">
+        <div className="flex min-w-0 flex-1 flex-col items-center gap-3">
+          <div
+            className="relative w-full flex-col items-center justify-center"
+            style={{
+              display: overlay.selectedTab === "editor" ? "flex" : "none",
+            }}
+          >
+            <div
+              className={`relative w-full shrink-0 overflow-hidden rounded-xl bg-black ring-1 ring-white/15 ${
+                overlay.isLandscapeMode
+                  ? "aspect-video max-w-full xl:max-w-[56rem]"
+                  : "aspect-[9/16] max-w-[min(100%,22rem)] xl:max-w-[22rem]"
+              }`}
+            >
+              <div
+                ref={backgroundPreviewRef}
+                className="absolute isolate h-full w-full"
+                style={{
+                  backgroundColor:
+                    overlay.backgroundMode === "colour"
+                      ? overlay.colour || "#000000"
+                      : "transparent",
                 }}
               >
-                {overlay.isPlaying ? (
-                  <PauseCircleIcon className="h-6 w-10" />
-                ) : (
-                  <PlayIcon className="h-6 w-10" />
+                {overlay.backgroundMode === "full-image" && (
+                  <div className="absolute inset-0 overflow-hidden">
+                    <div
+                      className="absolute"
+                      style={{
+                        inset: `-${backgroundBlurBleed}px`,
+                        backgroundSize: "cover",
+                        backgroundPosition,
+                        backgroundRepeat: "no-repeat",
+                        backgroundImage: overlay.backgroundImage
+                          ? `url(${overlay.backgroundImage})`
+                          : "none",
+                        filter:
+                          scaledBackgroundBlur > 0 ? `blur(${scaledBackgroundBlur}px)` : "none",
+                      }}
+                    />
+                  </div>
                 )}
+                {overlay.backgroundMode === "double-image" && (
+                  <>
+                    <div
+                      className="pointer-events-none absolute top-0 left-0 h-1/2 w-full overflow-hidden"
+                      style={{ zIndex: overlay.doubleImageLayer === "over" ? 1 : undefined }}
+                    >
+                      <div
+                        className="absolute bg-cover bg-center bg-no-repeat"
+                        style={{
+                          inset: `-${scaledTopBackgroundBlur * 2}px`,
+                          backgroundImage: overlay.doubleBackgroundImage.image1
+                            ? `url(${overlay.doubleBackgroundImage.image1})`
+                            : "none",
+                          backgroundPosition: `center calc(50% + ${scaledTopBackgroundOffsetY}px)`,
+                          filter:
+                            scaledTopBackgroundBlur > 0
+                              ? `blur(${scaledTopBackgroundBlur}px)`
+                              : "none",
+                        }}
+                      />
+                    </div>
+                    <div
+                      className="pointer-events-none absolute bottom-0 left-0 h-1/2 w-full overflow-hidden"
+                      style={{ zIndex: overlay.doubleImageLayer === "over" ? 1 : undefined }}
+                    >
+                      <div
+                        className="absolute bg-cover bg-center bg-no-repeat"
+                        style={{
+                          inset: `-${scaledBottomBackgroundBlur * 2}px`,
+                          backgroundImage: overlay.doubleBackgroundImage.image2
+                            ? `url(${overlay.doubleBackgroundImage.image2})`
+                            : "none",
+                          backgroundPosition: `center calc(50% + ${scaledBottomBackgroundOffsetY}px)`,
+                          filter:
+                            scaledBottomBackgroundBlur > 0
+                              ? `blur(${scaledBottomBackgroundBlur}px)`
+                              : "none",
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
+                <video
+                  ref={previewVideoRef}
+                  style={{
+                    display: overlay.previewUrl ? "block" : "none",
+                    top: `${previewVideoTopPercent}%`,
+                    left: `${50 + (overlay.videoOffsetX / outputWidth) * 100}%`,
+                    width: `${previewVideoWidthPercent}%`,
+                    height: `${previewVideoHeightPercent}%`,
+                    maxWidth: "none",
+                    maxHeight: "none",
+                    objectFit: "fill",
+                    transform: "translateX(-50%)",
+                    clipPath: `inset(${videoCropTopPercent}% ${(videoCrop.right / sourceVideoWidth) * 100}% ${videoCropBottomPercent}% ${(videoCrop.left / sourceVideoWidth) * 100}%)`,
+                  }}
+                  preload="auto"
+                  className="absolute"
+                  aria-label="Video preview"
+                  src={overlay.previewUrl || undefined}
+                  crossOrigin="anonymous"
+                  onLoadedMetadata={(event) => {
+                    const video = event.currentTarget;
+                    setOverlayState({
+                      videoDimensions: { width: video.videoWidth, height: video.videoHeight },
+                    });
+                  }}
+                  onPause={() => {
+                    setOverlayState({ isPlaying: false });
+                    stopUpdatePreview();
+                  }}
+                  onPlay={() => {
+                    setOverlayState({ isPlaying: true });
+                    startUpdatePreview();
+                  }}
+                  onTimeUpdate={() => {
+                    setOverlayState({ currentTime: previewVideoRef.current?.currentTime ?? 0 });
+                  }}
+                >
+                  <track kind="captions" src={undefined} />
+                </video>
+              </div>
+              <canvas
+                style={{
+                  placeSelf: "anchor-center",
+                }}
+                className="anchor-center pointer-events-none absolute top-0 left-0 h-full w-full self-center justify-self-center"
+                ref={canvasRef}
+              />
+              <div className="group absolute inset-y-0 right-2 z-10 w-7 opacity-70 transition-opacity focus-within:opacity-100 hover:opacity-100">
+                <label
+                  htmlFor="subtitle-position-y"
+                  className="absolute top-2 right-9 rounded-md bg-black/70 px-2 py-1 text-xs whitespace-nowrap text-white shadow-sm"
+                >
+                  Position Y
+                </label>
+                <input
+                  id="subtitle-position-y"
+                  type="range"
+                  className="subtitle-position-slider absolute -top-1.5 left-0 h-[calc(100%+12px)] w-7 cursor-ns-resize"
+                  style={{ writingMode: "vertical-lr", direction: "ltr" }}
+                  aria-orientation="vertical"
+                  aria-valuetext={`${subtitlePositionY} pixels from top`}
+                  min={0}
+                  max={outputHeight - 1}
+                  step={1}
+                  value={subtitlePositionY}
+                  onChange={(event) =>
+                    setOverlayState({ verticalPosition: event.target.valueAsNumber })
+                  }
+                />
+                <output
+                  htmlFor="subtitle-position-y"
+                  className="pointer-events-none absolute right-9 -translate-y-1/2 rounded-md bg-black/70 px-2 py-1 text-xs whitespace-nowrap text-white tabular-nums opacity-0 shadow-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+                  style={{
+                    top: `clamp(40px, ${(subtitlePositionY / (outputHeight - 1)) * 100}%, calc(100% - 14px))`,
+                  }}
+                >
+                  {subtitlePositionY}px
+                </output>
+              </div>
+            </div>
+          </div>
+          <div
+            className="relative w-full flex-col gap-3"
+            style={{ display: overlay.selectedTab === "render" ? "flex" : "none" }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                className={toolbarButtonClassName}
+                onClick={() => setOverlayState({ selectedTab: "editor" })}
+              >
+                <ArrowUturnLeftIcon className="h-4 w-4" />
+                Back to editor
+              </button>
+              <button
+                type="button"
+                className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40"
+                onClick={handleDownload}
+                disabled={!overlay.outputUrl}
+              >
+                <ArrowDownTrayIcon className="h-4 w-4" />
+                Download MP4
               </button>
             </div>
-            <input
-              className="pointer-events-auto w-full cursor-pointer"
-              type="range"
-              min={0}
-              step={0.1}
-              max={overlay.videoLength}
-              ref={currentTimeRef}
-              value={overlay.currentTime}
-              onChange={(e) => {
-                const newValue = Number.parseFloat(e.target.value);
-                setOverlayState({ currentTime: newValue });
-                if (previewVideoRef.current) {
-                  previewVideoRef.current.currentTime = newValue;
-                }
-              }}
-            />
+            {overlay.outputUrl ? (
+              <video
+                className="relative z-0 max-h-[70vh] w-full max-w-full rounded-xl bg-black"
+                ref={videoRef}
+                controls
+              >
+                <track kind="captions" src={undefined} />
+              </video>
+            ) : (
+              <p className="py-16 text-center text-sm text-white/50">
+                Nothing rendered yet. Press Render to burn the subtitles into the video.
+              </p>
+            )}
           </div>
-        </div>
-        <div className="pointer-events-none absolute top-0 left-0 flex justify-start">
-          <button
-            type="button"
-            className="pointer-events-auto m-2 flex w-42 cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white bg-black/50 p-2 text-white backdrop-blur-md"
-            onClick={() => inputFileRef.current?.click()}
+          <div
+            className="w-full"
+            style={{ display: overlay.selectedTab === "editor" ? "block" : "none" }}
           >
-            <p className="text-sm font-bold">Upload Video</p>
-            <ArrowUpCircleIcon className="h-6 w-6" />
-          </button>
-          <button
-            type="button"
-            className="pointer-events-auto m-2 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white bg-black/50 p-2 text-white backdrop-blur-md"
-            onClick={() => {
-              setOverlayState({
-                selectedTab: overlay.selectedTab === "editor" ? "render" : "editor",
-              });
-            }}
-          >
-            <p className="text-sm font-bold">Render</p>
-            <PlayIcon className="h-6 w-6" />
-          </button>
-        </div>
-        {overlay.backgroundMode === "full-image" && (
-          <div>
-            <p
-              className="absolute top-1/3 right-10 hidden text-xs whitespace-nowrap sm:block"
-              style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
-            >
-              Background Y Offset: {overlay.backgroundImageOffsetY}px
-            </p>
-            <div className="pointer-events-none absolute top-1/2 right-14 hidden h-[50%] w-6 -translate-y-1/2 flex-col items-center justify-center gap-2 sm:flex">
-              <input
-                className="vertical-slider pointer-events-auto h-6 w-156 cursor-pointer"
-                style={{
-                  transform: "rotate(90deg)",
-                  accentColor: "#3182ce",
-                  marginTop: "100px",
-                  marginBottom: "100px",
-                }}
-                type="range"
-                min={0}
-                max={3000}
-                step={1}
-                value={overlay.backgroundImageOffsetY}
-                onChange={(e) => {
-                  setOverlayState({
-                    backgroundImageOffsetY: Number.parseInt(e.target.value),
-                  });
-                }}
-              />
-            </div>
+            {transportBar}
           </div>
-        )}
-        {overlay.backgroundMode === "double-image" && (
-          <div className="pointer-events-auto absolute top-2 right-2 z-20 flex w-48 flex-col gap-3 rounded-xl bg-black/70 p-3 text-xs">
-            <label className="flex flex-col gap-1">
-              Top image Y: {overlay.doubleBackgroundImageOffsetY.image1}px
-              <input
-                type="range"
-                min={-1500}
-                max={1500}
-                step={1}
-                value={overlay.doubleBackgroundImageOffsetY.image1}
-                onChange={(e) =>
-                  setOverlayState({
-                    doubleBackgroundImageOffsetY: {
-                      ...overlay.doubleBackgroundImageOffsetY,
-                      image1: Number.parseInt(e.target.value),
-                    },
-                  })
-                }
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              Top image blur: {overlay.doubleBackgroundImageBlur.image1}px
-              <input
-                type="range"
-                min={0}
-                max={50}
-                step={1}
-                value={overlay.doubleBackgroundImageBlur.image1}
-                onChange={(e) =>
-                  setOverlayState({
-                    doubleBackgroundImageBlur: {
-                      ...overlay.doubleBackgroundImageBlur,
-                      image1: Number.parseInt(e.target.value),
-                    },
-                  })
-                }
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              Bottom image Y: {overlay.doubleBackgroundImageOffsetY.image2}px
-              <input
-                type="range"
-                min={-1500}
-                max={1500}
-                step={1}
-                value={overlay.doubleBackgroundImageOffsetY.image2}
-                onChange={(e) =>
-                  setOverlayState({
-                    doubleBackgroundImageOffsetY: {
-                      ...overlay.doubleBackgroundImageOffsetY,
-                      image2: Number.parseInt(e.target.value),
-                    },
-                  })
-                }
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              Bottom image blur: {overlay.doubleBackgroundImageBlur.image2}px
-              <input
-                type="range"
-                min={0}
-                max={50}
-                step={1}
-                value={overlay.doubleBackgroundImageBlur.image2}
-                onChange={(e) =>
-                  setOverlayState({
-                    doubleBackgroundImageBlur: {
-                      ...overlay.doubleBackgroundImageBlur,
-                      image2: Number.parseInt(e.target.value),
-                    },
-                  })
-                }
-              />
-            </label>
-          </div>
-        )}
-        <div>
-          <p
-            className="absolute top-1/3 right-0 hidden text-xs whitespace-nowrap sm:block"
-            style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
-          >
-            Vertical Position (Y): {overlay.verticalPosition}px
-          </p>
-          <div className="pointer-events-none absolute top-1/2 right-4 hidden h-[50%] w-6 -translate-y-1/2 flex-col items-center justify-center gap-2 sm:flex">
-            <input
-              className="vertical-slider pointer-events-auto h-6 w-156 cursor-pointer"
-              style={{
-                transform: "rotate(90deg)",
-                accentColor: "#3182ce",
-                marginTop: "100px",
-                marginBottom: "100px",
-              }}
-              type="range"
-              min={0}
-              max={3000}
-              step={1}
-              value={overlay.verticalPosition}
-              onChange={(e) => {
-                setOverlayState({
-                  verticalPosition: Number.parseInt(e.target.value),
-                });
-              }}
-            />
-          </div>
-        </div>
-      </div>
-      <div
-        className="relative mx-0 flex min-h-138 w-full max-w-full flex-col items-center justify-start gap-1 rounded-2xl border-2 border-white drop-shadow-md"
-        style={{ display: overlay.selectedTab === "render" ? "flex" : "none" }}
-      >
-        <div className="pointer-events-none absolute top-0 left-0 z-10 flex justify-start">
-          <button
-            type="button"
-            className="pointer-events-auto m-2 flex w-42 cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white bg-black/50 p-2 text-white backdrop-blur-md"
-            onClick={handleDownload}
-          >
-            <p className="text-sm font-bold">Download Video</p>
-            <ArrowDownCircleIcon className="h-6 w-6" />
-          </button>
-          <button
-            type="button"
-            className="pointer-events-auto m-2 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-white bg-black/50 p-2 text-white backdrop-blur-md"
-            onClick={() => {
-              setOverlayState({
-                selectedTab: overlay.selectedTab === "editor" ? "render" : "editor",
-              });
-            }}
-          >
-            <p className="text-sm font-bold">Editor</p>
-            <PencilIcon className="h-6 w-6" />{" "}
-          </button>
-        </div>
-        {overlay.outputUrl && (
-          <video
-            className="relative z-0 h-140 w-full max-w-full rounded-2xl"
-            ref={videoRef}
-            controls
-          >
-            <track kind="captions" src={undefined} />
-          </video>
-        )}
-      </div>
-      <div className="flex flex-col items-center">
-        <input
-          ref={inputFileRef}
-          type="file"
-          accept="video/*"
-          className="hidden"
-          onChange={(e) => {
-            console.log("File changed");
-            const selectedFile = e.target.files?.[0];
-
-            if (overlay.previewUrl) {
-              URL.revokeObjectURL(overlay.previewUrl);
-            }
-
-            if (!selectedFile) {
-              setOverlayState({
-                videoDimensions: { width: 1920, height: 1080 },
-                file: null,
-                previewUrl: null,
-                videoLength: 100,
-              });
-              return;
-            }
-
-            const url = URL.createObjectURL(selectedFile);
-            setOverlayState({ previewUrl: url, file: selectedFile });
-
-            const videoElement = document.createElement("video");
-            videoElement.src = url;
-
-            videoElement.onloadedmetadata = () => {
-              const videoCrop = getClampedVideoCrop(
-                overlay.videoCropTop,
-                overlay.videoCropBottom,
-                videoElement.videoHeight,
-                overlay.videoCropLeft,
-                overlay.videoCropRight,
-                videoElement.videoWidth,
-              );
-              setOverlayState({
-                videoLength: videoElement.duration,
-                startTime: 0,
-                endTime: videoElement.duration,
-                videoDimensions: {
-                  width: videoElement.videoWidth,
-                  height: videoElement.videoHeight,
-                },
-                videoCropTop: videoCrop.top,
-                videoCropBottom: videoCrop.bottom,
-                videoCropLeft: videoCrop.left,
-                videoCropRight: videoCrop.right,
-              });
-              setSession({
-                ...session,
-                video: previewVideoRef.current,
-              });
-              console.log("File set");
-              videoElement.remove();
-            };
-          }}
-        />
-        <div className="flex w-full flex-col flex-wrap items-center justify-center gap-1 sm:flex-row">
-          <div className="flex flex-row items-center justify-center gap-2">
-            <p className="text-sm font-bold">{formatTime(overlay.startTime)}s</p>
+          {overlay.selectedTab === "editor" && overlay.outputUrl && (
             <button
               type="button"
-              className="cursor-pointer rounded-2xl bg-blue-600 p-2 font-semibold hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-600"
-              onClick={() => {
-                setOverlayState({ startTime: overlay.currentTime });
-              }}
+              className="cursor-pointer self-start text-xs text-white/60 underline-offset-2 hover:text-white hover:underline"
+              onClick={() => setOverlayState({ selectedTab: "render" })}
             >
-              <p className="text-sm font-bold">Set</p>
+              View last render
             </button>
-          </div>
-          <div className="flex flex-row items-center justify-center gap-2">
-            <p className="text-sm font-bold">{formatTime(overlay.endTime)}s</p>
-            <button
-              type="button"
-              className="cursor-pointer rounded-2xl bg-blue-600 p-2 font-semibold hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-600"
-              onClick={() => {
-                setOverlayState({ endTime: overlay.currentTime });
-              }}
-            >
-              <p className="text-sm font-bold">Set</p>
-            </button>
-          </div>
+          )}
         </div>
-        <div className="flex flex-wrap justify-center gap-4">
-          <button
-            className="cursor-pointer rounded-2xl bg-green-600 p-2 font-semibold hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-600"
-            type="button"
-            onClick={handleUpload}
-            disabled={overlay.isLoading || !overlay.file}
-          >
-            {overlay.isLoading ? "Processing..." : "Process Full Video"}
-          </button>
-          <button
-            className="cursor-pointer rounded-2xl bg-blue-600 p-2 font-semibold hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-600"
-            type="button"
-            onClick={handleCropVideo}
-            disabled={overlay.isLoading || !overlay.file || overlay.endTime <= overlay.startTime}
-          >
-            {overlay.isLoading ? "Cropping..." : "Crop Current Range"}
-          </button>
-          <button
-            type="button"
-            className="cursor-pointer rounded-2xl bg-red-600 p-2 font-semibold hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-600"
-            onClick={() => setOverlayState({ previewUrl: null, file: null, videoLength: 100 })}
-          >
-            Clear
-          </button>
+        <div className="w-full shrink-0 @5xl:w-80">
+          <OverlayInspector
+            hasVideo={hasVideo}
+            videoCrop={videoCrop}
+            sourceVideoWidth={sourceVideoWidth}
+            sourceVideoHeight={sourceVideoHeight}
+          />
         </div>
       </div>
+      <input
+        ref={inputFileRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={(e) => {
+          console.log("File changed");
+          const selectedFile = e.target.files?.[0];
+
+          if (overlay.previewUrl) {
+            URL.revokeObjectURL(overlay.previewUrl);
+          }
+
+          if (!selectedFile) {
+            setOverlayState({
+              videoDimensions: { width: 1920, height: 1080 },
+              file: null,
+              previewUrl: null,
+              videoLength: 100,
+            });
+            return;
+          }
+
+          const url = URL.createObjectURL(selectedFile);
+          setOverlayState({ previewUrl: url, file: selectedFile });
+
+          const videoElement = document.createElement("video");
+          videoElement.src = url;
+
+          videoElement.onloadedmetadata = () => {
+            const videoCrop = getClampedVideoCrop(
+              overlay.videoCropTop,
+              overlay.videoCropBottom,
+              videoElement.videoHeight,
+              overlay.videoCropLeft,
+              overlay.videoCropRight,
+              videoElement.videoWidth,
+            );
+            setOverlayState({
+              videoLength: videoElement.duration,
+              startTime: 0,
+              endTime: videoElement.duration,
+              videoDimensions: {
+                width: videoElement.videoWidth,
+                height: videoElement.videoHeight,
+              },
+              videoCropTop: videoCrop.top,
+              videoCropBottom: videoCrop.bottom,
+              videoCropLeft: videoCrop.left,
+              videoCropRight: videoCrop.right,
+            });
+            setSession({
+              ...session,
+              video: previewVideoRef.current,
+            });
+            console.log("File set");
+            videoElement.remove();
+          };
+        }}
+      />
     </div>
   );
 
   return (
     <div className="relative flex h-full min-h-0 w-full flex-col items-center overflow-y-auto rounded-3xl border-2 border-white/50 bg-black/50 p-2 font-sans text-white backdrop-blur-xs xl:p-4">
-      {overlay.isLoading || (overlay.videoIsDownloading && <Loading />)}
+      {(overlay.isLoading || overlay.videoIsDownloading) && <Loading />}
       {videoOverlayContent}
     </div>
   );
