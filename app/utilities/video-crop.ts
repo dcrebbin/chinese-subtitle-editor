@@ -15,6 +15,47 @@ export type VideoCrop = {
   right: number;
 };
 
+export type CropHandle =
+  | "move"
+  | "top"
+  | "bottom"
+  | "left"
+  | "right"
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right";
+
+/** Apply a drag in source pixels, keeping at least one pixel inside the selection. */
+export function adjustVideoCrop(
+  crop: VideoCrop,
+  handle: CropHandle,
+  deltaX: number,
+  deltaY: number,
+  width: number,
+  height: number,
+): VideoCrop {
+  const next = { ...crop };
+  const clamp = (value: number, min: number, max: number) =>
+    Math.round(Math.max(min, Math.min(max, value)));
+  if (handle === "move") {
+    const x = clamp(deltaX, -crop.left, crop.right);
+    const y = clamp(deltaY, -crop.top, crop.bottom);
+    return {
+      left: crop.left + x,
+      right: crop.right - x,
+      top: crop.top + y,
+      bottom: crop.bottom - y,
+    };
+  }
+  if (handle.includes("left")) next.left = clamp(crop.left + deltaX, 0, width - crop.right - 1);
+  if (handle.includes("right")) next.right = clamp(crop.right - deltaX, 0, width - crop.left - 1);
+  if (handle.includes("top")) next.top = clamp(crop.top + deltaY, 0, height - crop.bottom - 1);
+  if (handle.includes("bottom"))
+    next.bottom = clamp(crop.bottom - deltaY, 0, height - crop.top - 1);
+  return next;
+}
+
 function normalizeCropValue(value: number) {
   return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
 }

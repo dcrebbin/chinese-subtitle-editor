@@ -31,19 +31,7 @@ const subtitleStyleDescriptions: Record<SubtitleStyle, string> = {
   "brain-rot": "Bold white captions with thick outlines. No highlights or romanization.",
 };
 
-type VideoCrop = { top: number; bottom: number; left: number; right: number };
-
-export default function OverlayInspector({
-  hasVideo,
-  videoCrop,
-  sourceVideoWidth,
-  sourceVideoHeight,
-}: {
-  hasVideo: boolean;
-  videoCrop: VideoCrop;
-  sourceVideoWidth: number;
-  sourceVideoHeight: number;
-}) {
+export default function OverlayInspector() {
   const [activeTab, setActiveTab] = useState<InspectorTab>("captions");
 
   return (
@@ -67,14 +55,7 @@ export default function OverlayInspector({
         ))}
       </div>
       {activeTab === "captions" && <CaptionsTab />}
-      {activeTab === "video" && (
-        <VideoTab
-          hasVideo={hasVideo}
-          videoCrop={videoCrop}
-          sourceVideoWidth={sourceVideoWidth}
-          sourceVideoHeight={sourceVideoHeight}
-        />
-      )}
+      {activeTab === "video" && <VideoTab />}
       {activeTab === "background" && <BackgroundTab />}
     </div>
   );
@@ -189,17 +170,7 @@ function CaptionsTab() {
   );
 }
 
-function VideoTab({
-  hasVideo,
-  videoCrop,
-  sourceVideoWidth,
-  sourceVideoHeight,
-}: {
-  hasVideo: boolean;
-  videoCrop: VideoCrop;
-  sourceVideoWidth: number;
-  sourceVideoHeight: number;
-}) {
+function VideoTab() {
   const { overlay } = useOverlayStore();
   const userVideoScale = overlay.videoScale || 1;
 
@@ -245,54 +216,6 @@ function VideoTab({
             />
           </InspectorRow>
         )}
-      </InspectorSection>
-      <InspectorSection
-        title="Crop"
-        onReset={() =>
-          setOverlayState({
-            videoCropTop: 0,
-            videoCropBottom: 0,
-            videoCropLeft: 0,
-            videoCropRight: 0,
-          })
-        }
-      >
-        {!hasVideo && <p className="text-xs text-white/50">Load a video to crop it.</p>}
-        <div className="grid grid-cols-2 gap-2">
-          <NumberField
-            label="T"
-            value={videoCrop.top}
-            min={0}
-            max={Math.max(0, sourceVideoHeight - videoCrop.bottom - 1)}
-            disabled={!hasVideo}
-            onChange={(videoCropTop) => setOverlayState({ videoCropTop })}
-          />
-          <NumberField
-            label="B"
-            value={videoCrop.bottom}
-            min={0}
-            max={Math.max(0, sourceVideoHeight - videoCrop.top - 1)}
-            disabled={!hasVideo}
-            onChange={(videoCropBottom) => setOverlayState({ videoCropBottom })}
-          />
-          <NumberField
-            label="L"
-            value={videoCrop.left}
-            min={0}
-            max={Math.max(0, sourceVideoWidth - videoCrop.right - 1)}
-            disabled={!hasVideo}
-            onChange={(videoCropLeft) => setOverlayState({ videoCropLeft })}
-          />
-          <NumberField
-            label="R"
-            value={videoCrop.right}
-            min={0}
-            max={Math.max(0, sourceVideoWidth - videoCrop.left - 1)}
-            disabled={!hasVideo}
-            onChange={(videoCropRight) => setOverlayState({ videoCropRight })}
-          />
-        </div>
-        <p className="text-xs text-white/50">Pixels trimmed from each edge of the source video.</p>
       </InspectorSection>
     </>
   );

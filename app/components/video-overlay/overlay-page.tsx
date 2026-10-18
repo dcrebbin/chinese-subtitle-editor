@@ -26,6 +26,7 @@ import { loadSrtFromLocalStorage } from "../../utilities/video-storage";
 import Loading from "../common/loading";
 import { Segmented } from "./inspector-controls";
 import OverlayInspector from "./overlay-inspector";
+import VideoCropControls from "./video-crop-controls";
 
 const youtubeDownloadsEnabled = import.meta.env.VITE_DOWNLOAD_ENABLED === "true";
 
@@ -108,6 +109,7 @@ export default function OverlayPage() {
   const hasAttemptedAutoDownload = useRef(false);
   const { overlay } = useOverlayStore();
   const [previewHeight, setPreviewHeight] = useState(0);
+  const [isCropping, setIsCropping] = useState(false);
   const output = new Output({
     target: target,
     format: format,
@@ -519,6 +521,13 @@ export default function OverlayPage() {
     (overlay.videoPosition === "center" ? (100 - fitVideoHeightPercent) / 2 : 0) -
     (previewVideoHeightPercent - fitVideoHeightPercent) / 2 +
     (overlay.videoOffsetY / outputHeight) * 100;
+  // Fit the full source while cropping so every handle stays reachable, even when zoomed.
+  const displayedVideoWidth = isCropping
+    ? ((sourceVideoWidth * previewVideoScale) / outputWidth) * 100
+    : previewVideoWidthPercent;
+  const displayedVideoHeight = isCropping ? fitVideoHeightPercent : previewVideoHeightPercent;
+  const displayedVideoTop = isCropping ? (100 - fitVideoHeightPercent) / 2 : previewVideoTopPercent;
+  const displayedVideoCenter = isCropping ? 50 : 50 + (overlay.videoOffsetX / outputWidth) * 100;
 
   const hasVideo = Boolean(overlay.previewUrl);
   const inPercent = (overlay.startTime / Math.max(overlay.videoLength, 0.001)) * 100;
@@ -564,7 +573,10 @@ export default function OverlayPage() {
           type="button"
           className={toolbarButtonClassName}
           title="Remove video"
-          onClick={() => setOverlayState({ previewUrl: null, file: null, videoLength: 100 })}
+          onClick={() => {
+            setIsCropping(false);
+            setOverlayState({ previewUrl: null, file: null, videoLength: 100 });
+          }}
         >
           <XMarkIcon className="h-4 w-4" />
         </button>
@@ -789,15 +801,17 @@ export default function OverlayPage() {
                   ref={previewVideoRef}
                   style={{
                     display: overlay.previewUrl ? "block" : "none",
-                    top: `${previewVideoTopPercent}%`,
-                    left: `${50 + (overlay.videoOffsetX / outputWidth) * 100}%`,
-                    width: `${previewVideoWidthPercent}%`,
-                    height: `${previewVideoHeightPercent}%`,
+                    top: `${displayedVideoTop}%`,
+                    left: `${displayedVideoCenter}%`,
+                    width: `${displayedVideoWidth}%`,
+                    height: `${displayedVideoHeight}%`,
                     maxWidth: "none",
                     maxHeight: "none",
                     objectFit: "fill",
                     transform: "translateX(-50%)",
-                    clipPath: `inset(${videoCropTopPercent}% ${(videoCrop.right / sourceVideoWidth) * 100}% ${videoCropBottomPercent}% ${(videoCrop.left / sourceVideoWidth) * 100}%)`,
+                    clipPath: isCropping
+                      ? "none"
+                      : `inset(${videoCropTopPercent}% ${(videoCrop.right / sourceVideoWidth) * 100}% ${videoCropBottomPercent}% ${(videoCrop.left / sourceVideoWidth) * 100}%)`,
                   }}
                   preload="auto"
                   className="absolute"
@@ -828,11 +842,31 @@ export default function OverlayPage() {
               <canvas
                 style={{
                   placeSelf: "anchor-center",
+                  opacity: isCropping ? 0 : 1,
                 }}
                 className="anchor-center pointer-events-none absolute top-0 left-0 h-full w-full self-center justify-self-center"
                 ref={canvasRef}
               />
-              <div className="group absolute inset-y-0 right-2 z-10 w-7 opacity-70 transition-opacity focus-within:opacity-100 hover:opacity-100">
+              {hasVideo && (
+                <VideoCropControls
+                  active={isCropping}
+                  onActiveChange={(active) => {
+                    if (active) previewVideoRef.current?.pause();
+                    setIsCropping(active);
+                  }}
+                  crop={videoCrop}
+                  sourceWidth={sourceVideoWidth}
+                  sourceHeight={sourceVideoHeight}
+                  left={displayedVideoCenter - displayedVideoWidth / 2}
+                  top={displayedVideoTop}
+                  width={displayedVideoWidth}
+                  height={displayedVideoHeight}
+                />
+              )}
+              <div
+                className="group absolute inset-y-0 right-2 z-10 w-7 opacity-70 transition-opacity focus-within:opacity-100 hover:opacity-100"
+                style={{ display: isCropping ? "none" : undefined }}
+              >
                 <label
                   htmlFor="subtitle-position-y"
                   className="absolute top-2 right-9 rounded-md bg-black/70 px-2 py-1 text-xs whitespace-nowrap text-white shadow-sm"
@@ -920,12 +954,7 @@ export default function OverlayPage() {
           )}
         </div>
         <div className="w-full shrink-0 @5xl:w-80">
-          <OverlayInspector
-            hasVideo={hasVideo}
-            videoCrop={videoCrop}
-            sourceVideoWidth={sourceVideoWidth}
-            sourceVideoHeight={sourceVideoHeight}
-          />
+          <OverlayInspector />
         </div>
       </div>
       <input
@@ -934,6 +963,7 @@ export default function OverlayPage() {
         accept="video/*"
         className="hidden"
         onChange={(e) => {
+          setIsCropping(false);
           console.log("File changed");
           const selectedFile = e.target.files?.[0];
 
