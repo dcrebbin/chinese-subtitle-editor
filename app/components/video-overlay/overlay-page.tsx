@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowDownTrayIcon,
+  ArrowPathIcon,
   ArrowUpTrayIcon,
   ArrowUturnLeftIcon,
   FilmIcon,
@@ -15,15 +16,12 @@ import { ALL_FORMATS, BlobSource, BufferTarget, Input, Mp4OutputFormat, Output }
 
 import { setOverlayState, useOverlayStore } from "@/app/store/overlay.store";
 import { setSessionState, useSessionStore } from "@/app/store/session.store";
-import {
-  convertCanvas,
-  handleDrawCanvas,
-  scaleBackgroundImageOffsetY,
-} from "../../utilities/rendering";
+import { convertCanvas, handleDrawCanvas } from "../../utilities/rendering";
 import { cropSrtContent, getSubtitleAtTime, parseSrt } from "../../utilities/srt";
 import { cropVideoFile, getClampedVideoCrop } from "../../utilities/video-crop";
 import { loadSrtFromLocalStorage } from "../../utilities/video-storage";
 import Loading from "../common/loading";
+import BackgroundImageLayer from "./background-image-layer";
 import { Segmented } from "./inspector-controls";
 import OverlayInspector from "./overlay-inspector";
 import VideoCropControls from "./video-crop-controls";
@@ -110,6 +108,7 @@ export default function OverlayPage() {
   const { overlay } = useOverlayStore();
   const [previewHeight, setPreviewHeight] = useState(0);
   const [isCropping, setIsCropping] = useState(false);
+  const [isLoadingSubtitles, setIsLoadingSubtitles] = useState(false);
   const output = new Output({
     target: target,
     format: format,
@@ -400,30 +399,31 @@ export default function OverlayPage() {
   ]);
 
   async function handleLoadVideo() {
+    if (isLoadingSubtitles) return;
     if (!overlay.loadedVideoId || overlay.loadedVideoId === "") {
       alert("No video ID");
       return;
     }
-    setSessionState({
-      ...session,
-      isLoading: true,
-    });
+    setIsLoadingSubtitles(true);
+    setSessionState({ isLoading: true });
     const videoId = overlay.loadedVideoId.includes("https://www.youtube.com/watch?v=")
       ? getVideoIdFromUrl(overlay.loadedVideoId)
       : overlay.loadedVideoId;
-    const customSubtitles = await retrieveCustomSubtitles(videoId);
-    if (!customSubtitles) {
+    try {
+      const customSubtitles = await retrieveCustomSubtitles(videoId);
+      if (!customSubtitles) return;
+      setSessionState({
+        videoId,
+        srtContent: customSubtitles,
+        originalSrtContent: customSubtitles,
+      });
+    } catch (error) {
+      console.error("Error loading subtitles:", error);
+      alert("Failed to load video subtitles. Please try again.");
+    } finally {
+      setIsLoadingSubtitles(false);
       setSessionState({ isLoading: false });
-      alert("Failed to load video subtitles");
-      return;
     }
-    setSession({
-      ...session,
-      videoId,
-      srtContent: customSubtitles,
-      originalSrtContent: customSubtitles,
-      isLoading: false,
-    });
   }
 
   const updatePreviewTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -451,41 +451,6 @@ export default function OverlayPage() {
     }
   }
 
-  const scaledBackgroundOffsetY = scaleBackgroundImageOffsetY(
-    overlay.backgroundImageOffsetY,
-    previewHeight,
-    overlay.isLandscapeMode,
-  );
-  const scaledBackgroundBlur = scaleBackgroundImageOffsetY(
-    overlay.backgroundImageBlur,
-    previewHeight,
-    overlay.isLandscapeMode,
-  );
-  // Matches the oversized draw used by the canvas renderer so blurred edges stay covered
-  const backgroundBlurBleed = scaledBackgroundBlur * 2;
-  const backgroundPosition = overlay.isLandscapeMode
-    ? `center calc(50% + ${scaledBackgroundOffsetY}px)`
-    : `center ${scaledBackgroundOffsetY + backgroundBlurBleed}px`;
-  const scaledTopBackgroundBlur = scaleBackgroundImageOffsetY(
-    overlay.doubleBackgroundImageBlur.image1,
-    previewHeight,
-    overlay.isLandscapeMode,
-  );
-  const scaledBottomBackgroundBlur = scaleBackgroundImageOffsetY(
-    overlay.doubleBackgroundImageBlur.image2,
-    previewHeight,
-    overlay.isLandscapeMode,
-  );
-  const scaledTopBackgroundOffsetY = scaleBackgroundImageOffsetY(
-    overlay.doubleBackgroundImageOffsetY.image1,
-    previewHeight,
-    overlay.isLandscapeMode,
-  );
-  const scaledBottomBackgroundOffsetY = scaleBackgroundImageOffsetY(
-    overlay.doubleBackgroundImageOffsetY.image2,
-    previewHeight,
-    overlay.isLandscapeMode,
-  );
   const sourceVideoHeight = Math.max(1, overlay.videoDimensions.height);
   const videoCrop = getClampedVideoCrop(
     overlay.videoCropTop,
@@ -508,26 +473,45 @@ export default function OverlayPage() {
   }, [overlay.verticalPosition, subtitlePositionY]);
 
   const sourceVideoWidth = Math.max(1, overlay.videoDimensions.width);
-  const previewVideoScale = Math.min(
+  // At 1.0× the video spans the full output width, matching convertCanvas.
+  const previewVideoScale = outputWidth / sourceVideoWidth;
+  const containVideoScale = Math.min(
     outputWidth / sourceVideoWidth,
     outputHeight / sourceVideoHeight,
   );
+  const containVideoHeightPercent = ((sourceVideoHeight * containVideoScale) / outputHeight) * 100;
   const userVideoScale = overlay.videoScale || 1;
   const previewVideoWidthPercent =
     ((sourceVideoWidth * previewVideoScale) / outputWidth) * 100 * userVideoScale;
   const fitVideoHeightPercent = ((sourceVideoHeight * previewVideoScale) / outputHeight) * 100;
   const previewVideoHeightPercent = fitVideoHeightPercent * userVideoScale;
+  const croppedFitHeightPercent =
+    fitVideoHeightPercent * (1 - (videoCrop.top + videoCrop.bottom) / sourceVideoHeight);
+  const croppedHeightPercent = croppedFitHeightPercent * userVideoScale;
+  const videoAnchorTopPercent =
+    overlay.videoPosition === "center"
+      ? (100 - croppedFitHeightPercent) / 2
+      : overlay.videoPosition === "bottom"
+        ? 100 - croppedFitHeightPercent
+        : 0;
   const previewVideoTopPercent =
-    (overlay.videoPosition === "center" ? (100 - fitVideoHeightPercent) / 2 : 0) -
-    (previewVideoHeightPercent - fitVideoHeightPercent) / 2 +
+    videoAnchorTopPercent -
+    (croppedHeightPercent - croppedFitHeightPercent) / 2 -
+    (videoCrop.top / sourceVideoHeight) * previewVideoHeightPercent +
     (overlay.videoOffsetY / outputHeight) * 100;
   // Fit the full source while cropping so every handle stays reachable, even when zoomed.
   const displayedVideoWidth = isCropping
-    ? ((sourceVideoWidth * previewVideoScale) / outputWidth) * 100
+    ? ((sourceVideoWidth * containVideoScale) / outputWidth) * 100
     : previewVideoWidthPercent;
-  const displayedVideoHeight = isCropping ? fitVideoHeightPercent : previewVideoHeightPercent;
-  const displayedVideoTop = isCropping ? (100 - fitVideoHeightPercent) / 2 : previewVideoTopPercent;
-  const displayedVideoCenter = isCropping ? 50 : 50 + (overlay.videoOffsetX / outputWidth) * 100;
+  const displayedVideoHeight = isCropping ? containVideoHeightPercent : previewVideoHeightPercent;
+  const displayedVideoTop = isCropping
+    ? (100 - containVideoHeightPercent) / 2
+    : previewVideoTopPercent;
+  const displayedVideoCenter = isCropping
+    ? 50
+    : 50 +
+      (((videoCrop.right - videoCrop.left) / sourceVideoWidth) * previewVideoWidthPercent) / 2 +
+      (overlay.videoOffsetX / outputWidth) * 100;
 
   const hasVideo = Boolean(overlay.previewUrl);
   const inPercent = (overlay.startTime / Math.max(overlay.videoLength, 0.001)) * 100;
@@ -586,6 +570,7 @@ export default function OverlayPage() {
           type="text"
           className={textFieldClassName}
           placeholder="YouTube ID or link"
+          disabled={isLoadingSubtitles || overlay.videoIsDownloading}
           value={overlay.loadedVideoId || ""}
           onChange={(e) => {
             hasAttemptedAutoDownload.current = true;
@@ -599,21 +584,30 @@ export default function OverlayPage() {
           type="button"
           className={toolbarButtonClassName}
           onClick={handleLoadVideo}
-          disabled={!overlay.loadedVideoId}
+          disabled={!overlay.loadedVideoId || isLoadingSubtitles}
+          aria-busy={isLoadingSubtitles}
           title="Load saved subtitles for this video"
         >
-          Subtitles
+          {isLoadingSubtitles && (
+            <ArrowPathIcon className="h-4 w-4 animate-spin" aria-hidden="true" />
+          )}
+          <span role="status">{isLoadingSubtitles ? "Loading subtitles…" : "Subtitles"}</span>
         </button>
         {youtubeDownloadsEnabled && (
           <button
             type="button"
             className={toolbarButtonClassName}
             onClick={handleDownloadVideo}
-            disabled={!overlay.downloadVideoId}
+            disabled={!overlay.downloadVideoId || overlay.videoIsDownloading}
+            aria-busy={overlay.videoIsDownloading}
             title="Download this video from YouTube"
           >
-            <ArrowDownTrayIcon className="h-4 w-4" />
-            Video
+            {overlay.videoIsDownloading ? (
+              <ArrowPathIcon className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <ArrowDownTrayIcon className="h-4 w-4" aria-hidden="true" />
+            )}
+            <span role="status">{overlay.videoIsDownloading ? "Downloading…" : "Video"}</span>
           </button>
         )}
       </div>
@@ -739,19 +733,17 @@ export default function OverlayPage() {
               >
                 {overlay.backgroundMode === "full-image" && (
                   <div className="absolute inset-0 overflow-hidden">
-                    <div
-                      className="absolute"
-                      style={{
-                        inset: `-${backgroundBlurBleed}px`,
-                        backgroundSize: "cover",
-                        backgroundPosition,
-                        backgroundRepeat: "no-repeat",
-                        backgroundImage: overlay.backgroundImage
-                          ? `url(${overlay.backgroundImage})`
-                          : "none",
-                        filter:
-                          scaledBackgroundBlur > 0 ? `blur(${scaledBackgroundBlur}px)` : "none",
-                      }}
+                    <BackgroundImageLayer
+                      url={overlay.backgroundImage}
+                      outputWidth={outputWidth}
+                      regionTop={0}
+                      regionHeight={outputHeight}
+                      centerVertically={overlay.isLandscapeMode}
+                      offsetX={overlay.backgroundImageOffsetX}
+                      offsetY={overlay.backgroundImageOffsetY}
+                      scale={overlay.backgroundImageScale}
+                      blur={overlay.backgroundImageBlur}
+                      previewScale={previewHeight / outputHeight}
                     />
                   </div>
                 )}
@@ -761,38 +753,34 @@ export default function OverlayPage() {
                       className="pointer-events-none absolute top-0 left-0 h-1/2 w-full overflow-hidden"
                       style={{ zIndex: overlay.doubleImageLayer === "over" ? 1 : undefined }}
                     >
-                      <div
-                        className="absolute bg-cover bg-center bg-no-repeat"
-                        style={{
-                          inset: `-${scaledTopBackgroundBlur * 2}px`,
-                          backgroundImage: overlay.doubleBackgroundImage.image1
-                            ? `url(${overlay.doubleBackgroundImage.image1})`
-                            : "none",
-                          backgroundPosition: `center calc(50% + ${scaledTopBackgroundOffsetY}px)`,
-                          filter:
-                            scaledTopBackgroundBlur > 0
-                              ? `blur(${scaledTopBackgroundBlur}px)`
-                              : "none",
-                        }}
+                      <BackgroundImageLayer
+                        url={overlay.doubleBackgroundImage.image1}
+                        outputWidth={outputWidth}
+                        regionTop={0}
+                        regionHeight={outputHeight / 2}
+                        centerVertically
+                        offsetX={overlay.doubleBackgroundImageOffsetX.image1}
+                        offsetY={overlay.doubleBackgroundImageOffsetY.image1}
+                        scale={overlay.doubleBackgroundImageScale.image1}
+                        blur={overlay.doubleBackgroundImageBlur.image1}
+                        previewScale={previewHeight / outputHeight}
                       />
                     </div>
                     <div
                       className="pointer-events-none absolute bottom-0 left-0 h-1/2 w-full overflow-hidden"
                       style={{ zIndex: overlay.doubleImageLayer === "over" ? 1 : undefined }}
                     >
-                      <div
-                        className="absolute bg-cover bg-center bg-no-repeat"
-                        style={{
-                          inset: `-${scaledBottomBackgroundBlur * 2}px`,
-                          backgroundImage: overlay.doubleBackgroundImage.image2
-                            ? `url(${overlay.doubleBackgroundImage.image2})`
-                            : "none",
-                          backgroundPosition: `center calc(50% + ${scaledBottomBackgroundOffsetY}px)`,
-                          filter:
-                            scaledBottomBackgroundBlur > 0
-                              ? `blur(${scaledBottomBackgroundBlur}px)`
-                              : "none",
-                        }}
+                      <BackgroundImageLayer
+                        url={overlay.doubleBackgroundImage.image2}
+                        outputWidth={outputWidth}
+                        regionTop={outputHeight / 2}
+                        regionHeight={outputHeight / 2}
+                        centerVertically
+                        offsetX={overlay.doubleBackgroundImageOffsetX.image2}
+                        offsetY={overlay.doubleBackgroundImageOffsetY.image2}
+                        scale={overlay.doubleBackgroundImageScale.image2}
+                        blur={overlay.doubleBackgroundImageBlur.image2}
+                        previewScale={previewHeight / outputHeight}
                       />
                     </div>
                   </>

@@ -12,7 +12,6 @@ export function InspectorSection({
   return (
     <section className="flex flex-col gap-3 border-b border-white/10 px-3 py-3 last:border-b-0">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold tracking-wide text-white/50 uppercase">{title}</h3>
         {onReset && (
           <button
             type="button"

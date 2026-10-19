@@ -960,6 +960,51 @@ export const drawCharacterCell = (
   );
 };
 
+/**
+ * Where a background image is drawn, in output pixels. The image covers its region, is
+ * shifted by offsetY, then scaled about the region centre and shifted by offsetX.
+ * Shared by the renderer and the live preview so both place images identically.
+ */
+export function getBackgroundImageRect({
+  imageWidth,
+  imageHeight,
+  regionWidth,
+  regionTop,
+  regionHeight,
+  centerVertically,
+  offsetX,
+  offsetY,
+  scale,
+}: {
+  imageWidth: number;
+  imageHeight: number;
+  regionWidth: number;
+  regionTop: number;
+  regionHeight: number;
+  centerVertically: boolean;
+  offsetX: number;
+  offsetY: number;
+  scale: number;
+}) {
+  const regionAspect = regionWidth / regionHeight;
+  const imageAspect = imageWidth / imageHeight;
+  const coverWidth = imageAspect > regionAspect ? regionHeight * imageAspect : regionWidth;
+  const coverHeight = imageAspect > regionAspect ? regionHeight : regionWidth / imageAspect;
+  const coverX = (regionWidth - coverWidth) / 2;
+  const coverY =
+    regionTop + (centerVertically ? (regionHeight - coverHeight) / 2 : 0) + (offsetY || 0);
+  const centerX = regionWidth / 2;
+  const centerY = regionTop + regionHeight / 2;
+  const appliedScale = scale || 1;
+
+  return {
+    x: centerX + (coverX - centerX) * appliedScale + (offsetX || 0),
+    y: centerY + (coverY - centerY) * appliedScale,
+    width: coverWidth * appliedScale,
+    height: coverHeight * appliedScale,
+  };
+}
+
 // Blurring fades the image edges to transparent, so the image is drawn
 // slightly oversized to keep the visible area fully covered.
 function drawBlurredImage(
@@ -999,34 +1044,25 @@ function addBackground(
   if (overlay.backgroundMode === "full-image") {
     const image = preloadedImages.fullImage;
     if (image) {
-      const canvasAspect = width / height;
-      const imageAspect = image.width / image.height;
-
-      let drawWidth: number, drawHeight: number;
-
-      if (imageAspect > canvasAspect) {
-        drawHeight = height;
-        drawWidth = height * imageAspect;
-      } else {
-        drawWidth = width;
-        drawHeight = width / imageAspect;
-      }
-
-      const offsetX = (width - drawWidth) / 2;
-      const offsetY = getBackgroundImageDrawOffsetY(
-        overlay.isLandscapeMode,
-        height,
-        drawHeight,
-        overlay.backgroundImageOffsetY,
-      );
+      const rect = getBackgroundImageRect({
+        imageWidth: image.width,
+        imageHeight: image.height,
+        regionWidth: width,
+        regionTop: 0,
+        regionHeight: height,
+        centerVertically: overlay.isLandscapeMode,
+        offsetX: overlay.backgroundImageOffsetX,
+        offsetY: overlay.backgroundImageOffsetY,
+        scale: overlay.backgroundImageScale,
+      });
 
       drawBlurredImage(
         ctx,
         image,
-        offsetX,
-        offsetY,
-        drawWidth,
-        drawHeight,
+        rect.x,
+        rect.y,
+        rect.width,
+        rect.height,
         overlay.backgroundImageBlur,
       );
     }
@@ -1038,21 +1074,28 @@ function addBackground(
       top: number,
       offsetY: number,
       blur: number,
+      offsetX: number,
+      scale: number,
     ) => {
       if (!image) return;
 
-      const canvasAspect = width / halfHeight;
-      const imageAspect = image.width / image.height;
-      const drawWidth = imageAspect > canvasAspect ? halfHeight * imageAspect : width;
-      const drawHeight = imageAspect > canvasAspect ? halfHeight : width / imageAspect;
-      const offsetX = (width - drawWidth) / 2;
-      const baseOffsetY = top + (halfHeight - drawHeight) / 2;
+      const rect = getBackgroundImageRect({
+        imageWidth: image.width,
+        imageHeight: image.height,
+        regionWidth: width,
+        regionTop: top,
+        regionHeight: halfHeight,
+        centerVertically: true,
+        offsetX,
+        offsetY,
+        scale,
+      });
 
       ctx.save();
       ctx.beginPath();
       ctx.rect(0, top, width, halfHeight);
       ctx.clip();
-      drawBlurredImage(ctx, image, offsetX, baseOffsetY + offsetY, drawWidth, drawHeight, blur);
+      drawBlurredImage(ctx, image, rect.x, rect.y, rect.width, rect.height, blur);
       ctx.restore();
     };
 
@@ -1061,12 +1104,16 @@ function addBackground(
       0,
       overlay.doubleBackgroundImageOffsetY.image1,
       overlay.doubleBackgroundImageBlur.image1,
+      overlay.doubleBackgroundImageOffsetX.image1,
+      overlay.doubleBackgroundImageScale.image1,
     );
     drawHalfImage(
       preloadedImages.doubleImage2,
       halfHeight,
       overlay.doubleBackgroundImageOffsetY.image2,
       overlay.doubleBackgroundImageBlur.image2,
+      overlay.doubleBackgroundImageOffsetX.image2,
+      overlay.doubleBackgroundImageScale.image2,
     );
   }
 }
@@ -1113,10 +1160,10 @@ export async function convertCanvas(
         const adjustedTimestamp = sample.timestamp + overlay.startTime;
         const subtitle = getSubtitleAtTime(parsedSubtitles, adjustedTimestamp + lyricsOffset);
 
-        const fitScale = Math.min(width / sample.displayWidth, height / sample.displayHeight);
+        // At 1.0× the video spans the full output width.
+        const fitScale = width / sample.displayWidth;
         const videoScale = fitScale * (overlay.videoScale || 1);
         const drawWidth = sample.displayWidth * videoScale;
-        const drawHeight = sample.displayHeight * videoScale;
         const videoCrop = getClampedVideoCrop(
           overlay.videoCropTop,
           overlay.videoCropBottom,
@@ -1128,19 +1175,29 @@ export async function convertCanvas(
         const croppedSourceWidth = sample.displayWidth - videoCrop.left - videoCrop.right;
         const croppedSourceHeight = sample.displayHeight - videoCrop.top - videoCrop.bottom;
         const croppedDrawHeight = croppedSourceHeight * videoScale;
-        const fitDrawHeight = sample.displayHeight * fitScale;
-        // Scale around the centre of the video's unscaled placement.
+        const fitDrawHeight = croppedSourceHeight * fitScale;
+        const anchorY =
+          overlay.videoPosition === "center"
+            ? (height - fitDrawHeight) / 2
+            : overlay.videoPosition === "bottom"
+              ? height - fitDrawHeight
+              : 0;
+        // Place and scale the visible crop, rather than the uncropped source bounds.
         let drawY =
-          (overlay.videoPosition === "center" ? (height - fitDrawHeight) / 2 : 0) -
-          (drawHeight - fitDrawHeight) / 2 +
+          anchorY -
+          (croppedDrawHeight - fitDrawHeight) / 2 -
+          videoCrop.top * videoScale +
           overlay.videoOffsetY;
-        let drawX = (width - drawWidth) / 2 + overlay.videoOffsetX;
+        let drawX =
+          (width - drawWidth) / 2 +
+          ((videoCrop.right - videoCrop.left) * videoScale) / 2 +
+          overlay.videoOffsetX;
 
         // Ensure drawX/drawY are rounded for subpixel rendering accuracy
         drawX = Math.round(drawX);
         drawY = Math.round(drawY);
 
-        // Keep the video's original placement while removing the cropped source rows.
+        // Draw the selected source region at its centred placement.
         sample.draw(
           ctx,
           videoCrop.left,

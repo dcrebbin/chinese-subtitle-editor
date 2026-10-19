@@ -73,20 +73,6 @@ function CaptionsTab() {
           onChange={(subtitleStyle) => setOverlayState({ subtitleStyle })}
         />
         <p className="text-xs text-white/50">{subtitleStyleDescriptions[overlay.subtitleStyle]}</p>
-        {overlay.subtitleStyle === "retro-karaoke" && (
-          <SliderRow
-            label="Long-group time"
-            value={overlay.retroKaraokeLengthInfluence}
-            min={0}
-            max={2}
-            step={0.1}
-            decimals={1}
-            unit="×"
-            onChange={(retroKaraokeLengthInfluence) =>
-              setOverlayState({ retroKaraokeLengthInfluence })
-            }
-          />
-        )}
       </InspectorSection>
       <InspectorSection
         title="Layout"
@@ -104,16 +90,6 @@ function CaptionsTab() {
           unit="×"
           onChange={(sizeMultiplier) => setOverlayState({ sizeMultiplier })}
         />
-        <InspectorRow label="Position Y">
-          <NumberField
-            label="Y"
-            value={overlay.verticalPosition}
-            min={0}
-            max={(overlay.isLandscapeMode ? 1080 : 1920) - 1}
-            onChange={(verticalPosition) => setOverlayState({ verticalPosition })}
-          />
-          <span className="text-xs text-white/60">px</span>
-        </InspectorRow>
         <InspectorRow label="Romanization">
           <Toggle
             checked={overlay.subtitleStyle === "brain-rot" ? false : overlay.transliterationEnabled}
@@ -178,7 +154,14 @@ function VideoTab() {
     <>
       <InspectorSection
         title="Transform"
-        onReset={() => setOverlayState({ videoScale: 1, videoOffsetX: 0, videoOffsetY: 0 })}
+        onReset={() =>
+          setOverlayState({
+            videoScale: 1,
+            videoOffsetX: 0,
+            videoOffsetY: 0,
+            videoPosition: "center",
+          })
+        }
       >
         <SliderRow
           label="Scale"
@@ -266,6 +249,25 @@ function BackgroundTab() {
             onChange={(backgroundImageOffsetY) => setOverlayState({ backgroundImageOffsetY })}
           />
           <SliderRow
+            label="Offset X"
+            value={overlay.backgroundImageOffsetX}
+            min={-1500}
+            max={1500}
+            step={1}
+            unit="px"
+            onChange={(backgroundImageOffsetX) => setOverlayState({ backgroundImageOffsetX })}
+          />
+          <SliderRow
+            label="Scale"
+            value={overlay.backgroundImageScale}
+            min={0.5}
+            max={4}
+            step={0.01}
+            decimals={2}
+            unit="×"
+            onChange={(backgroundImageScale) => setOverlayState({ backgroundImageScale })}
+          />
+          <SliderRow
             label="Blur"
             value={overlay.backgroundImageBlur}
             min={0}
@@ -316,6 +318,39 @@ function BackgroundTab() {
                   setOverlayState({
                     doubleBackgroundImageOffsetY: {
                       ...overlay.doubleBackgroundImageOffsetY,
+                      [imageKey]: value,
+                    },
+                  })
+                }
+              />
+              <SliderRow
+                label="Offset X"
+                value={overlay.doubleBackgroundImageOffsetX[imageKey]}
+                min={-1500}
+                max={1500}
+                step={1}
+                unit="px"
+                onChange={(value) =>
+                  setOverlayState({
+                    doubleBackgroundImageOffsetX: {
+                      ...overlay.doubleBackgroundImageOffsetX,
+                      [imageKey]: value,
+                    },
+                  })
+                }
+              />
+              <SliderRow
+                label="Scale"
+                value={overlay.doubleBackgroundImageScale[imageKey]}
+                min={0.5}
+                max={4}
+                step={0.01}
+                decimals={2}
+                unit="×"
+                onChange={(value) =>
+                  setOverlayState({
+                    doubleBackgroundImageScale: {
+                      ...overlay.doubleBackgroundImageScale,
                       [imageKey]: value,
                     },
                   })

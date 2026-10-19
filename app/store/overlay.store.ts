@@ -66,6 +66,8 @@ type OverlayStore = {
     setBackgroundImage: (backgroundImage: string | null) => void;
     backgroundImageOffsetY: number;
     setBackgroundImageOffsetY: (backgroundImageOffsetY: number) => void;
+    backgroundImageOffsetX: number;
+    backgroundImageScale: number;
     doubleImageLayer: "under" | "over";
     doubleBackgroundImage: { image1: string | null; image2: string | null };
     setDoubleBackgroundImage: (doubleBackgroundImage: {
@@ -74,6 +76,8 @@ type OverlayStore = {
     }) => void;
     backgroundImageBlur: number;
     doubleBackgroundImageBlur: { image1: number; image2: number };
+    doubleBackgroundImageOffsetX: { image1: number; image2: number };
+    doubleBackgroundImageScale: { image1: number; image2: number };
     doubleBackgroundImageOffsetY: { image1: number; image2: number };
     setDoubleBackgroundImageOffsetY: (doubleBackgroundImageOffsetY: {
       image1: number;
@@ -109,11 +113,15 @@ type PersistableOverlaySettings = Pick<
   | "backgroundMode"
   | "backgroundImage"
   | "backgroundImageOffsetY"
+  | "backgroundImageOffsetX"
+  | "backgroundImageScale"
   | "doubleImageLayer"
   | "doubleBackgroundImage"
   | "doubleBackgroundImageOffsetY"
   | "backgroundImageBlur"
   | "doubleBackgroundImageBlur"
+  | "doubleBackgroundImageOffsetX"
+  | "doubleBackgroundImageScale"
   | "colour"
   | "videoPosition"
   | "videoScale"
@@ -145,11 +153,15 @@ const defaultPersistableOverlaySettings: PersistableOverlaySettings = {
   backgroundMode: "colour",
   backgroundImage: null,
   backgroundImageOffsetY: 0,
+  backgroundImageOffsetX: 0,
+  backgroundImageScale: 1,
   doubleImageLayer: "under",
   doubleBackgroundImage: { image1: null, image2: null },
   doubleBackgroundImageOffsetY: { image1: 0, image2: 0 },
   backgroundImageBlur: 0,
   doubleBackgroundImageBlur: { image1: 0, image2: 0 },
+  doubleBackgroundImageOffsetX: { image1: 0, image2: 0 },
+  doubleBackgroundImageScale: { image1: 1, image2: 1 },
   colour: null,
   videoPosition: "center",
   videoScale: 1,
@@ -184,6 +196,14 @@ function sanitizePersistableOverlaySettings(
     doubleBackgroundImageBlur: {
       ...defaultPersistableOverlaySettings.doubleBackgroundImageBlur,
       ...settings.doubleBackgroundImageBlur,
+    },
+    doubleBackgroundImageOffsetX: {
+      ...defaultPersistableOverlaySettings.doubleBackgroundImageOffsetX,
+      ...settings.doubleBackgroundImageOffsetX,
+    },
+    doubleBackgroundImageScale: {
+      ...defaultPersistableOverlaySettings.doubleBackgroundImageScale,
+      ...settings.doubleBackgroundImageScale,
     },
   };
 
@@ -244,11 +264,15 @@ function persistOverlaySettings(overlay: OverlayStore["overlay"]) {
     backgroundMode: overlay.backgroundMode,
     backgroundImage: overlay.backgroundImage,
     backgroundImageOffsetY: overlay.backgroundImageOffsetY,
+    backgroundImageOffsetX: overlay.backgroundImageOffsetX,
+    backgroundImageScale: overlay.backgroundImageScale,
     doubleImageLayer: overlay.doubleImageLayer,
     doubleBackgroundImage: overlay.doubleBackgroundImage,
     doubleBackgroundImageOffsetY: overlay.doubleBackgroundImageOffsetY,
     backgroundImageBlur: overlay.backgroundImageBlur,
     doubleBackgroundImageBlur: overlay.doubleBackgroundImageBlur,
+    doubleBackgroundImageOffsetX: overlay.doubleBackgroundImageOffsetX,
+    doubleBackgroundImageScale: overlay.doubleBackgroundImageScale,
     colour: overlay.colour,
     videoPosition: overlay.videoPosition,
     videoScale: overlay.videoScale,
