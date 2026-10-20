@@ -33,7 +33,9 @@ import {
 import Loading from "../common/loading";
 import RetroKaraokeTimingEditor from "./retro-karaoke-timing-editor";
 import SubtitleEditorBottomControls from "./subtitle-editor-bottom-controls";
+import SubtitleEditorGenerateView from "./subtitle-editor-generate-view";
 import SubtitleEditorSearchView from "./subtitle-editor-search-view";
+import SubtitleSrtImport from "./subtitle-srt-import";
 
 export interface Subtitle {
   title: string;
@@ -633,15 +635,6 @@ export default function SubtitleEditor() {
           }}
           className="min-w-0 flex-1 rounded-3xl border border-solid border-white/20 bg-transparent p-1.5 text-white"
         />
-        <button
-          type="button"
-          data-tooltip-id="global-tooltip"
-          data-tooltip-content="Reset offset to 0s"
-          onClick={handleResetSubtitleOffset}
-          className="flex shrink-0 cursor-pointer items-center justify-center rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20"
-        >
-          <ArrowPathIcon className="h-6 w-6 xl:h-8 xl:w-8" />
-        </button>
       </div>
       <button
         type="button"
@@ -672,40 +665,6 @@ export default function SubtitleEditor() {
             if (file) void handleImportJapaneseRomanizations(file);
           }}
         />
-        <button
-          type="button"
-          aria-label="Generate romaji for all Japanese lines"
-          data-tooltip-id="global-tooltip"
-          data-tooltip-content="Romanize every (jp) line that has no romaji yet"
-          disabled={japaneseBatchRunning}
-          onClick={() => void handleGenerateAllJapaneseRomanizations()}
-          className="flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <LanguageIcon className="h-5 w-5 xl:h-7 xl:w-7" />
-          {japaneseBatchRunning ? "Generating…" : "Generate All"}
-        </button>
-        <button
-          type="button"
-          aria-label="Import Japanese romanizations"
-          data-tooltip-id="global-tooltip"
-          data-tooltip-content="Import Japanese romanizations from JSON"
-          onClick={() => japaneseImportInputRef.current?.click()}
-          className="flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20"
-        >
-          <ArrowUpTrayIcon className="h-5 w-5 xl:h-7 xl:w-7" />
-          Import
-        </button>
-        <button
-          type="button"
-          aria-label="Export Japanese romanizations"
-          data-tooltip-id="global-tooltip"
-          data-tooltip-content="Export Japanese romanizations as JSON"
-          onClick={handleExportJapaneseRomanizations}
-          className="flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20"
-        >
-          <ArrowDownTrayIcon className="h-5 w-5 xl:h-7 xl:w-7" />
-          Export
-        </button>
       </div>
       {japaneseTransferMessage && (
         <p className="text-center text-sm text-white/80 sm:col-span-2 xl:col-span-4">
@@ -912,7 +871,7 @@ export default function SubtitleEditor() {
       id="langpal-subtitle-editor"
       className="relative flex h-full min-h-0 w-full flex-col rounded-3xl border-2 border-white/50 bg-black/50 backdrop-blur-xs"
     >
-      <div className="mx-4 flex shrink-0 items-center gap-2 p-3">
+      <div className="mx-4 flex shrink-0 flex-wrap items-center gap-2 p-3">
         <button
           type="button"
           onClick={() => setSessionState({ ...session, selectedTab: "captions" })}
@@ -931,6 +890,19 @@ export default function SubtitleEditor() {
         >
           Search
         </button>
+        <button
+          type="button"
+          onClick={() => setSessionState({ selectedTab: "generate" })}
+          className={`flex cursor-pointer items-center justify-center p-2 ${session.selectedTab === "generate" ? "border-b-2 border-white/20" : ""}`}
+        >
+          Generate
+        </button>
+        <SubtitleSrtImport />
+      </div>
+      <div
+        className={`${session.selectedTab === "generate" ? "flex" : "hidden"} min-h-0 flex-1 flex-col overflow-hidden`}
+      >
+        <SubtitleEditorGenerateView />
       </div>
       {session.isLoading && <Loading />}
       {session.selectedTab === "captions" ? (

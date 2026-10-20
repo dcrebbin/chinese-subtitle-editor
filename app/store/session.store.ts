@@ -54,7 +54,7 @@ export interface SessionStore {
     video: HTMLVideoElement | null;
     localCaptions: CaptionSegment[];
     originalCaptions: CaptionSegment[];
-    selectedTab: "captions" | "search" | "testing";
+    selectedTab: "captions" | "search" | "testing" | "generate";
     localSrtContent: string;
     hasCloudCaptions: boolean;
     originalSrtContent: string;
