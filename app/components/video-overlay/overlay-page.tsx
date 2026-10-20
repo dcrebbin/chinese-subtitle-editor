@@ -485,8 +485,7 @@ export default function OverlayPage() {
 
   const sourceVideoWidth = Math.max(1, overlay.videoDimensions.width);
   // At 1.0× the visible crop spans the full output width, matching convertCanvas.
-  const previewVideoScale =
-    outputWidth / (sourceVideoWidth - videoCrop.left - videoCrop.right);
+  const previewVideoScale = outputWidth / (sourceVideoWidth - videoCrop.left - videoCrop.right);
   const containVideoScale = Math.min(
     outputWidth / sourceVideoWidth,
     outputHeight / sourceVideoHeight,
@@ -564,19 +563,6 @@ export default function OverlayPage() {
         <ArrowUpTrayIcon className="h-4 w-4" />
         Upload
       </button>
-      {hasVideo && (
-        <button
-          type="button"
-          className={toolbarButtonClassName}
-          title="Remove video"
-          onClick={() => {
-            setIsCropping(false);
-            setOverlayState({ previewUrl: null, file: null, videoLength: 100 });
-          }}
-        >
-          <XMarkIcon className="h-4 w-4" />
-        </button>
-      )}
       <div className="flex min-w-48 flex-1 items-center gap-2">
         <input
           type="text"
@@ -594,32 +580,32 @@ export default function OverlayPage() {
         />
         <button
           type="button"
-          className={toolbarButtonClassName}
+          className={`relative flex justify-center ${toolbarButtonClassName}`}
           onClick={handleLoadVideo}
           disabled={!overlay.loadedVideoId || isLoadingSubtitles}
           aria-busy={isLoadingSubtitles}
           title="Load saved subtitles for this video"
         >
           {isLoadingSubtitles && (
-            <ArrowPathIcon className="h-4 w-4 animate-spin" aria-hidden="true" />
+            <ArrowPathIcon className="absolute h-4 w-4 animate-spin" aria-hidden="true" />
           )}
-          <span role="status">{isLoadingSubtitles ? "Loading subtitles…" : "Subtitles"}</span>
+          <ArrowDownTrayIcon className="h-4 w-4" aria-hidden="true" />
+          <span role="status">Subtitles</span>
         </button>
         {youtubeDownloadsEnabled && (
           <button
             type="button"
-            className={toolbarButtonClassName}
+            className={`relative flex justify-center ${toolbarButtonClassName}`}
             onClick={() => void handleDownloadVideo()}
             disabled={!overlay.downloadVideoId || overlay.videoIsDownloading}
             aria-busy={overlay.videoIsDownloading}
             title="Download this video from YouTube"
           >
-            {overlay.videoIsDownloading ? (
-              <ArrowPathIcon className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <ArrowDownTrayIcon className="h-4 w-4" aria-hidden="true" />
+            {overlay.videoIsDownloading && (
+              <ArrowPathIcon className="absolute h-4 w-4 animate-spin" aria-hidden="true" />
             )}
-            <span role="status">{overlay.videoIsDownloading ? "Downloading…" : "Video"}</span>
+            <ArrowDownTrayIcon className="h-4 w-4" aria-hidden="true" />
+            <span role="status">Video</span>
           </button>
         )}
       </div>
