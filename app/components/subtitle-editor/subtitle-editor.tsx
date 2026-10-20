@@ -728,18 +728,19 @@ export default function SubtitleEditor() {
           ref={(element) => {
             captionElementRefs.current[index] = element;
           }}
-          className={`mt-6 flex h-full w-full flex-col items-center justify-center gap-1.5 rounded-xl border p-1.5 transition-colors xl:mt-14 ${
+          className={`mt-6 flex h-full w-full flex-col items-center justify-center rounded-xl border p-1.5 transition-colors xl:mt-14 ${
             activeCaptionIndex === index
               ? "border-blue-400/80 bg-blue-500/10"
               : "border-transparent"
           }`}
         >
           <button
+            hidden={index !== 0}
             type="button"
             data-tooltip-id="global-tooltip"
             data-tooltip-content="Add New Caption Above"
             onClick={() => handleAdd(index, caption.startTime, selectedLanguage[index] || "yue")}
-            className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-2 hover:bg-white/20 xl:p-3"
+            className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-1 p-2 hover:bg-white/20"
           >
             <PlusIcon className="h-6 w-6 xl:h-10 xl:w-10" />
           </button>
@@ -896,7 +897,7 @@ export default function SubtitleEditor() {
             data-tooltip-id="global-tooltip"
             data-tooltip-content="Add New Caption Below"
             onClick={() => handleAdd(index + 1, caption.endTime, selectedLanguage[index] || "yue")}
-            className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-2 hover:bg-white/20 xl:p-3"
+            className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-2 hover:bg-white/20"
           >
             <PlusIcon className="h-6 w-6 xl:h-10 xl:w-10" />
           </button>
