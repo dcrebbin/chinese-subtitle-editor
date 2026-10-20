@@ -12,13 +12,16 @@ function exec(cmd: string, args: string[]): Promise<void> {
   });
 }
 
-async function downloadVideo(videoId: string) {
+async function downloadVideo(videoId: string, existingOnly: boolean) {
   const url = `https://www.youtube.com/watch?v=${videoId}`;
   const outputDir = path.join(process.cwd(), "downloads");
   const outputPath = path.join(outputDir, `${videoId}.mp4`);
   if (existsSync(outputPath)) {
     console.log(`Video already exists: ${outputPath}, skipping download.`);
     return outputPath;
+  }
+  if (existingOnly) {
+    return null;
   }
   const args = [
     "-f",
@@ -48,13 +51,17 @@ export const Route = createFileRoute("/api/download")({
         }
 
         try {
-          const { videoId }: { videoId: string } = await request.json();
+          const { videoId, existingOnly }: { videoId: string; existingOnly?: boolean } =
+            await request.json();
           if (!videoId) {
             return new Response(JSON.stringify({ error: "No video ID provided" }), {
               status: 400,
             });
           }
-          const outputPath = await downloadVideo(videoId);
+          const outputPath = await downloadVideo(videoId, existingOnly === true);
+          if (!outputPath) {
+            return new Response(null, { status: 404 });
+          }
           const blob = new Blob([readFileSync(outputPath)], { type: "video/mp4" });
           return new Response(blob, {
             headers: { "Content-Type": "video/mp4" },

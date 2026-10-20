@@ -56,7 +56,7 @@ export async function retrieveCustomSubtitles(videoId: string) {
 declare global {
   interface Window {
     electron?: {
-      downloadVideo?: (videoId: string) => Promise<ArrayBuffer>;
+      downloadVideo?: (videoId: string, existingOnly?: boolean) => Promise<ArrayBuffer | null>;
     };
   }
 }
@@ -260,83 +260,94 @@ export default function OverlayPage() {
     };
   }, [overlay.selectedTab, overlay.isLandscapeMode]);
 
-  const handleDownloadVideo = useCallback(async () => {
-    if (!overlay.downloadVideoId) {
-      alert("No video ID");
-      return;
-    }
-    setOverlayState({ videoIsDownloading: true });
-    const videoId = overlay.downloadVideoId.includes("https://www.youtube.com/watch?v=")
-      ? getVideoIdFromUrl(overlay.downloadVideoId)
-      : overlay.downloadVideoId;
+  const handleDownloadVideo = useCallback(
+    async (existingOnly = false) => {
+      if (!overlay.downloadVideoId) {
+        alert("No video ID");
+        return;
+      }
+      setOverlayState({ videoIsDownloading: true });
+      const videoId = overlay.downloadVideoId.includes("https://www.youtube.com/watch?v=")
+        ? getVideoIdFromUrl(overlay.downloadVideoId)
+        : overlay.downloadVideoId;
 
-    try {
-      const electronVideo = await window.electron?.downloadVideo?.(videoId);
-      let blob: Blob;
-      if (electronVideo) {
-        blob = new Blob([electronVideo], { type: "video/mp4" });
-      } else {
-        const response = await fetch("/api/download", {
-          method: "POST",
-          body: JSON.stringify({ videoId: videoId }),
-        });
-
-        if (!response.ok) {
-          alert("Failed to download video");
+      try {
+        const electronDownload = window.electron?.downloadVideo;
+        const electronVideo = await electronDownload?.(videoId, existingOnly);
+        if (electronDownload && existingOnly && !electronVideo) {
           return;
         }
-
-        blob = await response.blob();
-      }
-      const url = URL.createObjectURL(blob);
-      setOverlayState({
-        previewUrl: url,
-        file: new File([blob], "downloaded.mp4", { type: "video/mp4" }),
-      });
-      setSessionState({ videoId });
-
-      if (previewVideoRef.current) {
-        previewVideoRef.current.src = url;
-        previewVideoRef.current.onloadedmetadata = () => {
-          const videoHeight = previewVideoRef.current?.videoHeight || 1;
-          const videoCrop = getClampedVideoCrop(
-            overlay.videoCropTop,
-            overlay.videoCropBottom,
-            videoHeight,
-            overlay.videoCropLeft,
-            overlay.videoCropRight,
-            previewVideoRef.current?.videoWidth || 1,
-          );
-          setOverlayState({
-            videoLength: previewVideoRef.current?.duration || 0,
-            startTime: 0,
-            endTime: previewVideoRef.current?.duration || 0,
-            videoDimensions: {
-              width: previewVideoRef.current?.videoWidth || 1,
-              height: videoHeight,
-            },
-            videoCropTop: videoCrop.top,
-            videoCropBottom: videoCrop.bottom,
-            videoCropLeft: videoCrop.left,
-            videoCropRight: videoCrop.right,
+        let blob: Blob;
+        if (electronVideo) {
+          blob = new Blob([electronVideo], { type: "video/mp4" });
+        } else {
+          const response = await fetch("/api/download", {
+            method: "POST",
+            body: JSON.stringify({ videoId, existingOnly }),
           });
-        };
-        previewVideoRef.current.load();
+
+          if (existingOnly && response.status === 404) {
+            return;
+          }
+
+          if (!response.ok) {
+            alert("Failed to download video");
+            return;
+          }
+
+          blob = await response.blob();
+        }
+        const url = URL.createObjectURL(blob);
+        setOverlayState({
+          previewUrl: url,
+          file: new File([blob], "downloaded.mp4", { type: "video/mp4" }),
+        });
+        setSessionState({ videoId });
+
+        if (previewVideoRef.current) {
+          previewVideoRef.current.src = url;
+          previewVideoRef.current.onloadedmetadata = () => {
+            const videoHeight = previewVideoRef.current?.videoHeight || 1;
+            const videoCrop = getClampedVideoCrop(
+              overlay.videoCropTop,
+              overlay.videoCropBottom,
+              videoHeight,
+              overlay.videoCropLeft,
+              overlay.videoCropRight,
+              previewVideoRef.current?.videoWidth || 1,
+            );
+            setOverlayState({
+              videoLength: previewVideoRef.current?.duration || 0,
+              startTime: 0,
+              endTime: previewVideoRef.current?.duration || 0,
+              videoDimensions: {
+                width: previewVideoRef.current?.videoWidth || 1,
+                height: videoHeight,
+              },
+              videoCropTop: videoCrop.top,
+              videoCropBottom: videoCrop.bottom,
+              videoCropLeft: videoCrop.left,
+              videoCropRight: videoCrop.right,
+            });
+          };
+          previewVideoRef.current.load();
+        }
+      } catch (error) {
+        console.error("Error processing downloaded video:", error);
+        const message = error instanceof Error ? error.message : "Unknown error";
+        alert(`An error occurred while processing the downloaded video.\n\n${message}`);
+      } finally {
+        setOverlayState({ videoIsDownloading: false });
       }
-    } catch (error) {
-      console.error("Error processing downloaded video:", error);
-      const message = error instanceof Error ? error.message : "Unknown error";
-      alert(`An error occurred while processing the downloaded video.\n\n${message}`);
-    } finally {
-      setOverlayState({ videoIsDownloading: false });
-    }
-  }, [
-    overlay.downloadVideoId,
-    overlay.videoCropBottom,
-    overlay.videoCropTop,
-    overlay.videoCropLeft,
-    overlay.videoCropRight,
-  ]);
+    },
+    [
+      overlay.downloadVideoId,
+      overlay.videoCropBottom,
+      overlay.videoCropTop,
+      overlay.videoCropLeft,
+      overlay.videoCropRight,
+    ],
+  );
 
   useEffect(() => {
     if (!youtubeDownloadsEnabled) {
@@ -350,7 +361,7 @@ export default function OverlayPage() {
     }
 
     hasAttemptedAutoDownload.current = true;
-    void handleDownloadVideo();
+    void handleDownloadVideo(true);
   }, [overlay.downloadVideoId, overlay.previewUrl, handleDownloadVideo]);
 
   function handleDownload() {
@@ -473,8 +484,9 @@ export default function OverlayPage() {
   }, [overlay.verticalPosition, subtitlePositionY]);
 
   const sourceVideoWidth = Math.max(1, overlay.videoDimensions.width);
-  // At 1.0× the video spans the full output width, matching convertCanvas.
-  const previewVideoScale = outputWidth / sourceVideoWidth;
+  // At 1.0× the visible crop spans the full output width, matching convertCanvas.
+  const previewVideoScale =
+    outputWidth / (sourceVideoWidth - videoCrop.left - videoCrop.right);
   const containVideoScale = Math.min(
     outputWidth / sourceVideoWidth,
     outputHeight / sourceVideoHeight,
@@ -597,7 +609,7 @@ export default function OverlayPage() {
           <button
             type="button"
             className={toolbarButtonClassName}
-            onClick={handleDownloadVideo}
+            onClick={() => void handleDownloadVideo()}
             disabled={!overlay.downloadVideoId || overlay.videoIsDownloading}
             aria-busy={overlay.videoIsDownloading}
             title="Download this video from YouTube"
@@ -920,9 +932,16 @@ export default function OverlayPage() {
                 <track kind="captions" src={undefined} />
               </video>
             ) : (
-              <p className="py-16 text-center text-sm text-white/50">
-                Nothing rendered yet. Press Render to burn the subtitles into the video.
-              </p>
+              <div
+                className={`flex w-full items-center justify-center rounded-xl bg-black text-sm text-white/50 ${
+                  overlay.isLandscapeMode
+                    ? "aspect-video"
+                    : "aspect-[9/16] max-w-[22rem] self-center"
+                }`}
+                role="status"
+              >
+                Nothing is rendered
+              </div>
             )}
           </div>
           <div

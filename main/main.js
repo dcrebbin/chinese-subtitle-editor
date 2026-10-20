@@ -41,13 +41,14 @@ function exec(cmd, args) {
   });
 }
 
-async function downloadVideo(videoId) {
+async function downloadVideo(videoId, existingOnly = false) {
   const url = `https://www.youtube.com/watch?v=${videoId}`;
   const outputDir = path.join(app.getPath("userData"), "downloads");
-  mkdirSync(outputDir, { recursive: true });
 
   const outputPath = path.join(outputDir, `${videoId}.mp4`);
   if (!existsSync(outputPath)) {
+    if (existingOnly) return null;
+    mkdirSync(outputDir, { recursive: true });
     await exec(getResourcePath("youtube", "yt-dlp"), [
       "-f",
       "bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/mp4[height<=1080]",
@@ -65,12 +66,12 @@ async function downloadVideo(videoId) {
 }
 
 if (youtubeDownloadsEnabled) {
-  ipcMain.handle("download-video", async (_event, videoId) => {
+  ipcMain.handle("download-video", async (_event, videoId, existingOnly) => {
     if (!videoId) {
       throw new Error("No video ID provided");
     }
 
-    return downloadVideo(videoId);
+    return downloadVideo(videoId, existingOnly === true);
   });
 }
 

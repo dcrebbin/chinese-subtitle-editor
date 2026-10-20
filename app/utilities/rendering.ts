@@ -1160,10 +1160,6 @@ export async function convertCanvas(
         const adjustedTimestamp = sample.timestamp + overlay.startTime;
         const subtitle = getSubtitleAtTime(parsedSubtitles, adjustedTimestamp + lyricsOffset);
 
-        // At 1.0× the video spans the full output width.
-        const fitScale = width / sample.displayWidth;
-        const videoScale = fitScale * (overlay.videoScale || 1);
-        const drawWidth = sample.displayWidth * videoScale;
         const videoCrop = getClampedVideoCrop(
           overlay.videoCropTop,
           overlay.videoCropBottom,
@@ -1174,6 +1170,10 @@ export async function convertCanvas(
         );
         const croppedSourceWidth = sample.displayWidth - videoCrop.left - videoCrop.right;
         const croppedSourceHeight = sample.displayHeight - videoCrop.top - videoCrop.bottom;
+        // At 1.0× the visible crop spans the full output width.
+        const fitScale = width / croppedSourceWidth;
+        const videoScale = fitScale * (overlay.videoScale || 1);
+        const drawWidth = sample.displayWidth * videoScale;
         const croppedDrawHeight = croppedSourceHeight * videoScale;
         const fitDrawHeight = croppedSourceHeight * fitScale;
         const anchorY =

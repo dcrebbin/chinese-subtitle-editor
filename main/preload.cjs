@@ -19,6 +19,9 @@ function areYoutubeDownloadsEnabled() {
 contextBridge.exposeInMainWorld(
   "electron",
   areYoutubeDownloadsEnabled()
-    ? { downloadVideo: (videoId) => ipcRenderer.invoke("download-video", videoId) }
+    ? {
+        downloadVideo: (videoId, existingOnly = false) =>
+          ipcRenderer.invoke("download-video", videoId, existingOnly),
+      }
     : {},
 );
