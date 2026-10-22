@@ -77,6 +77,7 @@ export default function SubtitleEditorSearchView() {
     <div className="lp-flex lp-flex-col lp-gap-1.5 lp-w-full lp-h-full lp-overflow-y-scroll px-4">
       <div className="lp-flex lp-flex-row lp-gap-1.5 lp-px-2 lp-rounded-3xl lp-border-white/20 lp-border-[1px] lp-mx-4 lp-mt-4">
         <input
+          data-native-undo
           type="text"
           placeholder="Search"
           id="search-input"

@@ -1,39 +1,28 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  ArrowDownTrayIcon,
-  ArrowPathIcon,
-  ArrowUpTrayIcon,
-  LanguageIcon,
-  PlusIcon,
-  TrashIcon,
-} from "@heroicons/react/24/solid";
+import { ArrowDownTrayIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/solid";
 
 import { useOverlayStore } from "../../store/overlay.store";
 import {
   getSessionState,
-  ParsedSubtitle,
   setSessionState,
   useSessionStore,
   type CaptionLanguage,
   type CaptionSegment,
   type SavedJapaneseTransliteration,
 } from "../../store/session.store";
-import { parseSrt } from "../../utilities/srt";
 import {
   CaptionLanguages,
   convertCaptionsToSrt,
-  convertSrtToCaptions,
 } from "../../utilities/transliteration/transliteration";
 import {
   loadJapaneseTransliterationsFromLocalStorage,
   saveJapaneseTransliterationsToLocalStorage,
 } from "../../utilities/video-storage";
 import Loading from "../common/loading";
-import { inspectorButtonClassName } from "../video-overlay/inspector-controls";
+import { toolbarButtonClassName } from "../video-overlay/inspector-controls";
 import RetroKaraokeTimingEditor from "./retro-karaoke-timing-editor";
-import SubtitleEditorBottomControls from "./subtitle-editor-bottom-controls";
 import SubtitleEditorGenerateView from "./subtitle-editor-generate-view";
 import SubtitleEditorSearchView from "./subtitle-editor-search-view";
 import SubtitleSrtImport from "./subtitle-srt-import";
@@ -71,12 +60,9 @@ export default function SubtitleEditor() {
   const { overlay } = useOverlayStore();
 
   const editorRef = useRef<HTMLDivElement>(null);
-  const offsetInput = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const japaneseImportInputRef = useRef<HTMLInputElement>(null);
   const captionElementRefs = useRef<Record<number, HTMLDivElement | null>>({});
-  const originalCaptionsInitialized = useRef<boolean>(false);
-  const lastCommittedSubtitleOffsetRef = useRef(0);
 
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
 
@@ -91,36 +77,6 @@ export default function SubtitleEditor() {
       japaneseTransliterations: loadJapaneseTransliterationsFromLocalStorage(session.videoId),
     });
   }, [session.videoId]);
-
-  function loadCaptions() {
-    if (session.srtContent) {
-      const captions = convertSrtToCaptions(session.srtContent);
-      const parsedSubtitles = parseSrt(session.srtContent);
-
-      setSessionState({
-        localCaptions: captions,
-        isLoading: false,
-        parsedSubtitles: parsedSubtitles as ParsedSubtitle[],
-        originalCaptions: captions,
-        localSrtContent: convertCaptionsToSrt(captions),
-        srtContent: session.srtContent,
-        // Keep import baseline; only code paths that replace the file should update originalSrtContent
-        originalSrtContent: session.originalSrtContent,
-      });
-      originalCaptionsInitialized.current = true;
-    }
-  }
-
-  useEffect(() => {
-    loadCaptions();
-  }, [session.srtContent]);
-
-  useEffect(() => {
-    lastCommittedSubtitleOffsetRef.current = 0;
-    if (offsetInput.current) {
-      offsetInput.current.value = "";
-    }
-  }, [session.originalSrtContent]);
 
   const activeCaptionIndex = session.localCaptions.findIndex((caption: CaptionSegment) => {
     const captionStartTime = timeStringToSeconds(caption.startTime);
@@ -187,10 +143,6 @@ export default function SubtitleEditor() {
     });
   }
   function handleDeleteAllCaptions() {
-    lastCommittedSubtitleOffsetRef.current = 0;
-    if (offsetInput.current) {
-      offsetInput.current.value = "";
-    }
     setSessionState({
       ...session,
       srtContent: "",
@@ -204,8 +156,7 @@ export default function SubtitleEditor() {
   function handleOffsetChange(offsetSeconds: number) {
     if (!Number.isFinite(offsetSeconds)) return;
 
-    const delta = offsetSeconds - lastCommittedSubtitleOffsetRef.current;
-    lastCommittedSubtitleOffsetRef.current = offsetSeconds;
+    const delta = offsetSeconds - session.subtitleOffset;
 
     const updatedCaptions = session.localCaptions.map((caption: CaptionSegment) => {
       const newStart = Math.max(0, timeStringToSeconds(caption.startTime) + delta);
@@ -223,13 +174,11 @@ export default function SubtitleEditor() {
       originalCaptions: updatedCaptions,
       srtContent: convertCaptionsToSrt(updatedCaptions),
       localSrtContent: convertCaptionsToSrt(updatedCaptions),
+      subtitleOffset: offsetSeconds,
     });
   }
 
   function handleResetSubtitleOffset() {
-    if (offsetInput.current) {
-      offsetInput.current.value = "";
-    }
     handleOffsetChange(0);
   }
 
@@ -613,13 +562,13 @@ export default function SubtitleEditor() {
   }
 
   const subtitleEditorHeaderControls = (
-    <div className="relative top-0 grid w-full shrink-0 grid-cols-1 items-center justify-center gap-2 p-3 text-xs sm:grid-cols-2 xl:grid-cols-4">
-      <div className="flex min-w-0 items-center gap-2">
+    <div className="relative top-0 flex w-full shrink-0 flex-wrap items-center gap-2 p-3">
+      <div className="flex min-w-20 flex-1 items-center gap-2">
         <input
           type="number"
           step="any"
-          placeholder="Offset"
-          ref={offsetInput}
+          placeholder="Offset Subtitles"
+          value={session.subtitleOffset || ""}
           onKeyDown={(e) => {
             e.stopPropagation();
           }}
@@ -640,7 +589,7 @@ export default function SubtitleEditor() {
       <button
         type="button"
         onClick={() => setAutoScroll(!autoScroll)}
-        className={`${inspectorButtonClassName} w-full`}
+        className={`${toolbarButtonClassName} flex-1 justify-center whitespace-nowrap`}
       >
         <span className="xl:hidden">{autoScroll ? "Auto Scroll" : "No Scroll"}</span>
         <span className="hidden xl:inline">
@@ -650,13 +599,31 @@ export default function SubtitleEditor() {
       <button
         type="button"
         onClick={() => handleDeleteAllCaptions()}
-        className={`${inspectorButtonClassName} flex items-center justify-center gap-1.5`}
+        className={`${toolbarButtonClassName} flex-1 justify-center whitespace-nowrap`}
       >
         Delete All
-        <TrashIcon className="h-3.5 w-3.5" />
+        <TrashIcon className="h-4 w-4" />
       </button>
-      <div className="flex gap-2">
+      <div className="flex flex-[2] gap-2">
         <SubtitleSrtImport />
+        <button
+          type="button"
+          onClick={() => {
+            const blob = new Blob([session.localSrtContent], { type: "text/plain;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `${session.videoId || "subtitles"}.srt`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 0);
+          }}
+          className={`${toolbarButtonClassName} flex-1 justify-center whitespace-nowrap`}
+        >
+          Export
+          <ArrowDownTrayIcon className="h-4 w-4" />
+        </button>
         <input
           ref={japaneseImportInputRef}
           type="file"
@@ -680,7 +647,7 @@ export default function SubtitleEditor() {
     <div
       id="langpal-subtitle-editor-content"
       ref={contentRef}
-      className="scrollbar-thin relative flex min-h-0 w-full flex-1 flex-col gap-2.5 overflow-y-auto border-none bg-transparent px-3 pt-4 pb-20 outline-none xl:px-8 xl:pb-24"
+      className="scrollbar-thin relative flex min-h-0 w-full flex-1 flex-col gap-2.5 overflow-y-auto border-none bg-transparent px-3 pt-4 pb-4 outline-none xl:px-8 xl:pb-4"
     >
       {session.localCaptions.length === 0 && createSubtitlesSection()}
       {session.localCaptions.map((caption: CaptionSegment, index: number) => (
@@ -893,6 +860,11 @@ export default function SubtitleEditor() {
           </button>
         ))}
       </div>
+      {session.saveError && (
+        <p role="alert" className="m-2 text-sm text-red-300">
+          {session.saveError}
+        </p>
+      )}
       <div
         className={`${session.selectedTab === "generate" ? "flex" : "hidden"} min-h-0 flex-1 flex-col overflow-hidden`}
       >
@@ -903,7 +875,6 @@ export default function SubtitleEditor() {
         <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden">
           {subtitleEditorHeaderControls}
           {subtitleEditorContent}
-          <SubtitleEditorBottomControls />
         </div>
       ) : null}
 

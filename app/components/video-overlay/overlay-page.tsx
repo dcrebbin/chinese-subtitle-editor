@@ -10,7 +10,6 @@ import {
   PauseIcon,
   PlayIcon,
   ScissorsIcon,
-  XMarkIcon,
 } from "@heroicons/react/20/solid";
 import { ALL_FORMATS, BlobSource, BufferTarget, Input, Mp4OutputFormat, Output } from "mediabunny";
 
@@ -23,7 +22,7 @@ import { cropVideoFile, getClampedVideoCrop } from "../../utilities/video-crop";
 import { loadSrtFromLocalStorage } from "../../utilities/video-storage";
 import Loading from "../common/loading";
 import BackgroundImageLayer from "./background-image-layer";
-import { Segmented } from "./inspector-controls";
+import { Segmented, toolbarButtonClassName } from "./inspector-controls";
 import OverlayInspector from "./overlay-inspector";
 import VideoCropControls from "./video-crop-controls";
 
@@ -429,7 +428,7 @@ export default function OverlayPage() {
       : overlay.loadedVideoId;
     try {
       const customSubtitles = await retrieveCustomSubtitles(videoId);
-      if (!customSubtitles) return;
+      if (customSubtitles === undefined) return;
       setSessionState({
         videoId,
         srtContent: customSubtitles,
@@ -555,8 +554,6 @@ export default function OverlayPage() {
     }
   }
 
-  const toolbarButtonClassName =
-    "flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-1.5 text-sm font-medium hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40";
   const textFieldClassName =
     "min-w-0 flex-1 rounded-lg bg-white/10 px-2.5 py-1.5 text-sm placeholder:text-white/40 outline-none focus:bg-white/15";
 
@@ -572,6 +569,7 @@ export default function OverlayPage() {
       </button>
       <div className="flex min-w-48 flex-1 items-center gap-2">
         <input
+          data-native-undo
           type="text"
           className={textFieldClassName}
           placeholder="YouTube ID or link"

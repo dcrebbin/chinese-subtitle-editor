@@ -44,7 +44,7 @@ export default function SubtitleEditorSearchView() {
   async function handleRetrieveSubtitle(videoId: string) {
     setSessionState({ ...session, isLoading: true });
     const customSubtitles = await retrieveCustomSubtitles(videoId);
-    if (!customSubtitles) {
+    if (customSubtitles === undefined) {
       setSessionState({ isLoading: false });
       alert("Failed to load video subtitles");
       return;
@@ -63,6 +63,7 @@ export default function SubtitleEditorSearchView() {
     <div className="flex min-h-0 w-full flex-1 flex-col gap-1.5 overflow-y-auto px-2 xl:px-4">
       <div className="mx-2 mt-4 flex flex-row gap-1.5 rounded-3xl border border-white/20 px-2 xl:mx-4">
         <input
+          data-native-undo
           type="text"
           placeholder="Search"
           id="search-input"

@@ -138,7 +138,7 @@ type PersistableOverlaySettings = Pick<
   | "loadedVideoId"
 >;
 
-const defaultPersistableOverlaySettings: PersistableOverlaySettings = {
+export const defaultPersistableOverlaySettings: PersistableOverlaySettings = {
   verticalPosition: 200,
   sizeMultiplier: 1,
   flipSubtitleRows: false,

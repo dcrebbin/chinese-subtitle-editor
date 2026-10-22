@@ -1,16 +1,18 @@
 import { useState } from "react";
 
 import { useOverlayStore } from "../../store/overlay.store";
-import { setSessionState } from "../../store/session.store";
+import { setSessionState, useSessionStore } from "../../store/session.store";
 import { beautifyLyrics } from "../../utilities/beautify-lyrics";
 import { extractSubtitleAudio } from "../../utilities/extract-audio";
 import { convertSrtToCaptions } from "../../utilities/transliteration/transliteration";
 
 export default function SubtitleEditorGenerateView() {
   const { overlay } = useOverlayStore();
-  const [context, setContext] = useState("");
-  const [generationLanguage, setGenerationLanguage] = useState("yue");
-  const [translationLanguage, setTranslationLanguage] = useState("none");
+  const { session } = useSessionStore();
+  const { lyrics: context, generationLanguage, translationLanguage } = session;
+  const setContext = (lyrics: string) => setSessionState({ lyrics });
+  const setTranslationLanguage = (translationLanguage: string) =>
+    setSessionState({ translationLanguage });
   const [generationStatus, setGenerationStatus] = useState("");
   const [generationError, setGenerationError] = useState("");
   const generating = !!generationStatus;
@@ -62,20 +64,18 @@ export default function SubtitleEditorGenerateView() {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto pb-4">
       <div className="mx-2 mt-4 flex flex-col gap-3 rounded-3xl border border-white/20 p-3 xl:mx-4">
-        <p className="m-0 text-lg font-bold">Generate video subtitles</p>
-        <p className="m-0 text-sm text-white/70">
-          {overlay.file ? overlay.file.name : "Upload a video to generate subtitles."} Audio is
-          extracted on your device. Audio and any context you provide are sent for transcription; subtitles are not saved to
-          Azure.
-        </p>
+        <p className="m-0 text-lg font-bold">Generate video subtitles with AI</p>
         <label className="flex items-center justify-between gap-2">
           Spoken language
           <select
             value={generationLanguage}
             disabled={generating}
             onChange={(e) => {
-              setGenerationLanguage(e.target.value);
-              if (translationLanguage === e.target.value) setTranslationLanguage("none");
+              setSessionState({
+                generationLanguage: e.target.value,
+                translationLanguage:
+                  translationLanguage === e.target.value ? "none" : translationLanguage,
+              });
             }}
             className="rounded-lg bg-black p-2"
           >

@@ -12,6 +12,7 @@
     "start": "node .output/server/index.mjs",
     "lint": "eslint app main router.tsx vite.config.ts env.d.ts",
     "typecheck": "tsc --noEmit",
+    "test:editor-history": "node --test tests/editor-history.test.cjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "electron:dev": "electron .",

@@ -5,7 +5,7 @@ const LYRICS_STORAGE_KEY_PREFIX = "langpal-lyrics-";
 const JAPANESE_TRANSLITERATION_STORAGE_KEY_PREFIX = "langpal-japanese-transliterations-";
 
 export function getSrtStorageKey(videoId: string) {
-  return `${SRT_STORAGE_KEY_PREFIX}${videoId}`;
+  return `${SRT_STORAGE_KEY_PREFIX}${videoId || "draft"}`;
 }
 
 export function getLyricsStorageKey(videoId: string) {
@@ -17,7 +17,7 @@ export function getJapaneseTransliterationStorageKey(videoId: string) {
 }
 
 export function saveSrtToLocalStorage(videoId: string, srtContent: string): boolean {
-  if (typeof window === "undefined" || !videoId) {
+  if (typeof window === "undefined") {
     return false;
   }
 
@@ -59,7 +59,7 @@ export function loadJapaneseTransliterationsFromLocalStorage(
 }
 
 export function saveLyricsToLocalStorage(videoId: string, lyrics: string) {
-  if (typeof window === "undefined" || !videoId) {
+  if (typeof window === "undefined") {
     return;
   }
 
@@ -71,7 +71,7 @@ export function saveLyricsToLocalStorage(videoId: string, lyrics: string) {
 }
 
 export function loadLyricsFromLocalStorage(videoId: string): string | null {
-  if (typeof window === "undefined" || !videoId) {
+  if (typeof window === "undefined") {
     return null;
   }
 
@@ -84,7 +84,7 @@ export function loadLyricsFromLocalStorage(videoId: string): string | null {
 }
 
 export function loadSrtFromLocalStorage(videoId: string): string | null {
-  if (typeof window === "undefined" || !videoId) {
+  if (typeof window === "undefined") {
     return null;
   }
 

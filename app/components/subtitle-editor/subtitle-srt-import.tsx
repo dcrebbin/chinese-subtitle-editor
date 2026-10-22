@@ -6,7 +6,7 @@ import {
   convertCaptionsToSrt,
   convertSrtToCaptions,
 } from "../../utilities/transliteration/transliteration";
-import { inspectorButtonClassName } from "../video-overlay/inspector-controls";
+import { toolbarButtonClassName } from "../video-overlay/inspector-controls";
 
 function timeStringToSeconds(timeString: string): number {
   const [time, milliseconds] = timeString.split(",");
@@ -76,10 +76,10 @@ export default function SubtitleSrtImport() {
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        className={`${inspectorButtonClassName} flex w-full items-center justify-center gap-1.5`}
+        className={`${toolbarButtonClassName} flex-1 justify-center whitespace-nowrap`}
       >
         Import SRT
-        <ArrowUpTrayIcon className="h-3.5 w-3.5" />
+        <ArrowUpTrayIcon className="h-4 w-4" />
       </button>
     </>
   );

@@ -1,15 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { MobilePanelTabs } from "../components/common/mobile-panel-tabs";
 import SubtitleEditor from "../components/subtitle-editor/subtitle-editor";
 import OverlayPage from "../components/video-overlay/overlay-page";
+import { restoreEditorDraft } from "../store/session.store";
+import { startEditorHistory } from "../utilities/editor-history";
 
 export const Route = createFileRoute("/")({
   component: Home,
 });
 
 function Home() {
+  useEffect(() => {
+    restoreEditorDraft();
+    return startEditorHistory();
+  }, []);
   const [activePanel, setActivePanel] = useState<"editor" | "video">("editor");
 
   return (

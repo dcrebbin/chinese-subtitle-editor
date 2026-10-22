@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 
+export const toolbarButtonClassName =
+  "flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-1.5 text-sm font-medium hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40";
+
 export const inspectorButtonClassName =
   "cursor-pointer rounded-md border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-medium text-white/80 shadow-sm shadow-black/30 hover:bg-white/20 hover:text-white active:translate-y-px";
 
