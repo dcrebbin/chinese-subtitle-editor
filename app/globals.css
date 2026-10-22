@@ -69,7 +69,7 @@ body {
 }
 
 .subtitle-position-slider:focus-visible {
-  outline: 2px solid #60a5fa;
+  outline: 2px solid rgb(255 255 255 / 60%);
   outline-offset: -2px;
 }
 

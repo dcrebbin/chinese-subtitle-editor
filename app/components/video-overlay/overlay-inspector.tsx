@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { setOverlayState, useOverlayStore, type SubtitleStyle } from "@/app/store/overlay.store";
+import BackgroundColourPicker from "./background-colour-picker";
 import {
   ImagePicker,
   inspectorButtonClassName,
@@ -238,12 +239,7 @@ function BackgroundTab() {
       />
       {overlay.backgroundMode === "colour" && (
         <InspectorRow label="Colour">
-          <input
-            type="color"
-            className="h-7 w-12 cursor-pointer rounded border-0 bg-transparent p-0"
-            value={overlay.colour || "#000000"}
-            onChange={(event) => setOverlayState({ colour: event.target.value })}
-          />
+          <BackgroundColourPicker className="h-7 w-12 cursor-pointer rounded border-0 bg-transparent p-0" />
           <span className="text-xs text-white/60 uppercase tabular-nums">
             {overlay.colour || "#000000"}
           </span>

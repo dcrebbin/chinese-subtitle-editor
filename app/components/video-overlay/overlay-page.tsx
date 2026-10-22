@@ -21,6 +21,7 @@ import { cropSrtContent, getSubtitleAtTime, parseSrt } from "../../utilities/srt
 import { cropVideoFile, getClampedVideoCrop } from "../../utilities/video-crop";
 import { loadSrtFromLocalStorage } from "../../utilities/video-storage";
 import Loading from "../common/loading";
+import BackgroundImageButtons from "./background-image-buttons";
 import BackgroundImageLayer from "./background-image-layer";
 import { Segmented, toolbarButtonClassName } from "./inspector-controls";
 import OverlayInspector from "./overlay-inspector";
@@ -777,7 +778,7 @@ export default function OverlayPage() {
             }}
           >
             <div
-              className={`relative w-full shrink-0 overflow-hidden rounded-xl bg-black ring-1 ring-white/15 ${
+              className={`relative isolate w-full shrink-0 overflow-hidden rounded-xl bg-black ring-1 ring-white/15 ${
                 overlay.isLandscapeMode
                   ? "aspect-video max-w-full xl:max-w-[56rem]"
                   : "aspect-[9/16] max-w-[min(100%,22rem)] xl:max-w-[22rem]"
@@ -785,7 +786,7 @@ export default function OverlayPage() {
             >
               <div
                 ref={backgroundPreviewRef}
-                className="absolute isolate h-full w-full"
+                className="absolute isolate z-0 h-full w-full"
                 style={{
                   backgroundColor:
                     overlay.backgroundMode === "colour"
@@ -894,9 +895,10 @@ export default function OverlayPage() {
                   placeSelf: "anchor-center",
                   opacity: isCropping ? 0 : 1,
                 }}
-                className="anchor-center pointer-events-none absolute top-0 left-0 h-full w-full self-center justify-self-center"
+                className="anchor-center pointer-events-none absolute top-0 left-0 z-2 h-full w-full self-center justify-self-center"
                 ref={canvasRef}
               />
+              {!isCropping && <BackgroundImageButtons />}
               {hasVideo && (
                 <VideoCropControls
                   active={isCropping}

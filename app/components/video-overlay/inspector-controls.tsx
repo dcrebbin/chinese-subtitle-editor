@@ -95,7 +95,7 @@ export function NumberField({
   onChange: (value: number) => void;
 }) {
   return (
-    <label className="flex min-w-0 items-center gap-2 rounded-lg border border-white/15 bg-black/30 px-2 py-1 text-sm focus-within:border-blue-400">
+    <label className="flex min-w-0 items-center gap-2 rounded-lg border border-white/15 bg-black/30 px-2 py-1 text-sm">
       <span className="w-4 shrink-0 text-xs text-white/50">{label}</span>
       <input
         className="w-full min-w-0 bg-transparent text-right tabular-nums outline-none disabled:opacity-40"

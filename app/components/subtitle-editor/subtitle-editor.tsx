@@ -512,7 +512,7 @@ export default function SubtitleEditor() {
                         }
                         onKeyDown={(event) => event.stopPropagation()}
                         onKeyUp={(event) => event.stopPropagation()}
-                        className="w-full min-w-10 rounded border border-blue-200 bg-blue-50 px-1 text-center text-xs text-blue-700 outline-none focus:border-blue-500"
+                        className="w-full min-w-10 rounded border border-blue-200 bg-blue-50 px-1 text-center text-xs text-blue-700 outline-none"
                       />
                       <span className="text-lg">{group.surface}</span>
                     </label>
@@ -610,7 +610,7 @@ export default function SubtitleEditor() {
               handleOffsetChange(offsetValue);
             }
           }}
-          className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/30 px-2 py-1 text-sm text-white outline-none focus:border-blue-400"
+          className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/30 px-2 py-1 text-sm text-white outline-none"
         />
       </div>
       <button

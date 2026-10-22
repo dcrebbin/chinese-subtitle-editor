@@ -3,6 +3,7 @@ import { CheckIcon, ViewfinderCircleIcon } from "@heroicons/react/20/solid";
 
 import { setOverlayState } from "@/app/store/overlay.store";
 import { adjustVideoCrop, type CropHandle, type VideoCrop } from "../../utilities/video-crop";
+import BackgroundTypeControl from "./background-type-control";
 
 const handles = [
   ["top-left", "0%", "0%", "nwse-resize"],
@@ -127,6 +128,7 @@ export default function VideoCropControls({
           )}
           {active ? "Done" : "Crop"}
         </button>
+        <BackgroundTypeControl />
         {active && (
           <button
             type="button"
