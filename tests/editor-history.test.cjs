@@ -237,3 +237,45 @@ test("karaoke holds and onset scale with line boundaries and undo together", () 
   assert.deepEqual(shifted.retroKaraokeSingingStarts, { "3.000-5.000": 3.5, "5.000-7.000": 6 });
   stop();
 });
+
+test("Chinese script conversion autosaves and undoes captions and lyrics together", () => {
+  const { convertChineseCaptions, convertChineseText } = require("../app/utilities/chinese-script.ts");
+  const { batchEditorChange } = require("../app/utilities/editor-history.ts");
+  setSessionState({ srtContent: "1\n00:00:01,000 --> 00:00:03,000\n(yue)广东话\n\n", lyrics: "头发发展" });
+  clearEditorHistory();
+  const stop = startEditorHistory();
+  const before = session().srtContent;
+  const captions = convertChineseCaptions(session().localCaptions, "traditional");
+  batchEditorChange(() => setSessionState({ localCaptions: captions, originalCaptions: captions, lyrics: convertChineseText(session().lyrics, "traditional") }));
+  assert.match(session().srtContent, /廣東話/);
+  assert.match(session().parsedSubtitles[0].text, /廣東話/);
+  assert.equal(session().lyrics, "頭髮發展");
+  assert.match(storage.get("langpal-srt-content-" + session().videoId), /廣東話/);
+  undoEditorChange();
+  assert.equal(session().srtContent, before);
+  assert.equal(session().lyrics, "头发发展");
+  redoEditorChange();
+  assert.match(session().srtContent, /廣東話/);
+  stop();
+});
+
+test("generation Chinese script preference is saved, restored, and undoable", () => {
+  setSessionState({ generationChineseScript: "unchanged" });
+  clearEditorHistory();
+  const stop = startEditorHistory();
+  setSessionState({ generationChineseScript: "traditional" });
+  assert.equal(JSON.parse(storage.get("langpal-generation-draft")).generationChineseScript, "traditional");
+  undoEditorChange();
+  assert.equal(session().generationChineseScript, "unchanged");
+  redoEditorChange();
+  assert.equal(session().generationChineseScript, "traditional");
+  stop();
+  const saved = storage.get("langpal-generation-draft");
+  setSessionState({ generationChineseScript: "simplified" });
+  storage.set("langpal-generation-draft", saved);
+  restoreEditorDraft();
+  assert.equal(session().generationChineseScript, "traditional");
+  storage.set("langpal-generation-draft", JSON.stringify({ generationChineseScript: "invalid" }));
+  restoreEditorDraft();
+  assert.equal(session().generationChineseScript, "traditional");
+});

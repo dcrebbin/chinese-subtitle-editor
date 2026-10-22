@@ -6,7 +6,13 @@ import { availableExportLanguages, exportSubtitles } from "../../utilities/subti
 import { CaptionLanguages } from "../../utilities/transliteration/transliteration";
 import { toolbarButtonClassName } from "../video-overlay/inspector-controls";
 
-export default function SubtitleExportModal({ onClose }: { onClose: () => void }) {
+export default function SubtitleExportModal({
+  onClose,
+  generated = false,
+}: {
+  onClose: () => void;
+  generated?: boolean;
+}) {
   const { session } = useSessionStore();
   const dialog = useRef<HTMLDialogElement>(null);
   const languages = availableExportLanguages(session.localCaptions);
@@ -68,7 +74,7 @@ export default function SubtitleExportModal({ onClose }: { onClose: () => void }
       <form onSubmit={download} noValidate className="flex flex-col gap-5 p-5">
         <div className="flex items-center justify-between gap-3">
           <h2 id="subtitle-export-title" className="text-lg font-semibold">
-            Export subtitles
+            {generated ? "Save generated subtitles" : "Export subtitles"}
           </h2>
           <button
             type="button"
@@ -79,6 +85,11 @@ export default function SubtitleExportModal({ onClose }: { onClose: () => void }
             <XMarkIcon className="h-4 w-4" />
           </button>
         </div>
+        {generated && (
+          <p className="text-sm text-white/70">
+            Your subtitles are ready. Download a copy to save them on your device.
+          </p>
+        )}
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-sm text-white/70">Export type</legend>
           {(
@@ -171,8 +182,8 @@ export default function SubtitleExportModal({ onClose }: { onClose: () => void }
                 />
               </label>
               <p className="text-xs text-white/60">
-                Use your video&apos;s frame rate (for example, 25, 29.97, or 30). Snaps cue boundaries to
-                the nearest frame; keeps the existing timeline and playback speed.
+                Use your video&apos;s frame rate (for example, 25, 29.97, or 30). Snaps cue
+                boundaries to the nearest frame; keeps the existing timeline and playback speed.
               </p>
             </div>
           </>
@@ -189,7 +200,7 @@ export default function SubtitleExportModal({ onClose }: { onClose: () => void }
         )}
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className={toolbarButtonClassName}>
-            Cancel
+            {generated ? "Not now" : "Cancel"}
           </button>
           <button
             type="submit"

@@ -18,6 +18,7 @@ const sessionKeys = [
   "japaneseTransliterations",
   "generationLanguage",
   "translationLanguage",
+  "generationChineseScript",
   "subtitleOffset",
 ] as const;
 const overlayKeys = [

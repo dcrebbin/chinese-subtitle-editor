@@ -4,12 +4,20 @@ import { useOverlayStore } from "../../store/overlay.store";
 import { setSessionState, useSessionStore } from "../../store/session.store";
 import { beautifyLyrics } from "../../utilities/beautify-lyrics";
 import { extractSubtitleAudio } from "../../utilities/extract-audio";
-import { convertSrtToCaptions } from "../../utilities/transliteration/transliteration";
+import {
+  convertCaptionsToSrt,
+  convertSrtToCaptions,
+} from "../../utilities/transliteration/transliteration";
 
-export default function SubtitleEditorGenerateView() {
+export default function SubtitleEditorGenerateView({ onGenerated }: { onGenerated: () => void }) {
   const { overlay } = useOverlayStore();
   const { session } = useSessionStore();
-  const { lyrics: context, generationLanguage, translationLanguage } = session;
+  const {
+    lyrics: context,
+    generationLanguage,
+    translationLanguage,
+    generationChineseScript,
+  } = session;
   const setContext = (lyrics: string) => setSessionState({ lyrics });
   const setTranslationLanguage = (translationLanguage: string) =>
     setSessionState({ translationLanguage });
@@ -39,9 +47,15 @@ export default function SubtitleEditorGenerateView() {
             : `Subtitle generation failed (${response.status}). Please try again.`,
         );
       }
-      const srt = await response.text();
-      const captions = convertSrtToCaptions(srt);
+      let srt = await response.text();
+      let captions = convertSrtToCaptions(srt);
       if (!captions.length) throw new Error("No speech found in this video.");
+      if (generationChineseScript !== "unchanged") {
+        setGenerationStatus("Converting Chinese text…");
+        const { convertChineseCaptions } = await import("../../utilities/chinese-script");
+        captions = convertChineseCaptions(captions, generationChineseScript);
+        srt = convertCaptionsToSrt(captions);
+      }
       // Ignore results if the source changed while the request was running.
       if (useOverlayStore.getState().overlay.file !== file) return;
       setSessionState({
@@ -54,6 +68,7 @@ export default function SubtitleEditorGenerateView() {
         selectedTab: "captions",
         isLoading: false,
       });
+      onGenerated();
     } catch (error) {
       setGenerationError(error instanceof Error ? error.message : "Subtitle generation failed.");
     } finally {
@@ -100,6 +115,24 @@ export default function SubtitleEditorGenerateView() {
             {generationLanguage !== "zh" && (
               <option value="zh">Mandarin — Simplified Chinese</option>
             )}
+          </select>
+        </label>
+        <label className="flex items-center justify-between gap-2">
+          Auto-convert Chinese
+          <select
+            value={generationChineseScript}
+            disabled={generating}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value === "unchanged" || value === "traditional" || value === "simplified") {
+                setSessionState({ generationChineseScript: value });
+              }
+            }}
+            className="rounded-lg bg-black p-2"
+          >
+            <option value="unchanged">Keep original</option>
+            <option value="traditional">繁體 · Traditional</option>
+            <option value="simplified">简体 · Simplified</option>
           </select>
         </label>
         <label className="flex flex-col gap-2 text-sm">

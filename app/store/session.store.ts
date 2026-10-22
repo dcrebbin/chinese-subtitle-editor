@@ -92,6 +92,7 @@ export interface SessionStore {
     lyrics: string;
     generationLanguage: string;
     translationLanguage: string;
+    generationChineseScript: "unchanged" | "traditional" | "simplified";
     saveError: string;
     subtitleOffset: number;
     japaneseTransliterations: Record<string, SavedJapaneseTransliteration>;
@@ -139,6 +140,7 @@ const sessionStore = create<SessionStore>(() => ({
     lyrics: "",
     generationLanguage: "yue",
     translationLanguage: "none",
+    generationChineseScript: "unchanged",
     saveError: "",
     subtitleOffset: 0,
     japaneseTransliterations: {},
@@ -202,7 +204,8 @@ function commitSession(updates: Partial<SessionStore["session"]>) {
     typeof window !== "undefined" &&
     (session.lyrics !== previous.lyrics ||
       session.generationLanguage !== previous.generationLanguage ||
-      session.translationLanguage !== previous.translationLanguage)
+      session.translationLanguage !== previous.translationLanguage ||
+      session.generationChineseScript !== previous.generationChineseScript)
   ) {
     try {
       localStorage.setItem(
@@ -211,6 +214,7 @@ function commitSession(updates: Partial<SessionStore["session"]>) {
           lyrics: session.lyrics,
           generationLanguage: session.generationLanguage,
           translationLanguage: session.translationLanguage,
+          generationChineseScript: session.generationChineseScript,
         }),
       );
     } catch {
@@ -232,6 +236,8 @@ export function restoreEditorDraft() {
       draft.generationLanguage = data.generationLanguage;
     if (typeof data.translationLanguage === "string")
       draft.translationLanguage = data.translationLanguage;
+    if (["unchanged", "traditional", "simplified"].includes(data.generationChineseScript))
+      draft.generationChineseScript = data.generationChineseScript;
   } catch {
     /* Ignore invalid saved drafts. */
   }

@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowDownTrayIcon,
   ArrowPathIcon,
+  ArrowsPointingInIcon,
+  ArrowsPointingOutIcon,
   ArrowUpTrayIcon,
   ArrowUturnLeftIcon,
   FilmIcon,
@@ -104,6 +106,7 @@ export function getVideoIdFromUrl(videoUrl: string) {
 export default function OverlayPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewVideoRef = useRef<HTMLVideoElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
   const target = new BufferTarget();
   const format = new Mp4OutputFormat();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -115,6 +118,28 @@ export default function OverlayPage() {
   const { overlay } = useOverlayStore();
   const [previewHeight, setPreviewHeight] = useState(0);
   const [isCropping, setIsCropping] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenError, setFullscreenError] = useState("");
+
+  useEffect(() => {
+    const updateFullscreen = () =>
+      setIsFullscreen(document.fullscreenElement === previewContainerRef.current);
+    document.addEventListener("fullscreenchange", updateFullscreen);
+    return () => document.removeEventListener("fullscreenchange", updateFullscreen);
+  }, []);
+
+  async function toggleFullscreen() {
+    setFullscreenError("");
+    try {
+      if (document.fullscreenElement === previewContainerRef.current) {
+        await document.exitFullscreen();
+      } else {
+        await previewContainerRef.current?.requestFullscreen();
+      }
+    } catch {
+      setFullscreenError("Could not open fullscreen. Please try again.");
+    }
+  }
   const [isLoadingSubtitles, setIsLoadingSubtitles] = useState(false);
   const output = new Output({
     target: target,
@@ -759,18 +784,48 @@ export default function OverlayPage() {
       <div className="flex w-full flex-col gap-3 @5xl:flex-row @5xl:items-start">
         <div className="flex min-w-0 flex-1 flex-col items-center gap-3">
           <div
-            className="relative w-full flex-col items-center justify-center"
+            ref={previewContainerRef}
+            className="fullscreen:h-screen fullscreen:bg-black relative w-full flex-col items-center justify-center"
             style={{
               display: overlay.selectedTab === "editor" ? "flex" : "none",
             }}
           >
             <div
+              style={
+                isFullscreen
+                  ? {
+                      width: `min(100vw, ${(100 * outputWidth) / outputHeight}dvh)`,
+                      maxWidth: "none",
+                    }
+                  : undefined
+              }
               className={`relative isolate w-full shrink-0 overflow-hidden rounded-xl bg-black ring-1 ring-white/15 ${
                 overlay.isLandscapeMode
                   ? "aspect-video max-w-full xl:max-w-[56rem]"
                   : "aspect-[9/16] max-w-[min(100%,22rem)] xl:max-w-[22rem]"
               }`}
             >
+              <button
+                type="button"
+                className="absolute top-3 right-3 z-30 flex cursor-pointer items-center justify-center rounded-lg border border-white/30 bg-black/70 p-2 text-white shadow-lg backdrop-blur-sm hover:bg-black/90 focus-visible:outline-2 focus-visible:outline-blue-400"
+                onClick={() => void toggleFullscreen()}
+                aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                title={isFullscreen ? "Exit fullscreen (Esc)" : "Enter fullscreen"}
+              >
+                {isFullscreen ? (
+                  <ArrowsPointingInIcon className="h-4 w-4" />
+                ) : (
+                  <ArrowsPointingOutIcon className="h-4 w-4" />
+                )}
+              </button>
+              {fullscreenError && (
+                <p
+                  role="alert"
+                  className="absolute top-14 right-3 z-30 rounded-lg bg-black/80 px-3 py-2 text-xs text-white"
+                >
+                  {fullscreenError}
+                </p>
+              )}
               <div
                 ref={backgroundPreviewRef}
                 className="absolute isolate z-0 h-full w-full"

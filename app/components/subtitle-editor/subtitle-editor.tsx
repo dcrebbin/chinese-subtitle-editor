@@ -12,6 +12,7 @@ import {
   type CaptionSegment,
   type SavedJapaneseTransliteration,
 } from "../../store/session.store";
+import type { ChineseScript } from "../../utilities/chinese-script";
 import { batchEditorChange } from "../../utilities/editor-history";
 import { retimeRetroKaraokeCue } from "../../utilities/retro-karaoke-timing";
 import { CaptionLanguages } from "../../utilities/transliteration/transliteration";
@@ -65,7 +66,40 @@ export default function SubtitleEditor() {
   const captionElementRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
-  const [exportOpen, setExportOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState<false | "manual" | "generated">(false);
+  const [convertingScript, setConvertingScript] = useState(false);
+  const [scriptMessage, setScriptMessage] = useState("");
+  const [chineseScript, setChineseScript] = useState<ChineseScript>(
+    session.generationChineseScript === "simplified" ? "simplified" : "traditional",
+  );
+
+  async function handleConvertScript(script: ChineseScript) {
+    if (convertingScript) return;
+    setConvertingScript(true);
+    setScriptMessage("");
+    try {
+      const { convertChineseCaptions, convertChineseText } = await import(
+        "../../utilities/chinese-script"
+      );
+      const current = getSessionState().session;
+      const captions = convertChineseCaptions(current.localCaptions, script);
+      batchEditorChange(() =>
+        setSessionState({
+          localCaptions: captions,
+          originalCaptions: captions,
+          lyrics: convertChineseText(current.lyrics, script),
+        }),
+      );
+      setChineseScript(script);
+      setScriptMessage(
+        `Converted all Chinese text to ${script === "traditional" ? "Traditional" : "Simplified"} Chinese. Undo to restore.`,
+      );
+    } catch {
+      setScriptMessage("Could not convert text. Please try again.");
+    } finally {
+      setConvertingScript(false);
+    }
+  }
 
   const [japaneseLoading, setJapaneseLoading] = useState<Record<number, boolean>>({});
   const [japaneseErrors, setJapaneseErrors] = useState<Record<number, string>>({});
@@ -631,11 +665,36 @@ export default function SubtitleEditor() {
         Delete All
         <TrashIcon className="h-4 w-4" />
       </button>
+      <button
+        type="button"
+        role="switch"
+        aria-label="Simplified Chinese"
+        aria-checked={chineseScript === "simplified"}
+        aria-busy={convertingScript}
+        className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg bg-white/10 px-2.5 py-1.5 text-sm font-medium hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-blue-400 disabled:cursor-not-allowed disabled:opacity-40"
+        disabled={convertingScript || (!session.localCaptions.length && !session.lyrics)}
+        onClick={() =>
+          void handleConvertScript(chineseScript === "traditional" ? "simplified" : "traditional")
+        }
+        title={`Convert all Chinese subtitle text and lyrics to ${chineseScript === "traditional" ? "Simplified" : "Traditional"} Chinese`}
+      >
+        <span className={chineseScript === "traditional" ? "text-white" : "text-white/50"}>
+          繁體
+        </span>
+        <span aria-hidden="true" className="relative h-5 w-9 rounded-full bg-blue-500">
+          <span
+            className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${chineseScript === "simplified" ? "translate-x-4" : ""}`}
+          />
+        </span>
+        <span className={chineseScript === "simplified" ? "text-white" : "text-white/50"}>
+          简体
+        </span>
+      </button>
       <div className="flex flex-[2] gap-2">
         <SubtitleSrtImport />
         <button
           type="button"
-          onClick={() => setExportOpen(true)}
+          onClick={() => setExportOpen("manual")}
           className={`${toolbarButtonClassName} flex-1 justify-center whitespace-nowrap`}
         >
           Export
@@ -655,6 +714,11 @@ export default function SubtitleEditor() {
       {japaneseTransferMessage && (
         <p className="text-center text-sm text-white/80 sm:col-span-2 xl:col-span-4">
           {japaneseTransferMessage}
+        </p>
+      )}
+      {scriptMessage && (
+        <p role="status" className="w-full text-xs text-white/80">
+          {scriptMessage}
         </p>
       )}
     </div>
@@ -876,9 +940,14 @@ export default function SubtitleEditor() {
       <div
         className={`${session.selectedTab === "generate" ? "flex" : "hidden"} min-h-0 flex-1 flex-col overflow-hidden`}
       >
-        <SubtitleEditorGenerateView />
+        <SubtitleEditorGenerateView onGenerated={() => setExportOpen("generated")} />
       </div>
-      {exportOpen && <SubtitleExportModal onClose={() => setExportOpen(false)} />}
+      {exportOpen && (
+        <SubtitleExportModal
+          generated={exportOpen === "generated"}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
       {session.isLoading && <Loading />}
       {session.selectedTab === "captions" ? (
         <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden">
