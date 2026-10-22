@@ -9,6 +9,7 @@ import {
   InspectorSection,
   NumberField,
   Segmented,
+  SelectField,
   SliderRow,
   Toggle,
 } from "./inspector-controls";
@@ -69,7 +70,8 @@ function CaptionsTab() {
   return (
     <>
       <InspectorSection title="Style">
-        <Segmented
+        <SelectField
+          label="Subtitle style"
           value={overlay.subtitleStyle}
           options={subtitleStyleOptions}
           onChange={(subtitleStyle) => setOverlayState({ subtitleStyle })}
@@ -154,6 +156,17 @@ function VideoTab() {
 
   return (
     <>
+      <InspectorSection title="Aspect ratio">
+        <SelectField
+          label="Aspect ratio"
+          value={overlay.isLandscapeMode ? "landscape" : "portrait"}
+          options={[
+            ["landscape", "16:9 · Landscape"],
+            ["portrait", "9:16 · Portrait"],
+          ]}
+          onChange={(mode) => setOverlayState({ isLandscapeMode: mode === "landscape" })}
+        />
+      </InspectorSection>
       {overlay.previewUrl && overlay.videoSourcePath && window.electron?.showVideoInFinder && (
         <InspectorSection title="Source">
           <button
@@ -228,7 +241,8 @@ function BackgroundTab() {
 
   return (
     <InspectorSection title="Background">
-      <Segmented
+      <SelectField
+        label="Type"
         value={overlay.backgroundMode}
         options={[
           ["colour", "Colour"],

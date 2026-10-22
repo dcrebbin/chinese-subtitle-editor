@@ -23,7 +23,7 @@ import { loadSrtFromLocalStorage } from "../../utilities/video-storage";
 import Loading from "../common/loading";
 import BackgroundImageButtons from "./background-image-buttons";
 import BackgroundImageLayer from "./background-image-layer";
-import { Segmented, toolbarButtonClassName } from "./inspector-controls";
+import { toolbarButtonClassName } from "./inspector-controls";
 import OverlayInspector from "./overlay-inspector";
 import VideoCropControls from "./video-crop-controls";
 
@@ -535,13 +535,6 @@ export default function OverlayPage() {
   const inPercent = (overlay.startTime / Math.max(overlay.videoLength, 0.001)) * 100;
   const outPercent = (overlay.endTime / Math.max(overlay.videoLength, 0.001)) * 100;
 
-  function setLandscapeMode(isLandscapeMode: boolean) {
-    if (isLandscapeMode === overlay.isLandscapeMode) {
-      return;
-    }
-    setOverlayState({ isLandscapeMode });
-  }
-
   function togglePlayback() {
     if (!previewVideoRef.current) {
       return;
@@ -615,14 +608,6 @@ export default function OverlayPage() {
           </button>
         )}
       </div>
-      <Segmented
-        value={overlay.isLandscapeMode ? "landscape" : "portrait"}
-        options={[
-          ["landscape", "16:9"],
-          ["portrait", "9:16"],
-        ]}
-        onChange={(mode) => setLandscapeMode(mode === "landscape")}
-      />
       <button
         type="button"
         className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40"

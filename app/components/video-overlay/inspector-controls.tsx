@@ -119,6 +119,38 @@ export function NumberField({
   );
 }
 
+export function SelectField<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: readonly (readonly [T, string])[];
+  onChange: (value: T) => void;
+}) {
+  return (
+    <InspectorRow label={label}>
+      <select
+        aria-label={label}
+        className="w-full min-w-0 cursor-pointer rounded-lg border border-white/15 bg-black/30 px-2 py-1 text-sm text-white outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        value={value}
+        onChange={(event) => {
+          const selected = options.find(([optionValue]) => optionValue === event.target.value);
+          if (selected) onChange(selected[0]);
+        }}
+      >
+        {options.map(([optionValue, optionLabel]) => (
+          <option key={optionValue} value={optionValue}>
+            {optionLabel}
+          </option>
+        ))}
+      </select>
+    </InspectorRow>
+  );
+}
+
 export function Segmented<T extends string>({
   value,
   options,
