@@ -73,12 +73,16 @@ export default function RetroKaraokeTimingEditor({ caption }: { caption: Caption
     multipliers,
   );
   const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
-  const duration = endTime - startTime;
+  const singingStart = Math.min(
+    endTime,
+    Math.max(startTime, overlay.retroKaraokeSingingStarts[cueKey] ?? startTime),
+  );
+  const duration = endTime - singingStart;
   let elapsedWeight = 0;
-  const boundaries = [startTime];
+  const boundaries = [singingStart];
   for (const weight of weights) {
     elapsedWeight += weight;
-    boundaries.push(startTime + (elapsedWeight / totalWeight) * duration);
+    boundaries.push(singingStart + (elapsedWeight / totalWeight) * duration);
   }
   const selectedMultiplier = multipliers[selectedCell] ?? 1;
 
@@ -98,6 +102,28 @@ export default function RetroKaraokeTimingEditor({ caption }: { caption: Caption
           Reset
         </button>
       </div>
+      <label className="flex items-center gap-2 text-sm">
+        Singing delay (seconds)
+        <input
+          type="number"
+          min={0}
+          max={Math.max(0, endTime - startTime - 0.01)}
+          step={0.1}
+          value={Number((singingStart - startTime).toFixed(3))}
+          className="w-24 rounded bg-black/30 px-2 py-1"
+          onChange={(event) => {
+            const delay = event.target.valueAsNumber;
+            if (!Number.isFinite(delay)) return;
+            setOverlayState({
+              retroKaraokeSingingStarts: {
+                ...overlay.retroKaraokeSingingStarts,
+                [cueKey]:
+                  startTime + Math.min(Math.max(0, endTime - startTime - 0.01), Math.max(0, delay)),
+              },
+            });
+          }}
+        />
+      </label>
       <div className="w-full overflow-x-auto pb-1">
         <div className="min-w-[32rem]">
           <div className="flex h-14 w-full overflow-hidden rounded-lg border border-white/40">
@@ -120,7 +146,7 @@ export default function RetroKaraokeTimingEditor({ caption }: { caption: Caption
           </div>
           <div className="relative h-7 text-[10px] text-white/70 tabular-nums">
             {boundaries.map((boundary, index) => {
-              const left = ((boundary - startTime) / duration) * 100;
+              const left = ((boundary - startTime) / (endTime - startTime)) * 100;
               const transform =
                 index === 0
                   ? "none"

@@ -4,7 +4,7 @@ import { readFile } from "fs/promises";
 import http from "http";
 import path from "path";
 import { fileURLToPath } from "url";
-import { app, BrowserWindow, ipcMain, nativeImage, screen } from "electron";
+import { app, BrowserWindow, ipcMain, nativeImage, screen, shell } from "electron";
 
 const isDev = !app.isPackaged;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -62,7 +62,7 @@ async function downloadVideo(videoId, existingOnly = false) {
     ]);
   }
 
-  return readFile(outputPath);
+  return { data: await readFile(outputPath), filePath: outputPath };
 }
 
 if (youtubeDownloadsEnabled) {
@@ -74,6 +74,13 @@ if (youtubeDownloadsEnabled) {
     return downloadVideo(videoId, existingOnly === true);
   });
 }
+
+ipcMain.handle("show-video-in-finder", (_event, filePath) => {
+  if (typeof filePath !== "string" || !path.isAbsolute(filePath) || !existsSync(filePath)) {
+    throw new Error("The video file no longer exists on disk.");
+  }
+  shell.showItemInFolder(filePath);
+});
 
 async function waitForServer(url, timeoutMs = 30000) {
   const start = Date.now();

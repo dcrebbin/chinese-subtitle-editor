@@ -11,6 +11,7 @@ import {
   getRetroKaraokeCellProgresses,
   getRetroKaraokeCueKey,
   getRetroKaraokeLyricCaptions,
+  getRetroKaraokeProgress,
   startsRetroKaraokeBackingVocals,
 } from "./retro-karaoke-timing";
 import { getSubtitleAtTime, parseSrt, transliterateCaptions } from "./srt";
@@ -482,7 +483,6 @@ export async function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any,
     setOverlayState({ jsonData: { transliterationMap } });
 
     if (overlay.subtitleStyle === "retro-karaoke") {
-      const duration = Math.max(0.001, subtitle.endTime - subtitle.startTime);
       drawRetroKaraokeSubtitle(
         ctx,
         transliterationMap,
@@ -490,7 +490,14 @@ export async function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any,
         canvas.width,
         overlay.verticalPosition,
         rendererSizeMultiplier,
-        (time - subtitle.startTime) / duration,
+        getRetroKaraokeProgress(
+          time,
+          subtitle.endTime,
+          subtitle.startTime,
+          overlay.retroKaraokeSingingStarts[
+            getRetroKaraokeCueKey(subtitle.startTime, subtitle.endTime)
+          ],
+        ),
         overlay.retroKaraokeLengthInfluence,
         overlay.retroKaraokeTimingOverrides[
           getRetroKaraokeCueKey(subtitle.startTime, subtitle.endTime)
@@ -1250,7 +1257,6 @@ export async function convertCanvas(
           if (overlay.subtitleStyle === "retro-karaoke") {
             const subtitleStart = subtitle.startTime ?? adjustedTimestamp;
             const subtitleEnd = subtitle.endTime ?? subtitleStart;
-            const duration = Math.max(0.001, subtitleEnd - subtitleStart);
             drawRetroKaraokeSubtitle(
               ctx,
               transliterationMap,
@@ -1258,7 +1264,14 @@ export async function convertCanvas(
               width,
               verticalPosition,
               rendererSizeMultiplier,
-              (adjustedTimestamp + lyricsOffset - subtitleStart) / duration,
+              getRetroKaraokeProgress(
+                adjustedTimestamp + lyricsOffset,
+                subtitleEnd,
+                subtitleStart,
+                overlay.retroKaraokeSingingStarts[
+                  getRetroKaraokeCueKey(subtitleStart, subtitleEnd)
+                ],
+              ),
               overlay.retroKaraokeLengthInfluence,
               overlay.retroKaraokeTimingOverrides[
                 getRetroKaraokeCueKey(subtitleStart, subtitleEnd)

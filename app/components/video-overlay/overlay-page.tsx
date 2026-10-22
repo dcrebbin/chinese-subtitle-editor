@@ -17,6 +17,7 @@ import { ALL_FORMATS, BlobSource, BufferTarget, Input, Mp4OutputFormat, Output }
 import { setOverlayState, useOverlayStore } from "@/app/store/overlay.store";
 import { setSessionState, useSessionStore } from "@/app/store/session.store";
 import { convertCanvas, handleDrawCanvas } from "../../utilities/rendering";
+import { getRetroKaraokeCueKey } from "../../utilities/retro-karaoke-timing";
 import { cropSrtContent, getSubtitleAtTime, parseSrt } from "../../utilities/srt";
 import { cropVideoFile, getClampedVideoCrop } from "../../utilities/video-crop";
 import { loadSrtFromLocalStorage } from "../../utilities/video-storage";
@@ -56,7 +57,12 @@ export async function retrieveCustomSubtitles(videoId: string) {
 declare global {
   interface Window {
     electron?: {
-      downloadVideo?: (videoId: string, existingOnly?: boolean) => Promise<ArrayBuffer | null>;
+      downloadVideo?: (
+        videoId: string,
+        existingOnly?: boolean,
+      ) => Promise<{ data: Uint8Array<ArrayBuffer>; filePath: string } | null>;
+      getVideoFilePath?: (file: File) => string;
+      showVideoInFinder?: (filePath: string) => Promise<void>;
     };
   }
 }
@@ -279,7 +285,7 @@ export default function OverlayPage() {
         }
         let blob: Blob;
         if (electronVideo) {
-          blob = new Blob([electronVideo], { type: "video/mp4" });
+          blob = new Blob([electronVideo.data], { type: "video/mp4" });
         } else {
           const response = await fetch("/api/download", {
             method: "POST",
@@ -301,6 +307,7 @@ export default function OverlayPage() {
         setOverlayState({
           previewUrl: url,
           file: new File([blob], "downloaded.mp4", { type: "video/mp4" }),
+          videoSourcePath: electronVideo?.filePath || null,
         });
         setSessionState({ videoId });
 
@@ -378,7 +385,6 @@ export default function OverlayPage() {
   useEffect(() => {
     if (currentTimeRef.current && !overlay.isPlaying) {
       const time = Number.parseFloat(currentTimeRef.current.value);
-      setOverlayState({ currentTime: time + overlay.lyricOffset });
       const currentSubtitle = getSubtitleAtTime(
         session.parsedSubtitles,
         time + overlay.lyricOffset,
@@ -402,6 +408,7 @@ export default function OverlayPage() {
     overlay.subtitleStyle,
     overlay.retroKaraokeLengthInfluence,
     overlay.retroKaraokeTimingOverrides,
+    overlay.retroKaraokeSingingStarts,
     overlay.isPlaying,
     overlay.isLandscapeMode,
     overlay.selectedTab,
@@ -444,12 +451,12 @@ export default function OverlayPage() {
     updatePreviewTimeoutRef.current = setTimeout(() => {
       const currentSubtitle = getSubtitleAtTime(
         session.parsedSubtitles,
-        previewVideoRef.current?.currentTime ?? 0,
+        (previewVideoRef.current?.currentTime ?? 0) + overlay.lyricOffset,
       );
       void handleDrawCanvas(
         canvasRef.current as HTMLCanvasElement,
         currentSubtitle,
-        previewVideoRef.current?.currentTime ?? 0,
+        (previewVideoRef.current?.currentTime ?? 0) + overlay.lyricOffset,
       );
       startUpdatePreview();
     }, 100);
@@ -629,6 +636,13 @@ export default function OverlayPage() {
     </div>
   );
 
+  const activeKaraokeTime = overlay.currentTime + overlay.lyricOffset;
+  const activeKaraokeCue = getSubtitleAtTime(session.parsedSubtitles, activeKaraokeTime);
+  const activeKaraokeKey =
+    activeKaraokeCue?.startTime != null && activeKaraokeCue.endTime != null
+      ? getRetroKaraokeCueKey(activeKaraokeCue.startTime, activeKaraokeCue.endTime)
+      : null;
+
   const transportBar = (
     <div className="flex w-full flex-col gap-2">
       <div className="flex items-center gap-3">
@@ -641,6 +655,52 @@ export default function OverlayPage() {
         >
           {overlay.isPlaying ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
         </button>
+        {overlay.subtitleStyle === "retro-karaoke" && (
+          <>
+            <button
+              type="button"
+              className={toolbarButtonClassName}
+              disabled={!hasVideo || !activeKaraokeKey}
+              onClick={() => {
+                const video = previewVideoRef.current;
+                if (!video || !activeKaraokeKey) return;
+                setOverlayState({
+                  retroKaraokeSingingStarts: {
+                    ...overlay.retroKaraokeSingingStarts,
+                    [activeKaraokeKey]: video.currentTime + overlay.lyricOffset,
+                  },
+                });
+                if (video.paused)
+                  void video.play().catch(() => setOverlayState({ isPlaying: false }));
+              }}
+            >
+              Start Singing
+            </button>
+            <button
+              type="button"
+              className={toolbarButtonClassName}
+              disabled={
+                !activeKaraokeKey ||
+                overlay.retroKaraokeSingingStarts[activeKaraokeKey] === undefined
+              }
+              onClick={() => {
+                if (activeKaraokeCue?.startTime == null || !activeKaraokeKey) return;
+                previewVideoRef.current?.pause();
+                const starts = { ...overlay.retroKaraokeSingingStarts };
+                delete starts[activeKaraokeKey];
+                const time = Math.max(0, activeKaraokeCue.startTime - overlay.lyricOffset);
+                if (previewVideoRef.current) previewVideoRef.current.currentTime = time;
+                setOverlayState({
+                  retroKaraokeSingingStarts: starts,
+                  currentTime: time,
+                  isPlaying: false,
+                });
+              }}
+            >
+              Restart Line
+            </button>
+          </>
+        )}
         <span className="shrink-0 text-xs text-white/70 tabular-nums">
           {formatTime(overlay.currentTime)} / {formatTime(overlay.videoLength)}
         </span>
@@ -975,7 +1035,11 @@ export default function OverlayPage() {
           }
 
           const url = URL.createObjectURL(selectedFile);
-          setOverlayState({ previewUrl: url, file: selectedFile });
+          setOverlayState({
+            previewUrl: url,
+            file: selectedFile,
+            videoSourcePath: window.electron?.getVideoFilePath?.(selectedFile) || null,
+          });
 
           const videoElement = document.createElement("video");
           videoElement.src = url;

@@ -93,3 +93,17 @@ export function getRetroKaraokeCellProgresses(
     return Math.min(1, Math.max(0, cellProgress));
   });
 }
+
+/** Singing starts with the line unless a later onset is configured. */
+export function getRetroKaraokeProgress(
+  time: number,
+  endTime: number,
+  lineStart: number,
+  singingStart?: number,
+) {
+  singingStart =
+    singingStart !== undefined && Number.isFinite(singingStart)
+      ? Math.min(endTime, Math.max(lineStart, singingStart))
+      : lineStart;
+  return Math.min(1, Math.max(0, (time - singingStart) / Math.max(0.001, endTime - singingStart)));
+}

@@ -25,6 +25,7 @@ type OverlayStore = {
     setSubtitleStyle: (subtitleStyle: SubtitleStyle) => void;
     retroKaraokeLengthInfluence: number;
     retroKaraokeTimingOverrides: RetroKaraokeTimingOverrides;
+    retroKaraokeSingingStarts: Record<string, number>;
     lyricOffset: number;
     setLyricOffset: (lyricOffset: number) => void;
     startTime: number;
@@ -53,6 +54,7 @@ type OverlayStore = {
     videoCropBottom: number;
     setVideoCropBottom: (videoCropBottom: number) => void;
     file: File | null;
+    videoSourcePath: string | null;
     videoLength: number;
     setVideoLength: (videoLength: number) => void;
     setFile: (file: File | null) => void;
@@ -107,6 +109,7 @@ type PersistableOverlaySettings = Pick<
   | "subtitleStyle"
   | "retroKaraokeLengthInfluence"
   | "retroKaraokeTimingOverrides"
+  | "retroKaraokeSingingStarts"
   | "lyricOffset"
   | "selectedTab"
   | "isLandscapeMode"
@@ -147,6 +150,7 @@ const defaultPersistableOverlaySettings: PersistableOverlaySettings = {
   subtitleStyle: "learning-cards",
   retroKaraokeLengthInfluence: 0.5,
   retroKaraokeTimingOverrides: {},
+  retroKaraokeSingingStarts: {},
   lyricOffset: 0,
   selectedTab: "editor",
   isLandscapeMode: true,
@@ -258,6 +262,7 @@ function persistOverlaySettings(overlay: OverlayStore["overlay"]) {
     subtitleStyle: overlay.subtitleStyle,
     retroKaraokeLengthInfluence: overlay.retroKaraokeLengthInfluence,
     retroKaraokeTimingOverrides: overlay.retroKaraokeTimingOverrides,
+    retroKaraokeSingingStarts: overlay.retroKaraokeSingingStarts,
     lyricOffset: overlay.lyricOffset,
     selectedTab: overlay.selectedTab,
     isLandscapeMode: overlay.isLandscapeMode,
@@ -308,6 +313,7 @@ const overlayStore = create<OverlayStore>(() => ({
     jsonData: {},
     videoDimensions: { width: 1920, height: 1080 },
     file: null,
+    videoSourcePath: null,
     videoLength: 100,
     ...persistedOverlaySettings,
   } as OverlayStore["overlay"],

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { setOverlayState, useOverlayStore, type SubtitleStyle } from "@/app/store/overlay.store";
 import {
   ImagePicker,
+  inspectorButtonClassName,
   InspectorRow,
   InspectorSection,
   NumberField,
@@ -152,6 +153,23 @@ function VideoTab() {
 
   return (
     <>
+      {overlay.previewUrl && overlay.videoSourcePath && window.electron?.showVideoInFinder && (
+        <InspectorSection title="Source">
+          <button
+            type="button"
+            className={`${inspectorButtonClassName} self-start`}
+            onClick={() => {
+              void window.electron
+                ?.showVideoInFinder?.(overlay.videoSourcePath!)
+                .catch((error: unknown) => {
+                  alert(error instanceof Error ? error.message : "Could not show video in Finder.");
+                });
+            }}
+          >
+            Show in Finder
+          </button>
+        </InspectorSection>
+      )}
       <InspectorSection
         title="Transform"
         onReset={() =>

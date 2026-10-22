@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { useOverlayStore } from "../../store/overlay.store";
 import { setSessionState } from "../../store/session.store";
+import { beautifyLyrics } from "../../utilities/beautify-lyrics";
 import { extractSubtitleAudio } from "../../utilities/extract-audio";
 import { convertSrtToCaptions } from "../../utilities/transliteration/transliteration";
 
@@ -115,14 +116,24 @@ export default function SubtitleEditorGenerateView() {
         <p className="m-0 text-xs text-white/60">
           Generates subtitles for the full video and replaces the current captions.
         </p>
-        <button
-          type="button"
-          disabled={!overlay.file || generating}
-          onClick={generateSubtitles}
-          className="cursor-pointer rounded-3xl bg-blue-600 p-2 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {generationStatus || "Generate subtitles"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={!overlay.file || generating}
+            onClick={generateSubtitles}
+            className="flex-1 cursor-pointer rounded-3xl bg-blue-600 p-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {generationStatus || "Generate subtitles"}
+          </button>
+          <button
+            type="button"
+            disabled={!context.trim() || generating}
+            onClick={() => setContext(beautifyLyrics(context))}
+            className="cursor-pointer rounded-3xl bg-white/10 px-4 py-2 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Beautify
+          </button>
+        </div>
         {generationStatus && (
           <p role="status" className="m-0 text-sm">
             {generationStatus}

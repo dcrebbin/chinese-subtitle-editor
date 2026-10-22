@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 
+export const inspectorButtonClassName =
+  "cursor-pointer rounded-md border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-medium text-white/80 shadow-sm shadow-black/30 hover:bg-white/20 hover:text-white active:translate-y-px";
+
 export function InspectorSection({
   title,
   onReset,
@@ -13,11 +16,7 @@ export function InspectorSection({
     <section className="flex flex-col gap-3 border-b border-white/10 px-3 py-3 last:border-b-0">
       <div className="flex items-center justify-between">
         {onReset && (
-          <button
-            type="button"
-            className="cursor-pointer rounded-md border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-medium text-white/80 shadow-sm shadow-black/30 hover:bg-white/20 hover:text-white active:translate-y-px"
-            onClick={onReset}
-          >
+          <button type="button" className={inspectorButtonClassName} onClick={onReset}>
             Reset
           </button>
         )}

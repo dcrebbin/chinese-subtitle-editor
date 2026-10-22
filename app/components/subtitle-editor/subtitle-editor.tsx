@@ -31,6 +31,7 @@ import {
   saveJapaneseTransliterationsToLocalStorage,
 } from "../../utilities/video-storage";
 import Loading from "../common/loading";
+import { inspectorButtonClassName } from "../video-overlay/inspector-controls";
 import RetroKaraokeTimingEditor from "./retro-karaoke-timing-editor";
 import SubtitleEditorBottomControls from "./subtitle-editor-bottom-controls";
 import SubtitleEditorGenerateView from "./subtitle-editor-generate-view";
@@ -612,7 +613,7 @@ export default function SubtitleEditor() {
   }
 
   const subtitleEditorHeaderControls = (
-    <div className="relative top-0 grid w-full shrink-0 grid-cols-1 items-center justify-center gap-2.5 p-2.5 text-base sm:grid-cols-2 xl:grid-cols-4 xl:text-2xl">
+    <div className="relative top-0 grid w-full shrink-0 grid-cols-1 items-center justify-center gap-2 p-3 text-xs sm:grid-cols-2 xl:grid-cols-4">
       <div className="flex min-w-0 items-center gap-2">
         <input
           type="number"
@@ -633,13 +634,13 @@ export default function SubtitleEditor() {
               handleOffsetChange(offsetValue);
             }
           }}
-          className="min-w-0 flex-1 rounded-3xl border border-solid border-white/20 bg-transparent p-1.5 text-white"
+          className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/30 px-2 py-1 text-sm text-white outline-none focus:border-blue-400"
         />
       </div>
       <button
         type="button"
         onClick={() => setAutoScroll(!autoScroll)}
-        className="w-full cursor-pointer rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20"
+        className={`${inspectorButtonClassName} w-full`}
       >
         <span className="xl:hidden">{autoScroll ? "Auto Scroll" : "No Scroll"}</span>
         <span className="hidden xl:inline">
@@ -649,12 +650,13 @@ export default function SubtitleEditor() {
       <button
         type="button"
         onClick={() => handleDeleteAllCaptions()}
-        className="flex cursor-pointer flex-row items-center justify-center rounded-2xl border-none bg-black/30 p-1.5 hover:bg-white/20 sm:col-span-2 xl:col-span-1 xl:ml-10"
+        className={`${inspectorButtonClassName} flex items-center justify-center gap-1.5`}
       >
         Delete All
-        <TrashIcon className="h-6 w-6 xl:h-8 xl:w-8" />
+        <TrashIcon className="h-3.5 w-3.5" />
       </button>
-      <div className="flex gap-2 sm:col-span-2 xl:col-span-1">
+      <div className="flex gap-2">
+        <SubtitleSrtImport />
         <input
           ref={japaneseImportInputRef}
           type="file"
@@ -869,35 +871,27 @@ export default function SubtitleEditor() {
     <div
       ref={editorRef}
       id="langpal-subtitle-editor"
-      className="relative flex h-full min-h-0 w-full flex-col rounded-3xl border-2 border-white/50 bg-black/50 backdrop-blur-xs"
+      className="relative flex h-full min-h-0 w-full flex-col rounded-2xl border border-white/15 bg-black/30"
     >
-      <div className="mx-4 flex shrink-0 flex-wrap items-center gap-2 p-3">
-        <button
-          type="button"
-          onClick={() => setSessionState({ ...session, selectedTab: "captions" })}
-          className={`flex cursor-pointer items-center justify-center p-2 ${
-            session.selectedTab === "captions" ? "border-b-2 border-white/20" : ""
-          }`}
-        >
-          Subtitles
-        </button>
-        <button
-          type="button"
-          onClick={() => setSessionState({ ...session, selectedTab: "search" })}
-          className={`flex cursor-pointer items-center justify-center p-2 ${
-            session.selectedTab === "search" ? "border-b-2 border-white/20" : ""
-          }`}
-        >
-          Search
-        </button>
-        <button
-          type="button"
-          onClick={() => setSessionState({ selectedTab: "generate" })}
-          className={`flex cursor-pointer items-center justify-center p-2 ${session.selectedTab === "generate" ? "border-b-2 border-white/20" : ""}`}
-        >
-          Generate
-        </button>
-        <SubtitleSrtImport />
+      <div className="flex shrink-0 flex-wrap border-b border-white/10 px-1" role="tablist">
+        {(
+          [
+            ["captions", "Subtitles"],
+            ["search", "Search"],
+            ["generate", "Generate"],
+          ] as const
+        ).map(([tab, label]) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={session.selectedTab === tab}
+            onClick={() => setSessionState({ selectedTab: tab })}
+            className={`-mb-px cursor-pointer border-b-2 px-3 py-2 text-sm font-medium ${session.selectedTab === tab ? "border-blue-500 text-white" : "border-transparent text-white/50 hover:text-white"}`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
       <div
         className={`${session.selectedTab === "generate" ? "flex" : "hidden"} min-h-0 flex-1 flex-col overflow-hidden`}
