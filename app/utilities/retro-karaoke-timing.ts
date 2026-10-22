@@ -107,3 +107,45 @@ export function getRetroKaraokeProgress(
       : lineStart;
   return Math.min(1, Math.max(0, (time - singingStart) / Math.max(0.001, endTime - singingStart)));
 }
+
+/** Preserve relative holds and singing onset when existing lines are retimed. */
+export function retimeRetroKaraokeCue(
+  previous: { startTime: string; endTime: string }[],
+  next: { startTime: string; endTime: string }[],
+  timing: {
+    retroKaraokeTimingOverrides: Record<string, Record<number, number>>;
+    retroKaraokeSingingStarts: Record<string, number>;
+  },
+  toSeconds: (timestamp: string) => number,
+) {
+  const overrides = { ...timing.retroKaraokeTimingOverrides };
+  const starts = { ...timing.retroKaraokeSingingStarts };
+  const changes = previous.flatMap((caption, index) => {
+    const updated = next[index];
+    if (!updated) return [];
+    const start = toSeconds(caption.startTime);
+    const end = toSeconds(caption.endTime);
+    const newStart = toSeconds(updated.startTime);
+    const newEnd = toSeconds(updated.endTime);
+    if (![start, end, newStart, newEnd].every(Number.isFinite)) return [];
+    const key = getRetroKaraokeCueKey(start, end);
+    const newKey = getRetroKaraokeCueKey(newStart, newEnd);
+    return key === newKey ? [] : [{ key, newKey, start, end, newStart, newEnd }];
+  });
+  // Read from the original maps so bulk shifts cannot overwrite a later line's timing.
+  for (const { key } of changes) {
+    delete overrides[key];
+    delete starts[key];
+  }
+  for (const { key, newKey, start, end, newStart, newEnd } of changes) {
+    if (timing.retroKaraokeTimingOverrides[key] !== undefined) {
+      overrides[newKey] = timing.retroKaraokeTimingOverrides[key];
+    }
+    const onset = timing.retroKaraokeSingingStarts[key];
+    if (onset !== undefined && Number.isFinite(onset)) {
+      const fraction = end > start ? Math.min(1, Math.max(0, (onset - start) / (end - start))) : 0;
+      starts[newKey] = newStart + fraction * Math.max(0, newEnd - newStart);
+    }
+  }
+  return { retroKaraokeTimingOverrides: overrides, retroKaraokeSingingStarts: starts };
+}

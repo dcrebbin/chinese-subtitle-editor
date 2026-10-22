@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowDownTrayIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/solid";
 
-import { useOverlayStore } from "../../store/overlay.store";
+import { getOverlayState, setOverlayState, useOverlayStore } from "../../store/overlay.store";
 import {
   getSessionState,
   setSessionState,
@@ -12,10 +12,9 @@ import {
   type CaptionSegment,
   type SavedJapaneseTransliteration,
 } from "../../store/session.store";
-import {
-  CaptionLanguages,
-  convertCaptionsToSrt,
-} from "../../utilities/transliteration/transliteration";
+import { batchEditorChange } from "../../utilities/editor-history";
+import { retimeRetroKaraokeCue } from "../../utilities/retro-karaoke-timing";
+import { CaptionLanguages } from "../../utilities/transliteration/transliteration";
 import {
   loadJapaneseTransliterationsFromLocalStorage,
   saveJapaneseTransliterationsToLocalStorage,
@@ -179,6 +178,26 @@ export default function SubtitleEditor() {
     });
   }
 
+  function updateCaptionTimes(
+    updatedCaptions: CaptionSegment[],
+    subtitleOffset = session.subtitleOffset,
+  ) {
+    const timing = retimeRetroKaraokeCue(
+      session.localCaptions,
+      updatedCaptions,
+      getOverlayState().overlay,
+      timeStringToSeconds,
+    );
+    batchEditorChange(() => {
+      setOverlayState(timing);
+      setSessionState({
+        localCaptions: updatedCaptions,
+        originalCaptions: updatedCaptions,
+        subtitleOffset,
+      });
+    });
+  }
+
   function handleOffsetChange(offsetSeconds: number) {
     if (!Number.isFinite(offsetSeconds)) return;
 
@@ -194,14 +213,7 @@ export default function SubtitleEditor() {
       };
     });
 
-    setSessionState({
-      ...session,
-      localCaptions: updatedCaptions,
-      originalCaptions: updatedCaptions,
-      srtContent: convertCaptionsToSrt(updatedCaptions),
-      localSrtContent: convertCaptionsToSrt(updatedCaptions),
-      subtitleOffset: offsetSeconds,
-    });
+    updateCaptionTimes(updatedCaptions, offsetSeconds);
   }
 
   function handleResetSubtitleOffset() {
@@ -533,63 +545,33 @@ export default function SubtitleEditor() {
   }
 
   function decrementTime(index: number, amount: number, isStartTime: boolean) {
-    const updatedCaptions = [...session.localCaptions];
-    if (!updatedCaptions[index]) {
-      return;
-    }
-    if (isStartTime) {
-      updatedCaptions[index].startTime = formatTime(
-        timeStringToSeconds(updatedCaptions[index].startTime) - amount,
-      );
-    } else {
-      updatedCaptions[index].endTime = formatTime(
-        timeStringToSeconds(updatedCaptions[index].endTime) - amount,
-      );
-    }
-    setSessionState({
-      ...session,
-      localCaptions: updatedCaptions,
-      originalCaptions: updatedCaptions, // Update original captions to reflect the time change
-    });
+    const caption = session.localCaptions[index];
+    if (!caption) return;
+    setCaptionTime(
+      index,
+      timeStringToSeconds(caption[isStartTime ? "startTime" : "endTime"]) - amount,
+      isStartTime,
+    );
   }
 
   function incrementTime(index: number, amount: number, isStartTime: boolean) {
-    const updatedCaptions = [...session.localCaptions];
-    if (!updatedCaptions[index]) {
-      return;
-    }
-    if (isStartTime) {
-      updatedCaptions[index].startTime = formatTime(
-        timeStringToSeconds(updatedCaptions[index].startTime) + amount,
-      );
-    } else {
-      updatedCaptions[index].endTime = formatTime(
-        timeStringToSeconds(updatedCaptions[index].endTime) + amount,
-      );
-    }
-    setSessionState({
-      ...session,
-      localCaptions: updatedCaptions,
-      originalCaptions: updatedCaptions, // Update original captions to reflect the time change
-    });
+    const caption = session.localCaptions[index];
+    if (!caption) return;
+    setCaptionTime(
+      index,
+      timeStringToSeconds(caption[isStartTime ? "startTime" : "endTime"]) + amount,
+      isStartTime,
+    );
   }
 
   function setCaptionTime(index: number, time: number, isStartTime: boolean) {
     const updatedCaptions = [...session.localCaptions];
-    if (!updatedCaptions[index]) {
-      return;
-    }
-
-    const formattedTime = formatTime(time);
+    if (!updatedCaptions[index]) return;
     updatedCaptions[index] = {
       ...updatedCaptions[index],
-      [isStartTime ? "startTime" : "endTime"]: formattedTime,
+      [isStartTime ? "startTime" : "endTime"]: formatTime(time),
     };
-    setSessionState({
-      ...session,
-      localCaptions: updatedCaptions,
-      originalCaptions: updatedCaptions, // Update original captions to reflect the time change
-    });
+    updateCaptionTimes(updatedCaptions);
   }
 
   function createSubtitlesSection() {

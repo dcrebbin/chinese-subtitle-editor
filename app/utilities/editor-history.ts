@@ -45,6 +45,19 @@ export const useEditorHistory = create(() => ({ canUndo: false, canRedo: false }
 const past: Entry[] = [];
 const future: Entry[] = [];
 let restoring = false;
+let batching = false;
+let recordBatch: (() => void) | undefined;
+
+export function batchEditorChange(change: () => void) {
+  const alreadyBatching = batching;
+  batching = true;
+  try {
+    change();
+  } finally {
+    batching = alreadyBatching;
+    if (!batching) recordBatch?.();
+  }
+}
 let current: Snapshot;
 let breakGroup = false;
 function publish() {
@@ -94,7 +107,7 @@ export function startEditorHistory() {
   let file = useOverlayStore.getState().overlay.file;
   let pointerTarget: Element | null = null;
   function record() {
-    if (restoring) return;
+    if (restoring || batching) return;
     const nextId = useSessionStore.getState().session.videoId;
     const nextFile = useOverlayStore.getState().overlay.file;
     if (nextId !== videoId || nextFile !== file) {
@@ -151,6 +164,7 @@ export function startEditorHistory() {
     future.length = 0;
     publish();
   }
+  recordBatch = record;
   const unsubscribe = [
     useSessionStore.subscribe((next, previous) => {
       if (
@@ -211,6 +225,7 @@ export function startEditorHistory() {
   window.addEventListener("pointercancel", pointerup, true);
   window.addEventListener("focusin", boundary, true);
   return () => {
+    if (recordBatch === record) recordBatch = undefined;
     unsubscribe.forEach((stop) => stop());
     window.removeEventListener("keydown", keydown, true);
     window.removeEventListener("pointerdown", pointerdown, true);

@@ -166,3 +166,69 @@ test("autosave, undo, redo, grouping, source isolation, and draft recovery", () 
   assert.equal(session().localCaptions[0].text.yue, "原文");
   stop();
 });
+
+test("karaoke holds and onset scale with line boundaries and undo together", () => {
+  const {
+    retimeRetroKaraokeCue,
+    getRetroKaraokeCellProgresses,
+  } = require("../app/utilities/retro-karaoke-timing.ts");
+  const { batchEditorChange } = require("../app/utilities/editor-history.ts");
+  const seconds = (value) => {
+    const [clock, ms] = value.split(",");
+    const [h, m, s] = clock.split(":").map(Number);
+    return h * 3600 + m * 60 + s + Number(ms) / 1000;
+  };
+  setSessionState({ srtContent: srt });
+  setOverlayState({
+    retroKaraokeTimingOverrides: { "1.000-3.000": { 0: 3 } },
+    retroKaraokeSingingStarts: { "1.000-3.000": 1.5 },
+  });
+  const stop = startEditorHistory();
+  const previous = session().localCaptions;
+  const next = previous.map((caption) => ({
+    ...caption,
+    startTime: "00:00:10,000",
+    endTime: "00:00:18,000",
+  }));
+  batchEditorChange(() => {
+    setOverlayState(
+      retimeRetroKaraokeCue(previous, next, useOverlayStore.getState().overlay, seconds),
+    );
+    setSessionState({ localCaptions: next });
+  });
+  assert.deepEqual(useOverlayStore.getState().overlay.retroKaraokeTimingOverrides, {
+    "10.000-18.000": { 0: 3 },
+  });
+  assert.equal(useOverlayStore.getState().overlay.retroKaraokeSingingStarts["10.000-18.000"], 12);
+  assert.deepEqual(
+    getRetroKaraokeCellProgresses([{ chinese: "a" }, { chinese: "b" }], 0.75, 0, { 0: 3 }),
+    [1, 0],
+  );
+  undoEditorChange();
+  assert.equal(session().localCaptions[0].startTime, "00:00:01,000");
+  assert.equal(useOverlayStore.getState().overlay.retroKaraokeSingingStarts["1.000-3.000"], 1.5);
+  assert.equal(useEditorHistory.getState().canUndo, false);
+  redoEditorChange();
+  assert.equal(useOverlayStore.getState().overlay.retroKaraokeSingingStarts["10.000-18.000"], 12);
+  const shifted = retimeRetroKaraokeCue(
+    [
+      { startTime: "1", endTime: "3" },
+      { startTime: "3", endTime: "5" },
+    ],
+    [
+      { startTime: "3", endTime: "5" },
+      { startTime: "5", endTime: "7" },
+    ],
+    {
+      retroKaraokeTimingOverrides: { "1.000-3.000": { 0: 2 }, "3.000-5.000": { 0: 4 } },
+      retroKaraokeSingingStarts: { "1.000-3.000": 1.5, "3.000-5.000": 4 },
+    },
+    Number,
+  );
+  assert.deepEqual(shifted.retroKaraokeTimingOverrides, {
+    "3.000-5.000": { 0: 2 },
+    "5.000-7.000": { 0: 4 },
+  });
+  assert.deepEqual(shifted.retroKaraokeSingingStarts, { "3.000-5.000": 3.5, "5.000-7.000": 6 });
+  stop();
+});
