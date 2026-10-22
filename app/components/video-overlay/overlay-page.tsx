@@ -642,22 +642,56 @@ export default function OverlayPage() {
       : null;
 
   const transportBar = (
-    <div className="flex w-full flex-col gap-2">
-      <div className="flex items-center gap-3">
+    <div className="w-full rounded-xl bg-black/35 px-3 pt-1 pb-2 ring-1 ring-white/10">
+      <div className="group relative flex h-5 w-full items-center">
+        <div
+          className="pointer-events-none absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-blue-500/40"
+          style={{
+            left: `${Math.min(inPercent, outPercent)}%`,
+            width: `${Math.max(0, outPercent - inPercent)}%`,
+          }}
+        />
+        <input
+          aria-label="Seek video"
+          aria-valuetext={`${formatTime(overlay.currentTime)} of ${formatTime(overlay.videoLength)}`}
+          disabled={!hasVideo}
+          className="relative m-0 h-5 w-full cursor-pointer appearance-none rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-neutral-950 disabled:cursor-not-allowed disabled:opacity-40 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-red-500 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-red-500"
+          style={{
+            background: `linear-gradient(to right, #ef4444 ${Math.min(100, Math.max(0, (overlay.currentTime / (overlay.videoLength || 1)) * 100))}%, #ffffff30 0%) center / 100% 4px no-repeat`,
+          }}
+          type="range"
+          min={0}
+          step={0.1}
+          max={overlay.videoLength}
+          ref={currentTimeRef}
+          value={overlay.currentTime}
+          onChange={(e) => {
+            const newValue = Number.parseFloat(e.target.value);
+            setOverlayState({ currentTime: newValue });
+            if (previewVideoRef.current) {
+              previewVideoRef.current.currentTime = newValue;
+            }
+          }}
+        />
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <button
           type="button"
           disabled={!hasVideo}
-          className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white text-black hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
           onClick={togglePlayback}
           aria-label={overlay.isPlaying ? "Pause" : "Play"}
         >
           {overlay.isPlaying ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
         </button>
+        <span className="shrink-0 text-xs text-white/70 tabular-nums">
+          {formatTime(overlay.currentTime)} / {formatTime(overlay.videoLength)}
+        </span>
         {overlay.subtitleStyle === "retro-karaoke" && (
           <>
             <button
               type="button"
-              className={toolbarButtonClassName}
+              className="shrink-0 cursor-pointer rounded-md px-2 py-1 text-xs text-white/80 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
               disabled={!hasVideo || !activeKaraokeKey}
               onClick={() => {
                 const video = previewVideoRef.current;
@@ -676,7 +710,7 @@ export default function OverlayPage() {
             </button>
             <button
               type="button"
-              className={toolbarButtonClassName}
+              className="shrink-0 cursor-pointer rounded-md px-2 py-1 text-xs text-white/80 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
               disabled={
                 !activeKaraokeKey ||
                 overlay.retroKaraokeSingingStarts[activeKaraokeKey] === undefined
@@ -699,62 +733,34 @@ export default function OverlayPage() {
             </button>
           </>
         )}
-        <span className="shrink-0 text-xs text-white/70 tabular-nums">
-          {formatTime(overlay.currentTime)} / {formatTime(overlay.videoLength)}
-        </span>
-        <div className="relative flex min-w-0 flex-1 items-center">
-          <div
-            className="pointer-events-none absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-blue-500/40"
-            style={{
-              left: `${Math.min(inPercent, outPercent)}%`,
-              width: `${Math.max(0, outPercent - inPercent)}%`,
-            }}
-          />
-          <input
-            className="relative w-full cursor-pointer accent-white"
-            type="range"
-            min={0}
-            step={0.1}
-            max={overlay.videoLength}
-            ref={currentTimeRef}
-            value={overlay.currentTime}
-            onChange={(e) => {
-              const newValue = Number.parseFloat(e.target.value);
-              setOverlayState({ currentTime: newValue });
-              if (previewVideoRef.current) {
-                previewVideoRef.current.currentTime = newValue;
-              }
-            }}
-          />
+        <div className="ml-auto flex flex-wrap items-center gap-1.5 text-xs">
+          <button
+            type="button"
+            className="cursor-pointer rounded-md bg-white/10 px-2 py-1 hover:bg-white/20"
+            onClick={() => setOverlayState({ startTime: overlay.currentTime })}
+            title="Set In point to the playhead"
+          >
+            In <span className="text-white/60 tabular-nums">{formatTime(overlay.startTime)}</span>
+          </button>
+          <button
+            type="button"
+            className="cursor-pointer rounded-md bg-white/10 px-2 py-1 hover:bg-white/20"
+            onClick={() => setOverlayState({ endTime: overlay.currentTime })}
+            title="Set Out point to the playhead"
+          >
+            Out <span className="text-white/60 tabular-nums">{formatTime(overlay.endTime)}</span>
+          </button>
+          <button
+            type="button"
+            className="flex cursor-pointer items-center gap-1 rounded-md bg-white/10 px-2 py-1 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={handleCropVideo}
+            disabled={overlay.isLoading || !overlay.file || overlay.endTime <= overlay.startTime}
+            title="Cut the video and subtitles down to the In–Out range"
+          >
+            <ScissorsIcon className="h-3.5 w-3.5" />
+            Trim
+          </button>
         </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        <button
-          type="button"
-          className="cursor-pointer rounded-md bg-white/10 px-2 py-1 hover:bg-white/20"
-          onClick={() => setOverlayState({ startTime: overlay.currentTime })}
-          title="Set In point to the playhead"
-        >
-          In <span className="text-white/60 tabular-nums">{formatTime(overlay.startTime)}</span>
-        </button>
-        <button
-          type="button"
-          className="cursor-pointer rounded-md bg-white/10 px-2 py-1 hover:bg-white/20"
-          onClick={() => setOverlayState({ endTime: overlay.currentTime })}
-          title="Set Out point to the playhead"
-        >
-          Out <span className="text-white/60 tabular-nums">{formatTime(overlay.endTime)}</span>
-        </button>
-        <button
-          type="button"
-          className="flex cursor-pointer items-center gap-1 rounded-md bg-white/10 px-2 py-1 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
-          onClick={handleCropVideo}
-          disabled={overlay.isLoading || !overlay.file || overlay.endTime <= overlay.startTime}
-          title="Cut the video and subtitles down to the In–Out range"
-        >
-          <ScissorsIcon className="h-3.5 w-3.5" />
-          Trim to In–Out
-        </button>
       </div>
     </div>
   );
