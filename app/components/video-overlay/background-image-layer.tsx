@@ -18,6 +18,7 @@ export default function BackgroundImageLayer({
   scale,
   blur,
   previewScale,
+  elementId,
 }: {
   url: string | null;
   outputWidth: number;
@@ -30,6 +31,7 @@ export default function BackgroundImageLayer({
   blur: number;
   /** Preview pixels per output pixel. */
   previewScale: number;
+  elementId: "background" | "image1" | "image2";
 }) {
   const [imageSize, setImageSize] = useState<{ url: string; width: number; height: number }>();
 
@@ -68,6 +70,7 @@ export default function BackgroundImageLayer({
 
   return (
     <div
+      data-preview-image={elementId}
       className="absolute bg-no-repeat"
       style={{
         left: `${((rect.x - bleed) / outputWidth) * 100}%`,

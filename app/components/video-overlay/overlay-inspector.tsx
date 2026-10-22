@@ -81,7 +81,12 @@ function CaptionsTab() {
       <InspectorSection
         title="Layout"
         onReset={() =>
-          setOverlayState({ sizeMultiplier: 1, verticalPosition: 200, flipSubtitleRows: false })
+          setOverlayState({
+            sizeMultiplier: 1,
+            verticalPosition: 200,
+            horizontalPosition: 0,
+            flipSubtitleRows: false,
+          })
         }
       >
         <SliderRow

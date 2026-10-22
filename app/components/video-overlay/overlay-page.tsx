@@ -25,6 +25,7 @@ import BackgroundImageButtons from "./background-image-buttons";
 import BackgroundImageLayer from "./background-image-layer";
 import { toolbarButtonClassName } from "./inspector-controls";
 import OverlayInspector from "./overlay-inspector";
+import PreviewElementControls from "./preview-element-controls";
 import VideoCropControls from "./video-crop-controls";
 
 const youtubeDownloadsEnabled = import.meta.env.VITE_DOWNLOAD_ENABLED === "true";
@@ -398,6 +399,7 @@ export default function OverlayPage() {
   }, [
     overlay.currentTime,
     overlay.verticalPosition,
+    overlay.horizontalPosition,
     overlay.sizeMultiplier,
     overlay.flipSubtitleRows,
     overlay.separateTextSizes,
@@ -783,6 +785,7 @@ export default function OverlayPage() {
                   <div className="absolute inset-0 overflow-hidden">
                     <BackgroundImageLayer
                       url={overlay.backgroundImage}
+                      elementId="background"
                       outputWidth={outputWidth}
                       regionTop={0}
                       regionHeight={outputHeight}
@@ -803,6 +806,7 @@ export default function OverlayPage() {
                     >
                       <BackgroundImageLayer
                         url={overlay.doubleBackgroundImage.image1}
+                        elementId="image1"
                         outputWidth={outputWidth}
                         regionTop={0}
                         regionHeight={outputHeight / 2}
@@ -820,6 +824,7 @@ export default function OverlayPage() {
                     >
                       <BackgroundImageLayer
                         url={overlay.doubleBackgroundImage.image2}
+                        elementId="image2"
                         outputWidth={outputWidth}
                         regionTop={outputHeight / 2}
                         regionHeight={outputHeight / 2}
@@ -900,41 +905,29 @@ export default function OverlayPage() {
                   height={displayedVideoHeight}
                 />
               )}
-              <div
-                className="group absolute inset-y-0 right-2 z-10 w-7 opacity-70 transition-opacity focus-within:opacity-100 hover:opacity-100"
-                style={{ display: isCropping ? "none" : undefined }}
-              >
-                <label
-                  htmlFor="subtitle-position-y"
-                  className="absolute top-2 right-9 rounded-md bg-black/70 px-2 py-1 text-xs whitespace-nowrap text-white shadow-sm"
-                >
-                  Position Y
-                </label>
-                <input
-                  id="subtitle-position-y"
-                  type="range"
-                  className="subtitle-position-slider absolute -top-1.5 left-0 h-[calc(100%+12px)] w-7 cursor-ns-resize"
-                  style={{ writingMode: "vertical-lr", direction: "ltr" }}
-                  aria-orientation="vertical"
-                  aria-valuetext={`${subtitlePositionY} pixels from top`}
-                  min={0}
-                  max={outputHeight - 1}
-                  step={1}
-                  value={subtitlePositionY}
-                  onChange={(event) =>
-                    setOverlayState({ verticalPosition: event.target.valueAsNumber })
-                  }
-                />
-                <output
-                  htmlFor="subtitle-position-y"
-                  className="pointer-events-none absolute right-9 -translate-y-1/2 rounded-md bg-black/70 px-2 py-1 text-xs whitespace-nowrap text-white tabular-nums opacity-0 shadow-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
-                  style={{
-                    top: `clamp(40px, ${(subtitlePositionY / (outputHeight - 1)) * 100}%, calc(100% - 14px))`,
+              {!isCropping && (
+                <PreviewElementControls
+                  canvasRef={canvasRef}
+                  backgroundRef={backgroundPreviewRef}
+                  outputWidth={outputWidth}
+                  outputHeight={outputHeight}
+                  videoRect={{
+                    x:
+                      displayedVideoCenter -
+                      displayedVideoWidth / 2 +
+                      (videoCrop.left / sourceVideoWidth) * displayedVideoWidth,
+                    y:
+                      displayedVideoTop +
+                      (videoCrop.top / sourceVideoHeight) * displayedVideoHeight,
+                    width:
+                      displayedVideoWidth *
+                      (1 - (videoCrop.left + videoCrop.right) / sourceVideoWidth),
+                    height:
+                      displayedVideoHeight *
+                      (1 - (videoCrop.top + videoCrop.bottom) / sourceVideoHeight),
                   }}
-                >
-                  {subtitlePositionY}px
-                </output>
-              </div>
+                />
+              )}
             </div>
           </div>
           <div

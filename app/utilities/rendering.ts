@@ -445,7 +445,9 @@ export async function handleDrawCanvas(canvas: HTMLCanvasElement, subtitle: any,
     return;
   }
 
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.translate(overlay.horizontalPosition, 0);
 
   if (subtitle) {
     const captionText = parseMultilingualText(subtitle.text);
@@ -1155,6 +1157,7 @@ export async function convertCanvas(
             | OffscreenCanvasRenderingContext2D;
         }
 
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, width, height);
         const doubleImagesOverVideo =
           overlay.backgroundMode === "double-image" && overlay.doubleImageLayer === "over";
@@ -1221,6 +1224,7 @@ export async function convertCanvas(
           addBackground(ctx, width, height, overlay.colour as string, preloadedImages);
         }
 
+        ctx.translate(overlay.horizontalPosition, 0);
         if (subtitle) {
           const captionText = parseMultilingualText(subtitle.text);
           const cantonese = captionText.yue || "";

@@ -61,7 +61,7 @@ function ImageRegion({
       role="group"
       aria-label={label}
       tabIndex={image ? 0 : undefined}
-      className={`pointer-events-auto absolute left-0 w-full outline-none focus-visible:ring-1 focus-visible:ring-white/40 focus-visible:ring-inset ${position === "full" ? "inset-y-0" : position === "top" ? "top-0 h-1/2" : "bottom-0 h-1/2"}`}
+      className={`${image ? "pointer-events-auto z-1" : "pointer-events-none z-4"} absolute left-0 w-full outline-none focus-visible:ring-1 focus-visible:ring-white/40 focus-visible:ring-inset ${position === "full" ? "inset-y-0" : position === "top" ? "top-0 h-1/2" : "bottom-0 h-1/2"}`}
       onContextMenu={(event) => {
         if (!image) return;
         event.preventDefault();
@@ -84,7 +84,7 @@ function ImageRegion({
           type="button"
           aria-label={`Choose ${label}`}
           title={`Choose ${label}`}
-          className={`absolute left-1/2 flex h-12 w-12 -translate-x-1/2 cursor-pointer items-center justify-center rounded-xl border border-white/20 bg-black/30 text-white/40 backdrop-blur-sm transition-colors hover:bg-black/50 hover:text-white/90 focus-visible:text-white/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 ${position === "full" ? "top-[15%]" : position === "top" ? "top-[30%]" : "bottom-[30%]"}`}
+          className={`pointer-events-auto absolute left-1/2 flex h-12 w-12 -translate-x-1/2 cursor-pointer items-center justify-center rounded-xl border border-white/20 bg-black/30 text-white/40 backdrop-blur-sm transition-colors hover:bg-black/50 hover:text-white/90 focus-visible:text-white/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 ${position === "full" ? "top-[15%]" : position === "top" ? "top-[30%]" : "bottom-[30%]"}`}
           onClick={() => inputRef.current?.click()}
         >
           <PhotoIcon className="h-7 w-7" aria-hidden="true" />
@@ -166,7 +166,7 @@ export default function BackgroundImageButtons() {
   if (mode === "colour") return null;
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-1">
+    <div className="pointer-events-none absolute inset-0">
       {mode === "full-image" ? (
         <ImageRegion key="full" label="background image" position="full" />
       ) : (

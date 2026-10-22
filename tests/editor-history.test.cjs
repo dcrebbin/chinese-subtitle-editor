@@ -123,11 +123,16 @@ test("autosave, undo, redo, grouping, source isolation, and draft recovery", () 
   const pointer = new Event("pointerdown");
   Object.defineProperty(pointer, "target", { value: new Element() });
   window.dispatchEvent(pointer);
-  setOverlayState({ verticalPosition: 210 });
-  setOverlayState({ verticalPosition: 220 });
+  setOverlayState({ verticalPosition: 210, horizontalPosition: 40 });
+  setOverlayState({ verticalPosition: 220, horizontalPosition: 80 });
   window.dispatchEvent(new Event("pointerup"));
   undoEditorChange();
   assert.equal(useOverlayStore.getState().overlay.verticalPosition, 200);
+  assert.equal(useOverlayStore.getState().overlay.horizontalPosition, 0);
+  redoEditorChange();
+  assert.equal(useOverlayStore.getState().overlay.horizontalPosition, 80);
+  assert.equal(JSON.parse(storage.get("langpal-overlay-settings")).horizontalPosition, 80);
+  undoEditorChange();
   assert.equal(useEditorHistory.getState().canUndo, false);
   const size = useSettingsStore.getState().settings.subtitleSize;
   setSettingsState({ subtitleSize: size + 4 });

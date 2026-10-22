@@ -11,6 +11,7 @@ type OverlayStore = {
     loadedVideoId: string | null;
     setLoadedVideoId: (loadedVideoId: string | null) => void;
     verticalPosition: number;
+    horizontalPosition: number;
     setVerticalPosition: (verticalPosition: number) => void;
     sizeMultiplier: number;
     flipSubtitleRows: boolean;
@@ -99,6 +100,7 @@ type OverlayStore = {
 type PersistableOverlaySettings = Pick<
   OverlayStore["overlay"],
   | "verticalPosition"
+  | "horizontalPosition"
   | "sizeMultiplier"
   | "flipSubtitleRows"
   | "separateTextSizes"
@@ -140,6 +142,7 @@ type PersistableOverlaySettings = Pick<
 
 export const defaultPersistableOverlaySettings: PersistableOverlaySettings = {
   verticalPosition: 200,
+  horizontalPosition: 0,
   sizeMultiplier: 1,
   flipSubtitleRows: false,
   separateTextSizes: false,
@@ -252,6 +255,7 @@ function persistOverlaySettings(overlay: OverlayStore["overlay"]) {
 
   const settingsToSave = sanitizePersistableOverlaySettings({
     verticalPosition: overlay.verticalPosition,
+    horizontalPosition: overlay.horizontalPosition,
     sizeMultiplier: overlay.sizeMultiplier,
     flipSubtitleRows: overlay.flipSubtitleRows,
     separateTextSizes: overlay.separateTextSizes,
