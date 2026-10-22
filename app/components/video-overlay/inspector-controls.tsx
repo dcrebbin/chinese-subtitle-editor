@@ -129,7 +129,7 @@ export function Segmented<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="inline-flex min-w-0 flex-wrap rounded-lg border border-white/15 bg-black/30 p-0.5">
+    <div className="inline-flex min-w-0 flex-wrap rounded-lg border border-white/15 bg-black/30 p-1">
       {options.map(([optionValue, optionLabel]) => (
         <button
           key={optionValue}

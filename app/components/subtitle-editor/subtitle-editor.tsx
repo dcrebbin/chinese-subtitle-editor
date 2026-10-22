@@ -25,6 +25,7 @@ import { toolbarButtonClassName } from "../video-overlay/inspector-controls";
 import RetroKaraokeTimingEditor from "./retro-karaoke-timing-editor";
 import SubtitleEditorGenerateView from "./subtitle-editor-generate-view";
 import SubtitleEditorSearchView from "./subtitle-editor-search-view";
+import SubtitleExportModal from "./subtitle-export-modal";
 import SubtitleSrtImport from "./subtitle-srt-import";
 
 export interface Subtitle {
@@ -65,8 +66,8 @@ export default function SubtitleEditor() {
   const captionElementRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
+  const [exportOpen, setExportOpen] = useState(false);
 
-  const [selectedLanguage, setSelectedLanguage] = useState<string[]>([]);
   const [japaneseLoading, setJapaneseLoading] = useState<Record<number, boolean>>({});
   const [japaneseErrors, setJapaneseErrors] = useState<Record<number, string>>({});
   const [japaneseTransferMessage, setJapaneseTransferMessage] = useState("");
@@ -118,6 +119,31 @@ export default function SubtitleEditor() {
       localCaptions: updatedCaptions,
       originalCaptions: updatedCaptions, // Update original captions to reflect the addition
     });
+  }
+
+  function captionLanguages(caption: CaptionSegment) {
+    return Object.keys(caption.text)
+      .map((code) => CaptionLanguages.find((language) => language.code === code))
+      .filter((language): language is CaptionLanguage =>
+        Boolean(language && caption.text[language.code] != null),
+      );
+  }
+
+  function handleChangeLanguage(index: number, oldLanguage: string, newLanguage: string) {
+    const caption = session.localCaptions[index];
+    if (!caption || oldLanguage === newLanguage || caption.text[newLanguage] != null) return;
+
+    // Replace the key in place so primary and secondary retain their order and text.
+    const text = Object.fromEntries(
+      Object.entries(caption.text)
+        .filter(([code]) => code !== newLanguage)
+        .map(([code, value]) => [code === oldLanguage ? newLanguage : code, value]),
+    );
+    text[oldLanguage] = null;
+    const updatedCaptions = session.localCaptions.map((item, itemIndex) =>
+      itemIndex === index ? { ...item, text } : item,
+    );
+    setSessionState({ localCaptions: updatedCaptions, originalCaptions: updatedCaptions });
   }
 
   function handleDeleteLanguage(index: number, language: string) {
@@ -365,7 +391,12 @@ export default function SubtitleEditor() {
     }
   }
 
-  const languageContent = (language: CaptionLanguage, caption: CaptionSegment, index: number) => {
+  const languageContent = (
+    language: CaptionLanguage,
+    caption: CaptionSegment,
+    index: number,
+    rowIndex: number,
+  ) => {
     const sourceText = caption.text[language.code]?.trim() || "";
     const savedJapanese =
       language.code === "jp" ? session.japaneseTransliterations[sourceText] : undefined;
@@ -379,11 +410,26 @@ export default function SubtitleEditor() {
           >
             <div className="flex w-full flex-col gap-1.5">
               <div className="flex items-center justify-between gap-2">
-                <label
-                  htmlFor={`${index}-${language.code}`}
-                  className="text-left text-xl font-bold xl:text-2xl"
-                >
-                  {language.name}
+                <label className="flex min-w-0 flex-1 items-center gap-2 text-sm font-bold">
+                  <select
+                    aria-label={`${rowIndex === 0 ? "Primary" : "Secondary"} language for caption ${index + 1}`}
+                    value={language.code}
+                    onChange={(event) =>
+                      handleChangeLanguage(index, language.code, event.target.value)
+                    }
+                    onKeyDown={(event) => event.stopPropagation()}
+                    onKeyUp={(event) => event.stopPropagation()}
+                    className="min-w-0 flex-1 cursor-pointer rounded bg-white p-1.5 text-black"
+                  >
+                    {CaptionLanguages.filter(
+                      (option) =>
+                        option.code === language.code || caption.text[option.code] == null,
+                    ).map((option) => (
+                      <option key={option.code} value={option.code}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 {language.code === "jp" && (
                   <button
@@ -399,8 +445,19 @@ export default function SubtitleEditor() {
                         : "Generate Romaji"}
                   </button>
                 )}
+                <button
+                  type="button"
+                  data-tooltip-id="global-tooltip"
+                  aria-label={`Delete ${rowIndex === 0 ? "primary" : "secondary"} row for caption ${index + 1}`}
+                  data-tooltip-content="Delete Row"
+                  onClick={() => handleDeleteLanguage(index, language.code)}
+                  className="flex shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-black/30 p-1.5 hover:bg-white/20"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </button>
               </div>
               <textarea
+                aria-label={`${rowIndex === 0 ? "Primary" : "Secondary"} subtitle text for caption ${index + 1}`}
                 id={`${index}-${language.code}`}
                 value={caption.text[language.code] || ""}
                 onChange={(e) => {
@@ -454,15 +511,6 @@ export default function SubtitleEditor() {
                 <p className="text-sm text-red-300">{japaneseErrors[index]}</p>
               )}
             </div>
-            <button
-              type="button"
-              data-tooltip-id="global-tooltip"
-              data-tooltip-content="Delete Language Section"
-              onClick={() => handleDeleteLanguage(index, language.code)}
-              className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-2 hover:bg-white/20 xl:p-3"
-            >
-              <TrashIcon className="h-6 w-6 xl:h-10 xl:w-10" />
-            </button>
           </div>
         )}
       </>
@@ -470,14 +518,11 @@ export default function SubtitleEditor() {
   };
 
   function handleNewCaptionLanguage(index: number, language: string) {
-    const updatedSelectedLanguage = [...selectedLanguage];
-    updatedSelectedLanguage[index] = language;
-    setSelectedLanguage(updatedSelectedLanguage);
     const updatedCaptions = [...session.localCaptions];
-    if (!updatedCaptions[index]) {
+    if (!updatedCaptions[index] || captionLanguages(updatedCaptions[index]).length >= 2) {
       return;
     }
-    if (!updatedCaptions[index].text[language]) {
+    if (updatedCaptions[index].text[language] == null) {
       updatedCaptions[index].text[language] = "";
     }
     setSessionState({
@@ -608,17 +653,7 @@ export default function SubtitleEditor() {
         <SubtitleSrtImport />
         <button
           type="button"
-          onClick={() => {
-            const blob = new Blob([session.localSrtContent], { type: "text/plain;charset=utf-8" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = `${session.videoId || "subtitles"}.srt`;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 0);
-          }}
+          onClick={() => setExportOpen(true)}
           className={`${toolbarButtonClassName} flex-1 justify-center whitespace-nowrap`}
         >
           Export
@@ -667,7 +702,9 @@ export default function SubtitleEditor() {
             type="button"
             data-tooltip-id="global-tooltip"
             data-tooltip-content="Add New Caption Above"
-            onClick={() => handleAdd(index, caption.startTime, selectedLanguage[index] || "yue")}
+            onClick={() =>
+              handleAdd(index, caption.startTime, captionLanguages(caption)[0]?.code || "yue")
+            }
             className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-1 p-2 hover:bg-white/20"
           >
             <PlusIcon className="h-6 w-6 xl:h-10 xl:w-10" />
@@ -778,53 +815,42 @@ export default function SubtitleEditor() {
             </div>
 
             <div className="flex w-full flex-col items-start justify-center gap-1.5">
-              {CaptionLanguages.map((language: CaptionLanguage) => (
-                <div key={`${index}-${language.code}-language-content`} className="w-full">
-                  {languageContent(language, caption, index)}
-                </div>
-              ))}
+              {captionLanguages(caption)
+                .slice(0, 2)
+                .map((language, rowIndex) => (
+                  <div key={`${index}-${language.code}-language-content`} className="w-full">
+                    {languageContent(language, caption, index, rowIndex)}
+                  </div>
+                ))}
             </div>
 
             {overlay.subtitleStyle === "retro-karaoke" && (
               <RetroKaraokeTimingEditor caption={caption} />
             )}
 
-            <div className="flex items-center justify-between gap-1.5">
-              <select
-                id={`${index}-${selectedLanguage[index]}`}
-                value={selectedLanguage[index] || "yue"}
-                onChange={(e) => {
-                  const updatedSelectedLanguage = [...selectedLanguage];
-                  updatedSelectedLanguage[index] = e.target.value;
-                  setSelectedLanguage(updatedSelectedLanguage);
-                }}
-                className="flex w-full cursor-pointer rounded border-none bg-white p-1.5 text-center text-black"
-              >
-                {CaptionLanguages.map((language: CaptionLanguage) => (
-                  <option key={`${index}-${language.code}-caption-select`} value={language.code}>
-                    {language.name}
-                  </option>
-                ))}
-              </select>
+            {captionLanguages(caption).length < 2 && (
               <button
                 type="button"
-                data-tooltip-id="global-tooltip"
-                data-tooltip-content="Add New Language Section"
-                disabled={caption?.text[selectedLanguage[index] || ""] !== null}
-                className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-2 hover:bg-white/20 xl:p-3"
                 onClick={() => {
-                  handleNewCaptionLanguage(index, selectedLanguage[index] || "yue");
+                  const nextLanguage = CaptionLanguages.find(
+                    (language) => caption.text[language.code] == null,
+                  );
+                  if (nextLanguage) handleNewCaptionLanguage(index, nextLanguage.code);
                 }}
+                className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-black/30 p-2 hover:bg-white/20"
               >
-                <PlusIcon className="h-6 w-6 xl:h-10 xl:w-10" />
+                <PlusIcon className="h-5 w-5" />
+                Add {captionLanguages(caption).length === 0 ? "primary" : "secondary"} row
               </button>
-            </div>
+            )}
           </div>
           <button
             type="button"
             data-tooltip-id="global-tooltip"
             data-tooltip-content="Add New Caption Below"
-            onClick={() => handleAdd(index + 1, caption.endTime, selectedLanguage[index] || "yue")}
+            onClick={() =>
+              handleAdd(index + 1, caption.endTime, captionLanguages(caption)[0]?.code || "yue")
+            }
             className="flex cursor-pointer items-center justify-center rounded-3xl border-none bg-black/30 p-2 hover:bg-white/20"
           >
             <PlusIcon className="h-6 w-6 xl:h-10 xl:w-10" />
@@ -870,6 +896,7 @@ export default function SubtitleEditor() {
       >
         <SubtitleEditorGenerateView />
       </div>
+      {exportOpen && <SubtitleExportModal onClose={() => setExportOpen(false)} />}
       {session.isLoading && <Loading />}
       {session.selectedTab === "captions" ? (
         <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden">
